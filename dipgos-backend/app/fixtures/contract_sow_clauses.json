@@ -1,0 +1,79 @@
+[
+  {
+    "id": "clause-mw01-prelim-1",
+    "sow_id": "sow-mw01-prelim",
+    "title": "Site mobilisation",
+    "status": "Completed",
+    "lead": "Construction",
+    "start_date": "2024-01-05",
+    "due_date": "2024-02-20",
+    "progress": 100,
+    "sequence": 1
+  },
+  {
+    "id": "clause-mw01-prelim-2",
+    "sow_id": "sow-mw01-prelim",
+    "title": "Temporary works setup",
+    "status": "Completed",
+    "lead": "Logistics",
+    "start_date": "2024-02-21",
+    "due_date": "2024-03-30",
+    "progress": 100,
+    "sequence": 2
+  },
+  {
+    "id": "clause-mw01-river-1",
+    "sow_id": "sow-mw01-river",
+    "title": "Cofferdam installation",
+    "status": "In Progress",
+    "lead": "Hydraulics",
+    "start_date": "2024-04-01",
+    "due_date": "2024-07-30",
+    "progress": 70,
+    "sequence": 1
+  },
+  {
+    "id": "clause-mw01-river-2",
+    "sow_id": "sow-mw01-river",
+    "title": "Diversion channel excavation",
+    "status": "In Progress",
+    "lead": "Earthworks",
+    "start_date": "2024-05-10",
+    "due_date": "2024-09-12",
+    "progress": 58,
+    "sequence": 2
+  },
+  {
+    "id": "clause-mw01-rcc-1",
+    "sow_id": "sow-mw01-rcc",
+    "title": "Left bank RCC placements",
+    "status": "In Progress",
+    "lead": "Civil",
+    "start_date": "2024-06-01",
+    "due_date": "2024-11-15",
+    "progress": 68,
+    "sequence": 1
+  },
+  {
+    "id": "clause-mw01-rcc-2",
+    "sow_id": "sow-mw01-rcc",
+    "title": "Instrumentation embeds",
+    "status": "Planned",
+    "lead": "QA",
+    "start_date": "2024-08-01",
+    "due_date": "2024-12-20",
+    "progress": 15,
+    "sequence": 2
+  },
+  {
+    "id": "clause-mw02-turbine-1",
+    "sow_id": "sow-mw02-turbine",
+    "title": "Rock support works",
+    "status": "In Progress",
+    "lead": "Geotech",
+    "start_date": "2024-05-05",
+    "due_date": "2024-09-01",
+    "progress": 52,
+    "sequence": 1
+  }
+]

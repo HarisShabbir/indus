@@ -1,0 +1,59 @@
+[
+  {
+    "project_id": "diamer-basha",
+    "payload": {
+      "alerts": 12,
+      "physical": {"actual": 20.0, "planned": 59.3},
+      "productivity": {
+        "design": [
+          {"label": "HM-1 Tender Drawings", "status": "Completed", "percent": 100},
+          {"label": "MW-1 CFD Modelling Stage 3", "status": "In Progress", "percent": 65}
+        ],
+        "preparatory": [
+          {"label": "MW-1 RCC Facilities", "status": "In Progress", "percent": 74},
+          {"label": "Reservoir Slope Protection", "status": "In Progress", "percent": 48},
+          {"label": "Service Buildings", "status": "Delayed", "percent": 32}
+        ],
+        "construction": [
+          {"label": "MW-1 Dam Pit Excavation", "status": "Delayed", "actual": 74, "planned": 82},
+          {"label": "MW-1 Right Bank Abutment", "status": "In Progress", "actual": 62, "planned": 62},
+          {"label": "EM-02 RB Powerhouse", "status": "In Progress", "actual": 45, "planned": 50}
+        ]
+      },
+      "milestones": [
+        {"label": "Milestone A & B", "status": "Completed"},
+        {"label": "Milestone C", "status": "Delayed"},
+        {"label": "Milestone D", "status": "In Progress"}
+      ],
+      "quality": {
+        "ncr": {"closed": 122, "open": 34, "issued": 156},
+        "qaor": {"closed": 169, "open": 40, "issued": 209},
+        "conformance": [
+          {"label": "Excavation Tolerance", "status": "Within ±0.3%", "description": "Survey validated"},
+          {"label": "Rebar Quality Audits", "status": "In Progress", "description": "Batch sampling underway"}
+        ]
+      },
+      "workInProgress": [
+        {"contract": "MW-01", "status": "Construction", "percent": 68},
+        {"contract": "HM-01", "status": "Bidding", "percent": 34},
+        {"contract": "MW-02", "status": "Bidding", "percent": 42},
+        {"contract": "EM-01", "status": "Pre-PQ", "percent": 18},
+        {"contract": "EM-02", "status": "Pre-PQ", "percent": 26},
+        {"contract": "HM-02", "status": "PQ", "percent": 22}
+      ],
+      "spi": {
+        "value": 0.75,
+        "status": "Amber",
+        "runway_days": 47,
+        "burn_rate_days": 47,
+        "cash_flow": 4838488,
+        "tasks": [
+          {"label": "Main Facilities for RCC", "impact": "5%", "status": "In Progress"},
+          {"label": "Dam Pit Excavation", "impact": "4.8%", "status": "Delayed"},
+          {"label": "MW-2 Commencement", "impact": "10%", "status": "In Progress"},
+          {"label": "HM-1 Commissionment", "impact": "10%", "status": "In Progress"}
+        ]
+      }
+    }
+  }
+]

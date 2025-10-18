@@ -1,0 +1,42 @@
+from datetime import datetime
+
+projects = [
+    {"id": "mohmand-dam", "name": "Mohmand Dam", "lat": 34.755, "lng": 71.215, "status_pct": 43.0, "phase": "Construction", "alerts": 28},
+    {"id": "dasu-hpp", "name": "Dasu Hydropower Project", "lat": 35.291, "lng": 72.103, "status_pct": 20.0, "phase": "Construction", "alerts": 22},
+    {"id": "diamer-basha", "name": "Diamer Basha Dam", "lat": 35.619, "lng": 74.616, "status_pct": 20.0, "phase": "Construction", "alerts": 12},
+    {"id": "ts-extension", "name": "Tarbela 5th Extension", "lat": 34.088, "lng": 72.693, "status_pct": 47.5, "phase": "Construction", "alerts": 8},
+    # O&M phase examples
+    {"id": "tarbela-4th", "name": "Tarbela 4th Extension", "lat": 34.088, "lng": 72.693, "status_pct": 100.0, "phase": "O&M", "status_label": "In-operation", "alerts": 22, "image": "https://images.unsplash.com/photo-1592216451014-05c7e52f1831?q=80&w=1600&auto=format&fit=crop"},
+    {"id": "mangla", "name": "Mangla Dam", "lat": 33.135, "lng": 73.640, "status_pct": 100.0, "phase": "O&M", "status_label": "Maintenance", "alerts": 22, "image": "https://images.unsplash.com/photo-1476304884326-cd2c88572c5f?q=80&w=1600&auto=format&fit=crop"},
+    {"id": "ghazi-barotha", "name": "Ghazi-Barotha", "lat": 33.969, "lng": 72.708, "status_pct": 100.0, "phase": "O&M", "status_label": "In-operation", "alerts": 22, "image": "https://images.unsplash.com/photo-1517963879433-6ad2b056d712?q=80&w=1600&auto=format&fit=crop"},
+    {"id": "chashma", "name": "Chashma", "lat": 32.390, "lng": 71.410, "status_pct": 100.0, "phase": "O&M", "status_label": "Shutdown", "alerts": 22, "image": "https://images.unsplash.com/photo-1530639832026-18d482b08b97?q=80&w=1600&auto=format&fit=crop"},
+    # Planning & Design phase
+    {"id": "bungi-hpp", "name": "Bungi Hydropower Project", "lat": 35.680, "lng": 74.617, "status_pct": 12.0, "phase": "Planning & Design", "alerts": 5},
+    {"id": "harpo-hpp", "name": "Harpo Hydropower Project", "lat": 35.330, "lng": 74.810, "status_pct": 18.0, "phase": "Planning & Design", "alerts": 7},
+    {"id": "pattan-dam", "name": "Pattan Hydropower Project", "lat": 35.030, "lng": 72.943, "status_pct": 9.0, "phase": "Planning & Design", "alerts": 6},
+    {"id": "thakot-dam", "name": "Thakot Hydropower Project", "lat": 34.860, "lng": 72.915, "status_pct": 15.0, "phase": "Planning & Design", "alerts": 4},
+]
+
+alerts = [
+    {
+        "id": "alert-rcc-works-1",
+        "project_id": "diamer-basha",
+        "title": "DBD.MW-01 – Ch: 6 – RCC Works",
+        "location": "DAM Pit Block #13–17",
+        "activity": "RCC Dam Open Excavation",
+        "severity": "alert",
+        "raised_at": datetime.utcnow().isoformat() + "Z",
+        "items": [
+            {"type": "process", "label": "Process Alarm", "detail": "Over Excavation"},
+            {"type": "schedule", "label": "Schedule Alarm", "detail": "Delay"},
+            {"type": "impact", "label": "Impact Activity", "detail": "Dental Concreting"},
+            {"type": "milestone", "label": "Critical Milestone Impact", "detail": "RCC Block #12–15"},
+        ]
+    }
+]
+
+def get_project(project_id: str):
+    for p in projects:
+        if p["id"] == project_id:
+            return p
+    return None

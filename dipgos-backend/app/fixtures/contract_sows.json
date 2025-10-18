@@ -1,0 +1,138 @@
+[
+  {
+    "id": "sow-mw01-prelim",
+    "contract_id": "mw-01-main-dam",
+    "title": "Preliminary and General Item",
+    "status": "Completed",
+    "progress": 100,
+    "sequence": 1
+  },
+  {
+    "id": "sow-mw01-river",
+    "contract_id": "mw-01-main-dam",
+    "title": "River diversion & care of water",
+    "status": "In Progress",
+    "progress": 65,
+    "sequence": 2
+  },
+  {
+    "id": "sow-mw01-rcc",
+    "contract_id": "mw-01-main-dam",
+    "title": "RCC Dam",
+    "status": "In Progress",
+    "progress": 74,
+    "sequence": 3
+  },
+  {
+    "id": "sow-mw01-left-bank",
+    "contract_id": "mw-01-main-dam",
+    "title": "Left bank - FT",
+    "status": "In Progress",
+    "progress": 58,
+    "sequence": 4
+  },
+  {
+    "id": "sow-mw01-right-bank",
+    "contract_id": "mw-01-main-dam",
+    "title": "Right bank diversion & FT",
+    "status": "In Progress",
+    "progress": 51,
+    "sequence": 5
+  },
+  {
+    "id": "sow-mw01-reservoir",
+    "contract_id": "mw-01-main-dam",
+    "title": "Reservoir slope protection",
+    "status": "Delayed",
+    "progress": 32,
+    "sequence": 6
+  },
+  {
+    "id": "sow-mw01-instrumentation",
+    "contract_id": "mw-01-main-dam",
+    "title": "Instrumentation",
+    "status": "Planned",
+    "progress": 18,
+    "sequence": 7
+  },
+  {
+    "id": "sow-mw02-turbine",
+    "contract_id": "mw-02-rb-powerhouse",
+    "title": "Turbine hall excavation",
+    "status": "In Progress",
+    "progress": 55,
+    "sequence": 1
+  },
+  {
+    "id": "sow-mw02-powerhouse-fitout",
+    "contract_id": "mw-02-rb-powerhouse",
+    "title": "Powerhouse fit-out",
+    "status": "In Progress",
+    "progress": 47,
+    "sequence": 2
+  },
+  {
+    "id": "sow-mw02-mechanical",
+    "contract_id": "mw-02-lb-powerhouse",
+    "title": "Mechanical assemblies",
+    "status": "Bidding",
+    "progress": 34,
+    "sequence": 1
+  },
+  {
+    "id": "sow-em01-panels",
+    "contract_id": "em-01-lb",
+    "title": "Panel fabrication",
+    "status": "Bidding",
+    "progress": 18,
+    "sequence": 1
+  },
+  {
+    "id": "sow-em01-cabling",
+    "contract_id": "em-01-rb",
+    "title": "Control cabling",
+    "status": "In Progress",
+    "progress": 42,
+    "sequence": 1
+  },
+  {
+    "id": "sow-em02-switchyard",
+    "contract_id": "em-02-rb",
+    "title": "Switchyard equipment",
+    "status": "Pre-PQ",
+    "progress": 32,
+    "sequence": 1
+  },
+  {
+    "id": "sow-em02-commissioning",
+    "contract_id": "em-02-lb",
+    "title": "Commissioning",
+    "status": "Planned",
+    "progress": 12,
+    "sequence": 2
+  },
+  {
+    "id": "sow-hm01-gates",
+    "contract_id": "hm-01",
+    "title": "Gates fabrication",
+    "status": "Bidding",
+    "progress": 22,
+    "sequence": 1
+  },
+  {
+    "id": "sow-hm01-hydraulics",
+    "contract_id": "hm-01",
+    "title": "Hydraulic assemblies",
+    "status": "Bidding",
+    "progress": 16,
+    "sequence": 2
+  },
+  {
+    "id": "sow-hm02-penstocks",
+    "contract_id": "hm-02",
+    "title": "Penstock alignment",
+    "status": "Pre-PQ",
+    "progress": 12,
+    "sequence": 1
+  }
+]

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "alert-rcc-works-1",
+    "project_id": "diamer-basha",
+    "title": "RCC Works - Over Excavation",
+    "location": "DAM Pit Block #13–17",
+    "activity": "RCC Dam Open Excavation",
+    "severity": "alert",
+    "raised_at": "2024-09-22T08:34:00Z",
+    "items": [
+      {"item_type": "process", "label": "Process Alarm", "detail": "Over Excavation"},
+      {"item_type": "schedule", "label": "Schedule Alarm", "detail": "Delay vs. baseline"},
+      {"item_type": "impact", "label": "Impact Activity", "detail": "Dental Concreting"},
+      {"item_type": "milestone", "label": "Critical Milestone", "detail": "RCC Block #12–15"}
+    ]
+  }
+]

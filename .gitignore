@@ -1,0 +1,41 @@
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Python / backend
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+pip-wheel-metadata/
+
+# Env / secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Misc
+.eslintcache
+.parcel-cache/
+coverage/
+uvicorn.log
+vite.log
