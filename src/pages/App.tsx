@@ -2009,7 +2009,7 @@ function ContractControlCenterOverlay({
   const [hoveredContract, setHoveredContract] = useState<ContractSite | null>(null)
   const mapStatsRef = useRef<HTMLDivElement | null>(null)
   const navigate = useNavigate()
-  const [activeUtilityView, setActiveUtilityView] = useState<UtilityView>(initialUtilityView ?? 'financial')
+  const [activeUtilityView, setActiveUtilityView] = useState<UtilityView | null>(initialUtilityView ?? null)
   const contractWeatherMap = useMemo(() => {
     const map = new Map<string, WeatherSummary['contracts'][number]>()
     weather?.contracts?.forEach((point) => {
