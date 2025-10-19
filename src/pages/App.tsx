@@ -30,7 +30,8 @@ import {
 } from '../api'
 import ProjectProductivityPanel from '../panels/ProjectProductivityPanel'
 import MapWipSplit from '../components/MapWipSplit'
-import { FEATURE_SCHEDULE_UI } from '../config'
+import HierarchyWipBoard from '../components/wip/HierarchyWipBoard'
+import { FEATURE_SCHEDULE_UI, FEATURE_CCC_V2 } from '../config'
 import 'leaflet/dist/leaflet.css'
 import Breadcrumbs from '../components/breadcrumbs/Breadcrumbs'
 import {
@@ -53,8 +54,8 @@ type MapFeatureToggle = {
   intensity: boolean
 }
 
-const MAP_WIP_SPLIT_STORAGE_KEY = 'mapWipSplit:v2'
-const DEFAULT_MAP_WIP_SPLIT: [number, number] = [70, 30]
+const MAP_WIP_SPLIT_STORAGE_KEY = FEATURE_CCC_V2 ? 'mapWipSplit:v2' : 'mapWipSplit'
+const DEFAULT_MAP_WIP_SPLIT: [number, number] = FEATURE_CCC_V2 ? [70, 30] : [72, 28]
 const MIN_CONTRACT_MAP_HEIGHT = 480
 const MIN_CONTRACT_WIP_HEIGHT = 320
 
@@ -596,6 +597,17 @@ const contractAccent = (name: string) => {
 }
 
 const accentColor = (contract: ContractSite) => contractAccent(contract.name)
+
+const extractContractCode = (contract: ContractSite) => {
+  const match = contract.name.match(/^[A-Za-z0-9-]+/)
+  if (match && match[0]) {
+    return match[0]
+  }
+  const idMatch = contract.id.match(/^[A-Za-z0-9-]+/)
+  return idMatch?.[0] ?? contract.id
+}
+
+const normaliseKey = (value: string) => value.replace(/[^a-z0-9]/gi, '').toLowerCase()
 
 const phaseAccentHex = (phase: string) => {
   if (phase === 'Construction') return '#fb923c'
@@ -2000,6 +2012,8 @@ function ContractControlCenterOverlay({
   onFocusedContractApplied?: () => void
 }) {
   const [focusedContractId, setFocusedContractId] = useState<string | null>(initialFocusedContractId ?? null)
+  const [focusedSowId, setFocusedSowId] = useState<string | null>(null)
+  const [focusedProcessId, setFocusedProcessId] = useState<string | null>(null)
   const [expandedContracts, setExpandedContracts] = useState<Record<string, boolean>>({})
   const [expandedSows, setExpandedSows] = useState<Record<string, boolean>>({})
   const [mapView, setMapView] = useState<MapView>('atlas')
@@ -2132,6 +2146,15 @@ function ContractControlCenterOverlay({
     }
     return FALLBACK_CONTRACTS[project.id] ?? []
   }, [payload, project.id])
+  const contractCodeMap = useMemo(() => {
+    const map = new Map<string, ContractSite>()
+    contracts.forEach((contract) => {
+      map.set(normaliseKey(extractContractCode(contract)), contract)
+      map.set(normaliseKey(contract.name), contract)
+      map.set(normaliseKey(contract.id), contract)
+    })
+    return map
+  }, [contracts])
   const contractIds = useMemo(
     () => Array.from(new Set(contracts.map((contract) => contract.id))).sort(),
     [contracts],
@@ -2207,6 +2230,129 @@ function ContractControlCenterOverlay({
     return map
   }, [sowGroups])
 
+  useEffect(() => {
+    if (!FEATURE_CCC_V2) {
+      return
+    }
+    if (!focusedContract) {
+      setFocusedSowId(null)
+      setFocusedProcessId(null)
+      return
+    }
+    const sections = sowByContract.get(focusedContract.id) ?? []
+    if (!sections.length) {
+      setFocusedSowId(null)
+      setFocusedProcessId(null)
+      return
+    }
+    const hasActiveSow = focusedSowId && sections.some((section) => section.id === focusedSowId)
+    const nextSowId = hasActiveSow ? focusedSowId : sections[0].id
+    if (nextSowId !== focusedSowId) {
+      setFocusedSowId(nextSowId)
+    }
+    const selectedSow = sections.find((section) => section.id === (hasActiveSow ? focusedSowId : nextSowId))
+    const clauses = selectedSow?.clauses ?? []
+    if (!clauses.length) {
+      if (focusedProcessId !== null) {
+        setFocusedProcessId(null)
+      }
+    } else {
+      const hasActiveProcess = focusedProcessId && clauses.some((clause) => clause.id === focusedProcessId)
+      if (!hasActiveProcess) {
+        setFocusedProcessId(clauses[0].id)
+      }
+    }
+  }, [focusedContract, focusedProcessId, focusedSowId, sowByContract])
+
+  const contractDialItems = useMemo(() => {
+    if (!FEATURE_CCC_V2) {
+      return []
+    }
+    const items: Array<{ id: string; label: string; percent: number; status?: string | null; color?: string; isActive?: boolean }> = []
+    const seen = new Set<string>()
+    workInProgressItems.forEach((item) => {
+      const key = normaliseKey(item.contract)
+      const contract =
+        contractCodeMap.get(key) ||
+        contracts.find((candidate) => normaliseKey(candidate.name) === key || normaliseKey(extractContractCode(candidate)) === key)
+      const basePercent = Number.isFinite(item.percent) ? Number(item.percent) : 0
+      const percent = Math.max(0, Math.min(100, basePercent))
+      const id = contract ? contract.id : item.contract
+      if (seen.has(id)) {
+        return
+      }
+      items.push({
+        id,
+        label: contract ? contract.name : item.contract,
+        percent,
+        status: contract?.status_label ?? null,
+        color: contract ? contractAccent(contract.name) : undefined,
+        isActive: contract ? contract.id === focusedContractId : false,
+      })
+      seen.add(id)
+    })
+    contracts.forEach((contract) => {
+      if (seen.has(contract.id)) {
+        return
+      }
+      const fallbackPercent = Math.max(0, Math.min(100, Math.round(contract.status_pct ?? 0)))
+      items.push({
+        id: contract.id,
+        label: contract.name,
+        percent: fallbackPercent,
+        status: contract.status_label ?? null,
+        color: contractAccent(contract.name),
+        isActive: contract.id === focusedContractId,
+      })
+    })
+    return items
+  }, [contracts, contractCodeMap, focusedContractId, workInProgressItems])
+
+  const projectWipPercent = useMemo(() => {
+    if (!FEATURE_CCC_V2 || !contractDialItems.length) {
+      return null
+    }
+    const total = contractDialItems.reduce((sum, item) => sum + Math.max(0, Math.min(100, item.percent)), 0)
+    return total / contractDialItems.length
+  }, [contractDialItems])
+
+  const sowDialItems = useMemo(() => {
+    if (!FEATURE_CCC_V2 || !focusedContract) {
+      return []
+    }
+    const sections = sowByContract.get(focusedContract.id) ?? []
+    if (!sections.length) {
+      return []
+    }
+    return sections.map((section) => ({
+      id: section.id,
+      label: section.title,
+      percent: Math.max(0, Math.min(100, Number(section.progress ?? 0))),
+      status: section.status ?? null,
+      color: contractAccent(focusedContract.name),
+      isActive: section.id === focusedSowId,
+    }))
+  }, [focusedContract, focusedSowId, sowByContract])
+
+  const processDialItems = useMemo(() => {
+    if (!FEATURE_CCC_V2 || !focusedContract || !focusedSowId) {
+      return []
+    }
+    const sections = sowByContract.get(focusedContract.id) ?? []
+    const selectedSow = sections.find((section) => section.id === focusedSowId)
+    if (!selectedSow) {
+      return []
+    }
+    return selectedSow.clauses.map((clause) => ({
+      id: clause.id,
+      label: clause.title,
+      percent: Math.max(0, Math.min(100, Number(clause.progress ?? 0))),
+      status: clause.status ?? null,
+      color: contractAccent(focusedContract.name),
+      isActive: clause.id === focusedProcessId,
+    }))
+  }, [focusedContract, focusedProcessId, focusedSowId, sowByContract])
+
   const phaseGroups = useMemo(() => {
     const groups: Record<string, ContractSite[]> = {}
     for (const contract of filteredContracts) {
@@ -2237,15 +2383,30 @@ function ContractControlCenterOverlay({
   const handleContractSelect = useCallback((contract: ContractSite) => {
     setFocusedContractId(contract.id)
     setExpandedContracts((prev) => ({ ...prev, [contract.id]: true }))
+    if (FEATURE_CCC_V2) {
+      setFocusedSowId(null)
+      setFocusedProcessId(null)
+    }
   }, [])
 
   const toggleContractSections = useCallback((contractId: string) => {
     setExpandedContracts((prev) => ({ ...prev, [contractId]: !prev[contractId] }))
   }, [])
 
-  const toggleSow = useCallback((sowId: string) => {
+  const toggleSow = useCallback((sowId: string, contractId?: string, defaultProcessId?: string | null) => {
     setExpandedSows((prev) => ({ ...prev, [sowId]: !prev[sowId] }))
-  }, [])
+    if (FEATURE_CCC_V2) {
+      setFocusedSowId(sowId)
+      if (typeof defaultProcessId === 'string') {
+        setFocusedProcessId(defaultProcessId)
+      } else if (defaultProcessId === null) {
+        setFocusedProcessId(null)
+      }
+      if (contractId && contractId !== focusedContractId) {
+        setFocusedContractId(contractId)
+      }
+    }
+  }, [focusedContractId])
 
   const alertCount = focusedContract?.alerts ?? project.alerts ?? 0
 
@@ -2405,8 +2566,11 @@ function ContractControlCenterOverlay({
                               {(sowByContract.get(contract.id) ?? []).map((section) => {
                                 const sowExpanded = expandedSows[section.id]
                                 return (
-                                  <div key={section.id} className="sow-item">
-                                    <div className="sow-header" onClick={() => toggleSow(section.id)}>
+                                  <div key={section.id} className={`sow-item${FEATURE_CCC_V2 && section.id === focusedSowId ? ' active' : ''}`}>
+                                    <div
+                                      className="sow-header"
+                                      onClick={() => toggleSow(section.id, contract.id, section.clauses[0]?.id ?? null)}
+                                    >
                                       <div>
                                         <div className="sow-title">{section.title}</div>
                                         <div className="sow-status">{section.status}</div>
@@ -2421,7 +2585,16 @@ function ContractControlCenterOverlay({
                                     {section.clauses.length > 0 && sowExpanded && (
                                       <ul className="sow-clauses">
                                         {section.clauses.map((clause) => (
-                                          <li key={clause.id}>
+                                          <li
+                                            key={clause.id}
+                                            className={FEATURE_CCC_V2 && clause.id === focusedProcessId ? 'active' : undefined}
+                                            onClick={(event) => {
+                                              if (FEATURE_CCC_V2) {
+                                                event.stopPropagation()
+                                                setFocusedProcessId(clause.id)
+                                              }
+                                            }}
+                                          >
                                             <div className="clause-title">{clause.title}</div>
                                             <div className="clause-meta">
                                               <span>{clause.status}</span>
@@ -2615,7 +2788,21 @@ function ContractControlCenterOverlay({
                 </div>
               }
               wipPane={
-                loading && !hasWorkInProgress ? (
+                FEATURE_CCC_V2 ? (
+                  loading && !contractDialItems.length ? (
+                    <div className="pp-wip-status">Preparing work in progress…</div>
+                  ) : contractDialItems.length ? (
+                    <HierarchyWipBoard
+                      projectLabel={project.name}
+                      projectPercent={projectWipPercent}
+                      contractItems={contractDialItems}
+                      sowItems={sowDialItems}
+                      processItems={processDialItems}
+                    />
+                  ) : (
+                    <div className="pp-wip-empty">No work in progress data available yet.</div>
+                  )
+                ) : loading && !hasWorkInProgress ? (
                   <div className="pp-wip-status">Preparing work in progress…</div>
                 ) : hasWorkInProgress ? (
                   <WorkInProgressBoard items={workInProgressItems} theme={theme} />
