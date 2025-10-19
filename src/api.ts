@@ -192,6 +192,84 @@ export type ScheduleKpiResponse = {
   trend?: Array<{ date: string; spi: number | null }>
 }
 
+
+export type FinancialSummary = {
+  ev: number | null
+  pv: number | null
+  ac: number | null
+  spi: number | null
+  cpi: number | null
+  burn_rate: number | null
+  variance_abs: number | null
+  variance_pct: number | null
+  as_of: string | null
+}
+
+export type FinancialAllocationRow = {
+  description: string
+  amount: number | null
+  status: string | null
+  contractId?: string | null
+}
+
+export type FinancialAllocationResponse = {
+  project: FinancialAllocationRow
+  contracts: FinancialAllocationRow[]
+}
+
+export type FinancialExpenseRow = {
+  description: string
+  contractCode?: string | null
+  actual: number | null
+  paid: number | null
+  balance: number | null
+  status: string | null
+  children: FinancialExpenseRow[]
+}
+
+export type FinancialFundFlow = {
+  nodes: Array<{ id: string; label: string; type: string }>
+  links: Array<{ source: string; target: string; value: number }>
+}
+
+export type FinancialIncomingRow = {
+  id: string
+  accountName: string
+  fundsDeposited: number | null
+  dateOfDeposit: string | null
+}
+
+export type FinancialExpectedIncomingRow = {
+  id: string
+  accountName: string
+  fundsExpected: number | null
+  expectedDateOfDeposit: string | null
+}
+
+export type FinancialIncomingResponse = {
+  available: FinancialIncomingRow[]
+  expected: FinancialExpectedIncomingRow[]
+}
+
+export type FinancialOutgoingRow = {
+  id: string
+  accountName: string
+  expenseValue: number | null
+  dateOfExpense: string | null
+}
+
+export type FinancialExpectedOutgoingRow = {
+  id: string
+  accountName: string
+  expectedExpenseValue: number | null
+  expectedDateOfExpense: string | null
+}
+
+export type FinancialOutgoingResponse = {
+  actual: FinancialOutgoingRow[]
+  expected: FinancialExpectedOutgoingRow[]
+}
+
 export type WeatherPoint = {
   id: string
   name: string
@@ -341,6 +419,46 @@ export const fetchProjectSchedule = (projectId: string) => fetchSchedule('projec
 export const fetchContractSchedule = (contractId: string) => fetchSchedule('contract', contractId)
 export const fetchSowSchedule = (sowId: string) => fetchSchedule('sow', sowId)
 export const fetchProcessSchedule = (processId: string) => fetchSchedule('process', processId)
+
+const DEFAULT_TENANT_ID = 'default'
+
+const buildFinancialQuery = (projectId: string, contractId?: string | null, tenantId: string = DEFAULT_TENANT_ID) => {
+  const params = new URLSearchParams({ tenantId, projectId })
+  if (contractId) {
+    params.append('contractId', contractId)
+  }
+  return params.toString()
+}
+
+export async function fetchFinancialSummary(projectId: string, contractId?: string | null, tenantId: string = DEFAULT_TENANT_ID): Promise<FinancialSummary> {
+  const res = await fetch(`${API_URL}/api/v2/financial/summary?${buildFinancialQuery(projectId, contractId, tenantId)}`)
+  return handleResponse<FinancialSummary>(res)
+}
+
+export async function fetchFinancialAllocation(projectId: string, tenantId: string = DEFAULT_TENANT_ID): Promise<FinancialAllocationResponse> {
+  const res = await fetch(`${API_URL}/api/v2/financial/fund-allocation?${buildFinancialQuery(projectId, null, tenantId)}`)
+  return handleResponse<FinancialAllocationResponse>(res)
+}
+
+export async function fetchFinancialExpenses(projectId: string, contractId?: string | null, tenantId: string = DEFAULT_TENANT_ID): Promise<FinancialExpenseRow[]> {
+  const res = await fetch(`${API_URL}/api/v2/financial/expenses?${buildFinancialQuery(projectId, contractId, tenantId)}`)
+  return handleResponse<FinancialExpenseRow[]>(res)
+}
+
+export async function fetchFinancialFundFlow(projectId: string, contractId?: string | null, tenantId: string = DEFAULT_TENANT_ID): Promise<FinancialFundFlow> {
+  const res = await fetch(`${API_URL}/api/v2/financial/fund-flow?${buildFinancialQuery(projectId, contractId, tenantId)}`)
+  return handleResponse<FinancialFundFlow>(res)
+}
+
+export async function fetchFinancialIncoming(projectId: string, tenantId: string = DEFAULT_TENANT_ID): Promise<FinancialIncomingResponse> {
+  const res = await fetch(`${API_URL}/api/v2/financial/incoming?${buildFinancialQuery(projectId, null, tenantId)}`)
+  return handleResponse<FinancialIncomingResponse>(res)
+}
+
+export async function fetchFinancialOutgoing(projectId: string, contractId?: string | null, tenantId: string = DEFAULT_TENANT_ID): Promise<FinancialOutgoingResponse> {
+  const res = await fetch(`${API_URL}/api/v2/financial/outgoing?${buildFinancialQuery(projectId, contractId, tenantId)}`)
+  return handleResponse<FinancialOutgoingResponse>(res)
+}
 
 function buildContractScheduleFromTasks(contractId: string, tasks: GanttTask[]): ContractSchedule | null {
   if (!tasks.length) return null

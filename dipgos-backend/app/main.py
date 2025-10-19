@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 from contextlib import asynccontextmanager
 
-from .routers import projects, alerts, kpi, contract_kpi, schedule, contract_schedule, weather
+from .routers import projects, alerts, kpi, contract_kpi, schedule, contract_schedule, weather, ccc_v2, financial
 from .db import open_pool, close_pool, pool, initialize_database
 
 @asynccontextmanager
@@ -38,6 +38,8 @@ app.include_router(contract_kpi.router)
 app.include_router(schedule.router)
 app.include_router(contract_schedule.router)
 app.include_router(weather.router)
+app.include_router(ccc_v2.router)
+app.include_router(financial.router)
 
 @app.get("/api/health")
 def health():

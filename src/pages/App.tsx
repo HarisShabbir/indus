@@ -30,7 +30,7 @@ import {
 } from '../api'
 import ProjectProductivityPanel from '../panels/ProjectProductivityPanel'
 import HierarchyWipBoard from '../components/wip/HierarchyWipBoard'
-import { FEATURE_SCHEDULE_UI, FEATURE_CCC_V2 } from '../config'
+import { FEATURE_SCHEDULE_UI, FEATURE_CCC_V2, FEATURE_FINANCIAL_VIEW } from '../config'
 import 'leaflet/dist/leaflet.css'
 import Breadcrumbs from '../components/breadcrumbs/Breadcrumbs'
 import {
@@ -41,6 +41,7 @@ import {
   ThemeToggleButton,
   type ThemeMode,
 } from '../layout/navigation'
+import { useScheduleStore } from '../state/scheduleStore'
 import { persistCredentials, readAuthToken, readSavedCredentials, setAuthToken } from '../utils/auth'
 
 type Theme = ThemeMode
@@ -2142,7 +2143,11 @@ function ContractControlCenterOverlay({
       ),
     },
   ]
-  const visibleUtilityViews = FEATURE_SCHEDULE_UI ? utilityViews : utilityViews.filter((view) => view.id !== 'scheduling')
+  const visibleUtilityViews = utilityViews.filter((view) => {
+    if (view.id === 'scheduling' && !FEATURE_SCHEDULE_UI) return false
+    if (view.id === 'financial' && !FEATURE_FINANCIAL_VIEW) return false
+    return true
+  })
   if (!project) {
     return null
   }
@@ -2237,6 +2242,34 @@ function ContractControlCenterOverlay({
     }
   }, [focusedContract, isAuthenticated, navigate, project])
 
+  const handleFinancialNavigate = useCallback(() => {
+    if (!FEATURE_FINANCIAL_VIEW) {
+      return
+    }
+    if (!isAuthenticated) {
+      navigate('/', { state: { openView: 'login' } })
+      return
+    }
+    if (focusedContract) {
+      navigate(`/contracts/${focusedContract.id}/financial`, {
+        state: {
+          contractName: focusedContract.name,
+          projectName: project?.name,
+          projectId: project?.id,
+          contractId: focusedContract.id,
+          projectSnapshot: project ?? null,
+          utilityView: 'financial',
+        },
+      })
+      return
+    }
+    if (project?.id) {
+      navigate('/financial', {
+        state: { projectId: project.id, projectName: project.name, projectSnapshot: project ?? null },
+      })
+    }
+  }, [focusedContract, isAuthenticated, navigate, project])
+
   const sowByContract = useMemo(() => {
     const map = new Map<string, typeof sowGroups[number]['sections']>()
     sowGroups.forEach((group) => {
@@ -2254,6 +2287,7 @@ function ContractControlCenterOverlay({
 
   const handleContractSelect = useCallback((contract: ContractSite) => {
     setFocusedContractId(contract.id)
+    useScheduleStore.setState({ currentContractId: contract.id })
     if (FEATURE_CCC_V2) {
       const sections = sowByContract.get(contract.id) ?? []
       if (sections.length) {
@@ -2362,9 +2396,10 @@ function ContractControlCenterOverlay({
   useEffect(() => {
     if (filteredContracts.length === 0) {
       setFocusedContractId(null)
+      useScheduleStore.setState({ currentContractId: null })
       return
     }
-    setFocusedContractId((prev) => prev && filteredContracts.some((contract) => contract.id === prev) ? prev : filteredContracts[0].id)
+    setFocusedContractId((prev) => (prev && filteredContracts.some((contract) => contract.id === prev) ? prev : filteredContracts[0].id))
   }, [filteredContracts])
 
   const mapCenter: [number, number] = focusedContract ? [focusedContract.lat, focusedContract.lng] : [project.lat, project.lng]
@@ -2764,6 +2799,9 @@ function ContractControlCenterOverlay({
                 if (view.id === 'scheduling') {
                   setActiveUtilityView(view.id)
                   handleScheduleNavigate()
+                } else if (view.id === 'financial') {
+                  setActiveUtilityView(view.id)
+                  handleFinancialNavigate()
                 } else {
                   setActiveUtilityView(view.id)
                 }
