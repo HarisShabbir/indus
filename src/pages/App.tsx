@@ -29,7 +29,6 @@ import {
   WeatherSummary,
 } from '../api'
 import ProjectProductivityPanel from '../panels/ProjectProductivityPanel'
-import MapWipSplit from '../components/MapWipSplit'
 import HierarchyWipBoard from '../components/wip/HierarchyWipBoard'
 import { FEATURE_SCHEDULE_UI, FEATURE_CCC_V2 } from '../config'
 import 'leaflet/dist/leaflet.css'
@@ -54,45 +53,9 @@ type MapFeatureToggle = {
   intensity: boolean
 }
 
-const MAP_WIP_SPLIT_STORAGE_KEY = FEATURE_CCC_V2 ? 'mapWipSplit:v2' : 'mapWipSplit'
-const DEFAULT_MAP_WIP_SPLIT: [number, number] = FEATURE_CCC_V2 ? [70, 30] : [72, 28]
-const MIN_CONTRACT_MAP_HEIGHT = 480
 const MIN_CONTRACT_WIP_HEIGHT = 320
-
-const normaliseSplitSizes = (sizes: number[]): [number, number] => {
-  if (sizes.length !== 2) {
-    return [...DEFAULT_MAP_WIP_SPLIT]
-  }
-  const numeric = sizes.map((value, index) => {
-    const parsed = Number(value)
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      return DEFAULT_MAP_WIP_SPLIT[index]
-    }
-    return parsed
-  })
-  const sum = numeric[0] + numeric[1]
-  if (sum <= 0) {
-    return [...DEFAULT_MAP_WIP_SPLIT]
-  }
-  const [top, bottom] = numeric.map((value) => Number(((value / sum) * 100).toFixed(2))) as [number, number]
-  return [top, bottom]
-}
-
-const readStoredSplitSizes = (): [number, number] => {
-  if (typeof window === 'undefined') {
-    return [...DEFAULT_MAP_WIP_SPLIT]
-  }
-  const raw = window.localStorage.getItem(MAP_WIP_SPLIT_STORAGE_KEY)
-  if (!raw) {
-    return [...DEFAULT_MAP_WIP_SPLIT]
-  }
-  try {
-    const parsed = JSON.parse(raw) as number[]
-    return normaliseSplitSizes(parsed)
-  } catch {
-    return [...DEFAULT_MAP_WIP_SPLIT]
-  }
-}
+const MIN_CCC_MAP_HEIGHT = 360
+const MAX_CCC_MAP_HEIGHT = 780
 
 const PROJECT_CONTROL_CENTER_CACHE = new Map<string, ProjectControlCenterPayload>()
 const PROJECT_CONTROL_CENTER_INFLIGHT = new Map<string, Promise<ProjectControlCenterPayload>>()
@@ -608,6 +571,22 @@ const extractContractCode = (contract: ContractSite) => {
 }
 
 const normaliseKey = (value: string) => value.replace(/[^a-z0-9]/gi, '').toLowerCase()
+
+const STAGE_LABELS = ['Construction', 'Bidding', 'Pre-PQ', 'PQ']
+
+const resolveStageLabel = (raw?: string | null): string => {
+  const value = (raw ?? '').toLowerCase()
+  if (value.includes('pre-pq') || value.includes('pre pq') || value.includes('prepq')) {
+    return 'Pre-PQ'
+  }
+  if (value.includes('pq')) {
+    return 'PQ'
+  }
+  if (value.includes('bid')) {
+    return 'Bidding'
+  }
+  return 'Construction'
+}
 
 const phaseAccentHex = (phase: string) => {
   if (phase === 'Construction') return '#fb923c'
@@ -2013,13 +1992,19 @@ function ContractControlCenterOverlay({
 }) {
   const [focusedContractId, setFocusedContractId] = useState<string | null>(initialFocusedContractId ?? null)
   const [focusedSowId, setFocusedSowId] = useState<string | null>(null)
-  const [focusedProcessId, setFocusedProcessId] = useState<string | null>(null)
   const [expandedContracts, setExpandedContracts] = useState<Record<string, boolean>>({})
-  const [expandedSows, setExpandedSows] = useState<Record<string, boolean>>({})
   const [mapView, setMapView] = useState<MapView>('atlas')
   const [featureToggle, setFeatureToggle] = useState<MapFeatureToggle>({ geofences: false, intensity: false })
   const [panelCollapsed, setPanelCollapsed] = useState(false)
-  const [mapWipSizes, setMapWipSizes] = useState<number[]>(() => readStoredSplitSizes())
+  const [centerMapHeight, setCenterMapHeight] = useState<number>(() => {
+    if (typeof window === 'undefined') {
+      return 520
+    }
+    const viewportAllowance = Math.max(MIN_CCC_MAP_HEIGHT, window.innerHeight * 0.45)
+    return Math.max(MIN_CCC_MAP_HEIGHT, Math.min(MAX_CCC_MAP_HEIGHT, viewportAllowance))
+  })
+  const centerResizeSnapshot = useRef<{ startY: number; startHeight: number }>({ startY: 0, startHeight: centerMapHeight })
+  const [isResizingCenterMap, setIsResizingCenterMap] = useState(false)
   const [hoveredContract, setHoveredContract] = useState<ContractSite | null>(null)
   const mapStatsRef = useRef<HTMLDivElement | null>(null)
   const navigate = useNavigate()
@@ -2040,28 +2025,50 @@ function ContractControlCenterOverlay({
   useEffect(() => {
     if (!initialFocusedContractId) return
     setFocusedContractId(initialFocusedContractId)
-    setExpandedContracts((prev) => ({ ...prev, [initialFocusedContractId]: true }))
     onFocusedContractApplied?.()
   }, [initialFocusedContractId, onFocusedContractApplied])
   const mapShellRef = useRef<HTMLDivElement | null>(null)
   const [contractFilter, setContractFilter] = useState<'ALL' | string>('ALL')
-  const handleSplitSizesChange = useCallback((next: number[]) => {
-    setMapWipSizes((prev) => {
-      const normalised = normaliseSplitSizes(next)
-      if (prev[0] === normalised[0] && prev[1] === normalised[1]) {
-        return prev
-      }
-      return normalised
-    })
-  }, [])
+  const handleCenterResizeStart = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      centerResizeSnapshot.current = { startY: event.clientY, startHeight: centerMapHeight }
+      setIsResizingCenterMap(true)
+    },
+    [centerMapHeight],
+  )
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
+    if (!isResizingCenterMap) return
+    const handleMouseMove = (event: MouseEvent) => {
+      const delta = event.clientY - centerResizeSnapshot.current.startY
+      const proposed = centerResizeSnapshot.current.startHeight + delta
+      const viewportAllowance = Math.max(MIN_CCC_MAP_HEIGHT, window.innerHeight - MIN_CONTRACT_WIP_HEIGHT - 220)
+      const max = Math.min(MAX_CCC_MAP_HEIGHT, viewportAllowance)
+      const next = Math.max(MIN_CCC_MAP_HEIGHT, Math.min(max, proposed))
+      setCenterMapHeight(next)
     }
-    const rounded = mapWipSizes.map((value) => Number(value.toFixed(2)))
-    window.localStorage.setItem(MAP_WIP_SPLIT_STORAGE_KEY, JSON.stringify(rounded))
-  }, [mapWipSizes])
+    const handleMouseUp = () => {
+      setIsResizingCenterMap(false)
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isResizingCenterMap])
+
+  useEffect(() => {
+    const clampHeight = () => {
+      const viewportAllowance = Math.max(MIN_CCC_MAP_HEIGHT, window.innerHeight - MIN_CONTRACT_WIP_HEIGHT - 220)
+      const max = Math.min(MAX_CCC_MAP_HEIGHT, viewportAllowance)
+      setCenterMapHeight((current) => Math.max(MIN_CCC_MAP_HEIGHT, Math.min(max, current)))
+    }
+    clampHeight()
+    window.addEventListener('resize', clampHeight)
+    return () => window.removeEventListener('resize', clampHeight)
+  }, [])
 
   const utilityViews: Array<{ id: UtilityView; label: string; icon: React.ReactNode }> = [
     {
@@ -2185,6 +2192,14 @@ function ContractControlCenterOverlay({
   }, [contracts, metrics.workInProgress])
   const hasWorkInProgress = workInProgressItems.length > 0
 
+  const workInProgressByContract = useMemo(() => {
+    const map = new Map<string, WorkInProgressMetric>()
+    workInProgressItems.forEach((item) => {
+      map.set(normaliseKey(item.contract), item)
+    })
+    return map
+  }, [workInProgressItems])
+
   const sowGroups = payload?.sow_tree ?? []
 
   const filteredContracts = useMemo(() => {
@@ -2230,83 +2245,70 @@ function ContractControlCenterOverlay({
     return map
   }, [sowGroups])
 
-  useEffect(() => {
-    if (!FEATURE_CCC_V2) {
-      return
-    }
+  const focusedContractSections = useMemo(() => {
     if (!focusedContract) {
-      setFocusedSowId(null)
-      setFocusedProcessId(null)
-      return
+      return []
     }
-    const sections = sowByContract.get(focusedContract.id) ?? []
-    if (!sections.length) {
-      setFocusedSowId(null)
-      setFocusedProcessId(null)
-      return
-    }
-    const hasActiveSow = focusedSowId && sections.some((section) => section.id === focusedSowId)
-    const nextSowId = hasActiveSow ? focusedSowId : sections[0].id
-    if (nextSowId !== focusedSowId) {
-      setFocusedSowId(nextSowId)
-    }
-    const selectedSow = sections.find((section) => section.id === (hasActiveSow ? focusedSowId : nextSowId))
-    const clauses = selectedSow?.clauses ?? []
-    if (!clauses.length) {
-      if (focusedProcessId !== null) {
-        setFocusedProcessId(null)
-      }
-    } else {
-      const hasActiveProcess = focusedProcessId && clauses.some((clause) => clause.id === focusedProcessId)
-      if (!hasActiveProcess) {
-        setFocusedProcessId(clauses[0].id)
+    return sowByContract.get(focusedContract.id) ?? []
+  }, [focusedContract, sowByContract])
+
+  const handleContractSelect = useCallback((contract: ContractSite) => {
+    setFocusedContractId(contract.id)
+    if (FEATURE_CCC_V2) {
+      const sections = sowByContract.get(contract.id) ?? []
+      if (sections.length) {
+        setFocusedSowId(sections[0].id)
+      } else {
+        setFocusedSowId(null)
       }
     }
-  }, [focusedContract, focusedProcessId, focusedSowId, sowByContract])
+  }, [FEATURE_CCC_V2, sowByContract])
+
+  const toggleContractExpansion = useCallback(
+    (contract: ContractSite) => {
+      setExpandedContracts((prev) => {
+        const next = !prev[contract.id]
+        if (next) {
+          handleContractSelect(contract)
+        }
+        return { ...prev, [contract.id]: next }
+      })
+    },
+    [handleContractSelect],
+  )
 
   const contractDialItems = useMemo(() => {
     if (!FEATURE_CCC_V2) {
       return []
     }
-    const items: Array<{ id: string; label: string; percent: number; status?: string | null; color?: string; isActive?: boolean }> = []
-    const seen = new Set<string>()
-    workInProgressItems.forEach((item) => {
-      const key = normaliseKey(item.contract)
-      const contract =
-        contractCodeMap.get(key) ||
-        contracts.find((candidate) => normaliseKey(candidate.name) === key || normaliseKey(extractContractCode(candidate)) === key)
-      const basePercent = Number.isFinite(item.percent) ? Number(item.percent) : 0
-      const percent = Math.max(0, Math.min(100, basePercent))
-      const id = contract ? contract.id : item.contract
-      if (seen.has(id)) {
-        return
-      }
-      items.push({
-        id,
-        label: contract ? contract.name : item.contract,
-        percent,
-        status: contract?.status_label ?? null,
-        color: contract ? contractAccent(contract.name) : undefined,
-        isActive: contract ? contract.id === focusedContractId : false,
+    return contracts
+      .map((contract) => {
+        const key = normaliseKey(contract.name)
+        const wip = workInProgressByContract.get(key) || workInProgressByContract.get(normaliseKey(extractContractCode(contract)))
+        const percent = wip ? Math.max(0, Math.min(100, wip.percent)) : Math.max(0, Math.min(100, Math.round(contract.status_pct ?? 0)))
+        const stage = resolveStageLabel(wip?.status ?? contract.status_label ?? contract.phase)
+        return {
+          id: contract.id,
+          name: contract.name,
+          percent,
+          color: contractAccent(contract.name),
+          stage,
+        }
       })
-      seen.add(id)
+      .sort((a, b) => b.percent - a.percent)
+  }, [FEATURE_CCC_V2, contracts, workInProgressByContract])
+
+  const stageSummary = useMemo(() => {
+    if (!FEATURE_CCC_V2) {
+      return []
+    }
+    return STAGE_LABELS.map((stage) => {
+      const stageContracts = contractDialItems.filter((item) => item.stage === stage)
+      const count = stageContracts.length
+      const average = count ? stageContracts.reduce((sum, item) => sum + item.percent, 0) / count : 0
+      return { name: stage, count, average }
     })
-    contracts.forEach((contract) => {
-      if (seen.has(contract.id)) {
-        return
-      }
-      const fallbackPercent = Math.max(0, Math.min(100, Math.round(contract.status_pct ?? 0)))
-      items.push({
-        id: contract.id,
-        label: contract.name,
-        percent: fallbackPercent,
-        status: contract.status_label ?? null,
-        color: contractAccent(contract.name),
-        isActive: contract.id === focusedContractId,
-      })
-    })
-    return items
-  }, [contracts, contractCodeMap, focusedContractId, workInProgressItems])
+  }, [FEATURE_CCC_V2, contractDialItems])
 
   const projectWipPercent = useMemo(() => {
     if (!FEATURE_CCC_V2 || !contractDialItems.length) {
@@ -2314,44 +2316,8 @@ function ContractControlCenterOverlay({
     }
     const total = contractDialItems.reduce((sum, item) => sum + Math.max(0, Math.min(100, item.percent)), 0)
     return total / contractDialItems.length
-  }, [contractDialItems])
+  }, [FEATURE_CCC_V2, contractDialItems])
 
-  const sowDialItems = useMemo(() => {
-    if (!FEATURE_CCC_V2 || !focusedContract) {
-      return []
-    }
-    const sections = sowByContract.get(focusedContract.id) ?? []
-    if (!sections.length) {
-      return []
-    }
-    return sections.map((section) => ({
-      id: section.id,
-      label: section.title,
-      percent: Math.max(0, Math.min(100, Number(section.progress ?? 0))),
-      status: section.status ?? null,
-      color: contractAccent(focusedContract.name),
-      isActive: section.id === focusedSowId,
-    }))
-  }, [focusedContract, focusedSowId, sowByContract])
-
-  const processDialItems = useMemo(() => {
-    if (!FEATURE_CCC_V2 || !focusedContract || !focusedSowId) {
-      return []
-    }
-    const sections = sowByContract.get(focusedContract.id) ?? []
-    const selectedSow = sections.find((section) => section.id === focusedSowId)
-    if (!selectedSow) {
-      return []
-    }
-    return selectedSow.clauses.map((clause) => ({
-      id: clause.id,
-      label: clause.title,
-      percent: Math.max(0, Math.min(100, Number(clause.progress ?? 0))),
-      status: clause.status ?? null,
-      color: contractAccent(focusedContract.name),
-      isActive: clause.id === focusedProcessId,
-    }))
-  }, [focusedContract, focusedProcessId, focusedSowId, sowByContract])
 
   const phaseGroups = useMemo(() => {
     const groups: Record<string, ContractSite[]> = {}
@@ -2363,6 +2329,29 @@ function ContractControlCenterOverlay({
   }, [filteredContracts])
 
   const mapStyle = MAP_STYLES[mapView]
+
+  const mapSplitTrigger = useMemo(() => Math.round(centerMapHeight).toString(), [centerMapHeight])
+
+  const wipPaneContent = (
+    <div className="contract-wip-card">
+      {FEATURE_CCC_V2 ? (
+        contractDialItems.length ? (
+          <HierarchyWipBoard
+            projectLabel={project.name}
+            projectPercent={projectWipPercent}
+            stages={stageSummary}
+            contractItems={contractDialItems}
+          />
+        ) : (
+          <div className="pp-wip-status">Preparing work in progress…</div>
+        )
+      ) : hasWorkInProgress ? (
+        <WorkInProgressBoard items={workInProgressItems} theme={theme} />
+      ) : (
+        <div className="pp-wip-status">Preparing work in progress…</div>
+      )}
+    </div>
+  )
 
   const bounds = useMemo(() => {
     if (!filteredContracts.length) return undefined
@@ -2379,34 +2368,6 @@ function ContractControlCenterOverlay({
   }, [filteredContracts])
 
   const mapCenter: [number, number] = focusedContract ? [focusedContract.lat, focusedContract.lng] : [project.lat, project.lng]
-
-  const handleContractSelect = useCallback((contract: ContractSite) => {
-    setFocusedContractId(contract.id)
-    setExpandedContracts((prev) => ({ ...prev, [contract.id]: true }))
-    if (FEATURE_CCC_V2) {
-      setFocusedSowId(null)
-      setFocusedProcessId(null)
-    }
-  }, [])
-
-  const toggleContractSections = useCallback((contractId: string) => {
-    setExpandedContracts((prev) => ({ ...prev, [contractId]: !prev[contractId] }))
-  }, [])
-
-  const toggleSow = useCallback((sowId: string, contractId?: string, defaultProcessId?: string | null) => {
-    setExpandedSows((prev) => ({ ...prev, [sowId]: !prev[sowId] }))
-    if (FEATURE_CCC_V2) {
-      setFocusedSowId(sowId)
-      if (typeof defaultProcessId === 'string') {
-        setFocusedProcessId(defaultProcessId)
-      } else if (defaultProcessId === null) {
-        setFocusedProcessId(null)
-      }
-      if (contractId && contractId !== focusedContractId) {
-        setFocusedContractId(contractId)
-      }
-    }
-  }, [focusedContractId])
 
   const alertCount = focusedContract?.alerts ?? project.alerts ?? 0
 
@@ -2531,77 +2492,64 @@ function ContractControlCenterOverlay({
               {loading && <div className="contract-loading">Loading contracts…</div>}
               {!loading && phaseGroups.length === 0 && <div className="contract-loading">No contract data available yet.</div>}
               {phaseGroups.map(([phase, items]) => (
-                <div key={phase} className="contract-phase">
-                  <div className="contract-phase-title">{phase}</div>
+                <section key={phase} className="contract-phase">
+                  <header className="contract-phase-title">{phase}</header>
                   <ul>
                     {items.map((contract) => {
-                      const isActive = contract.id === focusedContract?.id
-                      const hasSections = (sowByContract.get(contract.id) ?? []).length > 0
+                      const sections = sowByContract.get(contract.id) ?? []
                       const expanded = expandedContracts[contract.id]
+                      const isActive = contract.id === focusedContractId
+                      const wipStatus =
+                        workInProgressByContract.get(normaliseKey(contract.name)) ||
+                        workInProgressByContract.get(normaliseKey(extractContractCode(contract)))
+                      const stageLabel = resolveStageLabel(wipStatus?.status ?? contract.status_label ?? contract.phase)
+                      const stageModifier = stageLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'construction'
                       return (
-                        <li key={contract.id} className={isActive ? 'active' : ''}>
-                          <div className="contract-row" onClick={() => handleContractSelect(contract)}>
-                            <div>
-                              <div className="contract-name">{contract.name}</div>
-                              <div className="contract-meta">
-                                <span>{contract.discipline || 'General'}</span>
-                                <span>{Math.round(contract.status_pct)}%</span>
+                        <li key={contract.id} className={isActive ? 'active' : undefined}>
+                          <div className="contract-row">
+                            <button
+                              type="button"
+                              className="contract-row__body"
+                              onClick={() => handleContractSelect(contract)}
+                            >
+                              <div className="contract-row__info">
+                                <span className="contract-name">{contract.name}</span>
+                                <span className={`contract-stage-badge contract-stage-badge--${stageModifier}`}>
+                                  {stageLabel}
+                                </span>
                               </div>
-                            </div>
-                            {hasSections && (
+                              <span className="contract-progress">{Math.round(contract.status_pct)}%</span>
+                            </button>
+                            {sections.length > 0 && (
                               <button
+                                type="button"
                                 className="contract-toggle"
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  toggleContractSections(contract.id)
-                                }}
-                                aria-label={`Toggle SOW for ${contract.name}`}
+                                onClick={() => toggleContractExpansion(contract)}
+                                aria-label={`Toggle ${contract.name}`}
                               >
                                 {expanded ? '−' : '+'}
                               </button>
                             )}
                           </div>
-                          {hasSections && expanded && (
-                            <div className="sow-list">
-                              {(sowByContract.get(contract.id) ?? []).map((section) => {
-                                const sowExpanded = expandedSows[section.id]
+                          {sections.length > 0 && expanded && (
+                            <div className="sow-list sow-list--scroll">
+                              {sections.map((section) => {
+                                const isSowActive = section.id === focusedSowId
+                                const processes = section.clauses ?? []
                                 return (
-                                  <div key={section.id} className={`sow-item${FEATURE_CCC_V2 && section.id === focusedSowId ? ' active' : ''}`}>
-                                    <div
-                                      className="sow-header"
-                                      onClick={() => toggleSow(section.id, contract.id, section.clauses[0]?.id ?? null)}
+                                  <div key={section.id} className={`sow-item${isSowActive ? ' active' : ''}`}>
+                                    <button
+                                      type="button"
+                                      className="sow-item__header"
+                                      onClick={() => setFocusedSowId(section.id)}
                                     >
-                                      <div>
-                                        <div className="sow-title">{section.title}</div>
-                                        <div className="sow-status">{section.status}</div>
-                                      </div>
-                                      <div className="sow-progress">
-                                        <div className="progress-bar thin">
-                                          <span style={{ width: `${Math.min(Math.max(section.progress, 0), 100)}%` }} />
-                                        </div>
-                                        <span>{Math.round(section.progress)}%</span>
-                                      </div>
-                                    </div>
-                                    {section.clauses.length > 0 && sowExpanded && (
-                                      <ul className="sow-clauses">
-                                        {section.clauses.map((clause) => (
-                                          <li
-                                            key={clause.id}
-                                            className={FEATURE_CCC_V2 && clause.id === focusedProcessId ? 'active' : undefined}
-                                            onClick={(event) => {
-                                              if (FEATURE_CCC_V2) {
-                                                event.stopPropagation()
-                                                setFocusedProcessId(clause.id)
-                                              }
-                                            }}
-                                          >
-                                            <div className="clause-title">{clause.title}</div>
-                                            <div className="clause-meta">
-                                              <span>{clause.status}</span>
-                                              {clause.lead && <span>Lead: {clause.lead}</span>}
-                                              <span>{clause.progress}%</span>
-                                            </div>
-                                          </li>
+                                      <span>{section.title}</span>
+                                      <span>{Math.round(Number(section.progress ?? 0))}%</span>
+                                    </button>
+                                    {isSowActive && processes.length > 0 && (
+                                      <ul className="sow-item__processes">
+                                        {processes.map((clause) => (
+                                          <li key={clause.id}>{clause.title}</li>
                                         ))}
                                       </ul>
                                     )}
@@ -2614,16 +2562,14 @@ function ContractControlCenterOverlay({
                       )
                     })}
                   </ul>
-                </div>
+                </section>
               ))}
             </div>
           </aside>
 
-            <MapWipSplit
-              sizes={mapWipSizes}
-              onSizesChange={handleSplitSizesChange}
-              minSizes={[MIN_CONTRACT_MAP_HEIGHT, MIN_CONTRACT_WIP_HEIGHT]}
-              mapPane={
+          <div className="ccc-center-column">
+            <section className="ccc-map-section" style={{ height: centerMapHeight }}>
+              <div className="contract-map-card">
                 <div className="contract-map-shell" ref={mapShellRef}>
                   <div className="map-toolbar">
                     <div className="map-toolbar-row">
@@ -2669,19 +2615,19 @@ function ContractControlCenterOverlay({
                           <span className="map-active-name">{activeContractDisplay.name}</span>
                           <span className="map-active-phase">{activeContractDisplay.phase}</span>
                         </div>
-                      <div className="map-active-meta">
-                        <span>{Math.round(activeContractDisplay.status_pct)}% complete</span>
-                        <span>Alerts {activeContractDisplay.alerts ?? 0}</span>
-                        {activeContractDisplay.status_label && <span>{activeContractDisplay.status_label}</span>}
-                        {activeContractWeather && (
-                          <span>
-                            Weather {activeContractWeather.temperatureC !== null && activeContractWeather.temperatureC !== undefined ? `${Math.round(activeContractWeather.temperatureC)}°C` : '--'} ·{' '}
-                            {activeContractWeather.weatherDescription ?? 'Conditions unavailable'}
-                          </span>
-                        )}
+                        <div className="map-active-meta">
+                          <span>{Math.round(activeContractDisplay.status_pct)}% complete</span>
+                          <span>Alerts {activeContractDisplay.alerts ?? 0}</span>
+                          {activeContractDisplay.status_label && <span>{activeContractDisplay.status_label}</span>}
+                          {activeContractWeather && (
+                            <span>
+                              Weather {activeContractWeather.temperatureC !== null && activeContractWeather.temperatureC !== undefined ? `${Math.round(activeContractWeather.temperatureC)}°C` : '--'} ·{' '}
+                              {activeContractWeather.weatherDescription ?? 'Conditions unavailable'}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                   </div>
 
                   {loading && <div className="contract-loading">Preparing map…</div>}
@@ -2708,7 +2654,7 @@ function ContractControlCenterOverlay({
                       <MapResizeWatcher
                         trigger={`${panelCollapsed}-${theme}-${mapView}-${filteredContracts.length}-${Math.round(
                           (mapShellRef.current?.offsetHeight ?? 0) * 100,
-                        )}-${mapWipSizes.map((size) => size.toFixed(2)).join('-')}`}
+                        )}-${mapSplitTrigger}`}
                       />
 
                       {featureToggle.intensity &&
@@ -2786,31 +2732,19 @@ function ContractControlCenterOverlay({
                     </MapContainer>
                   )}
                 </div>
-              }
-              wipPane={
-                FEATURE_CCC_V2 ? (
-                  loading && !contractDialItems.length ? (
-                    <div className="pp-wip-status">Preparing work in progress…</div>
-                  ) : contractDialItems.length ? (
-                    <HierarchyWipBoard
-                      projectLabel={project.name}
-                      projectPercent={projectWipPercent}
-                      contractItems={contractDialItems}
-                      sowItems={sowDialItems}
-                      processItems={processDialItems}
-                    />
-                  ) : (
-                    <div className="pp-wip-empty">No work in progress data available yet.</div>
-                  )
-                ) : loading && !hasWorkInProgress ? (
-                  <div className="pp-wip-status">Preparing work in progress…</div>
-                ) : hasWorkInProgress ? (
-                  <WorkInProgressBoard items={workInProgressItems} theme={theme} />
-                ) : (
-                  <div className="pp-wip-empty">No work in progress data available yet.</div>
-                )
-              }
-            />
+              </div>
+            </section>
+            <div
+              className={`ccc-resize-bar ${isResizingCenterMap ? 'dragging' : ''}`}
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Adjust map and work in progress height"
+              onMouseDown={handleCenterResizeStart}
+            >
+              <span />
+            </div>
+            <section className="ccc-wip-section">{wipPaneContent}</section>
+          </div>
 
             <ProjectProductivityPanel
               projectId={project.id}
@@ -2875,13 +2809,21 @@ function WorkInProgressBoard({ items, theme }: { items: WorkInProgressMetric[]; 
   if (!items.length) {
     return null
   }
+  const [activeStatus, setActiveStatus] = useState<WorkStatusFilter>('Construction')
 
-  const summaryOrder: Array<keyof typeof WORK_STATUS_COLORS> = ['Construction', 'Bidding', 'Pre-PQ', 'PQ']
-  const [activeStatus, setActiveStatus] = useState<WorkStatusFilter>('All')
+  useEffect(() => {
+    if (activeStatus === 'All') {
+      return
+    }
+    const hasItems = items.some((item) => item.status === activeStatus)
+    if (!hasItems && items.length) {
+      setActiveStatus('All')
+    }
+  }, [activeStatus, items])
 
   const summary = useMemo(
     () =>
-      summaryOrder.map((status) => {
+      WORK_STATUS_ORDER.map((status) => {
         const bucket = items.filter((item) => item.status === status)
         const count = bucket.length
         const average = count ? bucket.reduce((sum, item) => sum + item.percent, 0) / count : null
@@ -2908,12 +2850,12 @@ function WorkInProgressBoard({ items, theme }: { items: WorkInProgressMetric[]; 
   const rankedItems = useMemo(() => [...filteredItems].sort((a, b) => b.percent - a.percent), [filteredItems])
   const totalProjects = items.length
   const emptyState = !rankedItems.length
-  const filterLabel = activeStatus === 'All' ? 'All stages' : `${activeStatus} stage`
+  const filterLabel = activeStatus === 'All' ? 'All contracts' : `${activeStatus} contracts`
   const stageHint =
     activeStatus === 'All'
       ? `Showing ${rankedItems.length} of ${totalProjects} contracts`
       : rankedItems.length
-      ? `Showing ${rankedItems.length} ${rankedItems.length === 1 ? 'contract' : 'contracts'}`
+      ? `${rankedItems.length} ${rankedItems.length === 1 ? 'contract' : 'contracts'} in ${activeStatus}`
       : `No contracts currently in ${activeStatus}`
 
   return (
@@ -2926,7 +2868,8 @@ function WorkInProgressBoard({ items, theme }: { items: WorkInProgressMetric[]; 
       <div className="wip-summary">
         {summary.map(({ status, count, color, average }) => {
           const isActive = activeStatus === status
-          const displayAverage = average !== null ? `${Math.round(average)}% avg` : '—'
+          const projectsLabel = count === 1 ? 'Contract' : 'Contracts'
+          const averageLabel = average !== null ? `${Math.round(average)}% avg` : 'No progress yet'
           return (
             <button
               key={status}
@@ -2936,9 +2879,12 @@ function WorkInProgressBoard({ items, theme }: { items: WorkInProgressMetric[]; 
               aria-pressed={isActive}
               onClick={() => setActiveStatus((prev) => (prev === status ? 'All' : status))}
             >
-              <span className="wip-summary-count">{count}</span>
               <span className="wip-summary-label">{status}</span>
-              <span className="wip-summary-sub">{displayAverage}</span>
+              <span className="wip-summary-count">{count}</span>
+              <span className="wip-summary-sub">
+                {projectsLabel}
+                {count ? ` · ${averageLabel}` : ''}
+              </span>
             </button>
           )
         })}
