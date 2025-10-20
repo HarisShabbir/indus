@@ -1,5 +1,13 @@
 import { API_URL } from './config'
 import {
+  getFinancialFallbackAllocation,
+  getFinancialFallbackExpenses,
+  getFinancialFallbackFundFlow,
+  getFinancialFallbackIncoming,
+  getFinancialFallbackOutgoing,
+  getFinancialFallbackSummary,
+} from './data/financialFallback'
+import {
   getContractKpiLatestDetailedFallback,
   getContractKpiLatestFallback,
   getContractKpiSeriesFallback,
@@ -431,33 +439,87 @@ const buildFinancialQuery = (projectId: string, contractId?: string | null, tena
 }
 
 export async function fetchFinancialSummary(projectId: string, contractId?: string | null, tenantId: string = DEFAULT_TENANT_ID): Promise<FinancialSummary> {
-  const res = await fetch(`${API_URL}/api/v2/financial/summary?${buildFinancialQuery(projectId, contractId, tenantId)}`)
-  return handleResponse<FinancialSummary>(res)
+  try {
+    const res = await fetch(`${API_URL}/api/v2/financial/summary?${buildFinancialQuery(projectId, contractId, tenantId)}`)
+    return await handleResponse<FinancialSummary>(res)
+  } catch (error) {
+    const fallback = getFinancialFallbackSummary(projectId, contractId ?? undefined)
+    if (fallback) {
+      console.warn('Using fallback financial summary', { projectId, contractId, error })
+      return fallback
+    }
+    throw error
+  }
 }
 
 export async function fetchFinancialAllocation(projectId: string, tenantId: string = DEFAULT_TENANT_ID): Promise<FinancialAllocationResponse> {
-  const res = await fetch(`${API_URL}/api/v2/financial/fund-allocation?${buildFinancialQuery(projectId, null, tenantId)}`)
-  return handleResponse<FinancialAllocationResponse>(res)
+  try {
+    const res = await fetch(`${API_URL}/api/v2/financial/fund-allocation?${buildFinancialQuery(projectId, null, tenantId)}`)
+    return await handleResponse<FinancialAllocationResponse>(res)
+  } catch (error) {
+    const fallback = getFinancialFallbackAllocation(projectId)
+    if (fallback) {
+      console.warn('Using fallback fund allocation', { projectId, error })
+      return fallback
+    }
+    throw error
+  }
 }
 
 export async function fetchFinancialExpenses(projectId: string, contractId?: string | null, tenantId: string = DEFAULT_TENANT_ID): Promise<FinancialExpenseRow[]> {
-  const res = await fetch(`${API_URL}/api/v2/financial/expenses?${buildFinancialQuery(projectId, contractId, tenantId)}`)
-  return handleResponse<FinancialExpenseRow[]>(res)
+  try {
+    const res = await fetch(`${API_URL}/api/v2/financial/expenses?${buildFinancialQuery(projectId, contractId, tenantId)}`)
+    return await handleResponse<FinancialExpenseRow[]>(res)
+  } catch (error) {
+    const fallback = getFinancialFallbackExpenses(projectId, contractId ?? undefined)
+    if (fallback) {
+      console.warn('Using fallback expenses', { projectId, contractId, error })
+      return fallback
+    }
+    throw error
+  }
 }
 
 export async function fetchFinancialFundFlow(projectId: string, contractId?: string | null, tenantId: string = DEFAULT_TENANT_ID): Promise<FinancialFundFlow> {
-  const res = await fetch(`${API_URL}/api/v2/financial/fund-flow?${buildFinancialQuery(projectId, contractId, tenantId)}`)
-  return handleResponse<FinancialFundFlow>(res)
+  try {
+    const res = await fetch(`${API_URL}/api/v2/financial/fund-flow?${buildFinancialQuery(projectId, contractId, tenantId)}`)
+    return await handleResponse<FinancialFundFlow>(res)
+  } catch (error) {
+    const fallback = getFinancialFallbackFundFlow(projectId, contractId ?? undefined)
+    if (fallback) {
+      console.warn('Using fallback fund flow', { projectId, contractId, error })
+      return fallback
+    }
+    throw error
+  }
 }
 
 export async function fetchFinancialIncoming(projectId: string, tenantId: string = DEFAULT_TENANT_ID): Promise<FinancialIncomingResponse> {
-  const res = await fetch(`${API_URL}/api/v2/financial/incoming?${buildFinancialQuery(projectId, null, tenantId)}`)
-  return handleResponse<FinancialIncomingResponse>(res)
+  try {
+    const res = await fetch(`${API_URL}/api/v2/financial/incoming?${buildFinancialQuery(projectId, null, tenantId)}`)
+    return await handleResponse<FinancialIncomingResponse>(res)
+  } catch (error) {
+    const fallback = getFinancialFallbackIncoming(projectId)
+    if (fallback) {
+      console.warn('Using fallback incoming funds', { projectId, error })
+      return fallback
+    }
+    throw error
+  }
 }
 
 export async function fetchFinancialOutgoing(projectId: string, contractId?: string | null, tenantId: string = DEFAULT_TENANT_ID): Promise<FinancialOutgoingResponse> {
-  const res = await fetch(`${API_URL}/api/v2/financial/outgoing?${buildFinancialQuery(projectId, contractId, tenantId)}`)
-  return handleResponse<FinancialOutgoingResponse>(res)
+  try {
+    const res = await fetch(`${API_URL}/api/v2/financial/outgoing?${buildFinancialQuery(projectId, contractId, tenantId)}`)
+    return await handleResponse<FinancialOutgoingResponse>(res)
+  } catch (error) {
+    const fallback = getFinancialFallbackOutgoing(projectId, contractId ?? undefined)
+    if (fallback) {
+      console.warn('Using fallback outgoing funds', { projectId, contractId, error })
+      return fallback
+    }
+    throw error
+  }
 }
 
 function buildContractScheduleFromTasks(contractId: string, tasks: GanttTask[]): ContractSchedule | null {

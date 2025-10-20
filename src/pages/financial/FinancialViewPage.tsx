@@ -288,6 +288,17 @@ export default function FinancialViewPage(): JSX.Element {
   }
 
   const summaryAsOf = summary?.as_of ? new Date(summary.as_of).toLocaleString() : '--'
+  const allocationContracts = allocation?.contracts ?? []
+  const isProjectView = !selectedContractId
+  const formatDate = (value?: string | null) => {
+    if (!value) return '--'
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return value
+    return parsed.toLocaleDateString()
+  }
+  const totalActual = expenses.reduce((sum, row) => sum + (row.actual ?? 0), 0)
+  const totalPaid = expenses.reduce((sum, row) => sum + (row.paid ?? 0), 0)
+  const totalBalance = expenses.reduce((sum, row) => sum + (row.balance ?? 0), 0)
 
   return (
     <div className="financial-view" data-theme={theme}>
@@ -388,18 +399,21 @@ export default function FinancialViewPage(): JSX.Element {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="financial-row-project">
+                    <tr className={`financial-row-project ${isProjectView ? 'financial-row-active' : ''}`}>
                       <th scope="row">{allocation?.project.description ?? projectName}</th>
                       <td>{formatCompactCurrency(allocation?.project.amount ?? null)}</td>
                       <td>{allocation?.project.status ?? '—'}</td>
                     </tr>
-                    {allocation?.contracts.map((row) => (
-                      <tr key={row.contractId ?? row.description}>
-                        <th scope="row">{row.description}</th>
-                        <td>{formatCompactCurrency(row.amount ?? null)}</td>
-                        <td>{row.status ?? '—'}</td>
-                      </tr>
-                    )) ?? null}
+                    {allocationContracts.map((row) => {
+                      const isActive = row.contractId ? row.contractId === selectedContractId : false
+                      return (
+                        <tr key={row.contractId ?? row.description} className={isActive ? 'financial-row-active' : undefined}>
+                          <th scope="row">{row.description}</th>
+                          <td>{formatCompactCurrency(row.amount ?? null)}</td>
+                          <td>{row.status ?? '—'}</td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </section>
@@ -468,6 +482,16 @@ export default function FinancialViewPage(): JSX.Element {
                         </React.Fragment>
                       )
                     })}
+                    {expenses.length > 0 && (
+                      <tr className="financial-table-total">
+                        <th scope="row">Total</th>
+                        <td>—</td>
+                        <td className="numeric">{formatCompactCurrency(totalActual)}</td>
+                        <td className="numeric">{formatCompactCurrency(totalPaid)}</td>
+                        <td className="numeric">{formatCompactCurrency(totalBalance)}</td>
+                        <td>—</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </section>
@@ -512,7 +536,7 @@ export default function FinancialViewPage(): JSX.Element {
               <h3>Project Fund Flow</h3>
               <span>Sankey view of fund movement</span>
             </div>
-            <ESankey nodes={fundFlow?.nodes ?? []} links={fundFlow?.links ?? []} loading={loading} height={320} />
+            <ESankey nodes={fundFlow?.nodes ?? []} links={fundFlow?.links ?? []} loading={loading} height={340} />
           </section>
 
           <section className="financial-panel">
@@ -535,7 +559,7 @@ export default function FinancialViewPage(): JSX.Element {
                     <th scope="row">{row.id}</th>
                     <td>{row.accountName}</td>
                     <td className="numeric">{formatCompactCurrency(row.fundsDeposited)}</td>
-                    <td>{row.dateOfDeposit ?? '—'}</td>
+                    <td>{formatDate(row.dateOfDeposit)}</td>
                   </tr>
                 ))}
                 {!incoming?.available?.length && (
@@ -563,7 +587,7 @@ export default function FinancialViewPage(): JSX.Element {
                     <th scope="row">{row.id}</th>
                     <td>{row.accountName}</td>
                     <td className="numeric">{formatCompactCurrency(row.fundsExpected)}</td>
-                    <td>{row.expectedDateOfDeposit ?? '—'}</td>
+                    <td>{formatDate(row.expectedDateOfDeposit)}</td>
                   </tr>
                 ))}
                 {!incoming?.expected?.length && (
@@ -597,7 +621,7 @@ export default function FinancialViewPage(): JSX.Element {
                     <th scope="row">{row.id}</th>
                     <td>{row.accountName}</td>
                     <td className="numeric">{formatCompactCurrency(row.expenseValue)}</td>
-                    <td>{row.dateOfExpense ?? '—'}</td>
+                    <td>{formatDate(row.dateOfExpense)}</td>
                   </tr>
                 ))}
                 {!outgoing?.actual?.length && (
@@ -625,7 +649,7 @@ export default function FinancialViewPage(): JSX.Element {
                     <th scope="row">{row.id}</th>
                     <td>{row.accountName}</td>
                     <td className="numeric">{formatCompactCurrency(row.expectedExpenseValue)}</td>
-                    <td>{row.expectedDateOfExpense ?? '—'}</td>
+                    <td>{formatDate(row.expectedDateOfExpense)}</td>
                   </tr>
                 ))}
                 {!outgoing?.expected?.length && (

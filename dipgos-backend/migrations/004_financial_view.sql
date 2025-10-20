@@ -267,7 +267,20 @@ LEFT JOIN latest_allocation la ON la.entity_id = e.entity_id AND la.rn = 1
 WHERE e.level IN ('project', 'contract');
 
 CREATE OR REPLACE VIEW dipgos.vw_expenses_rollup AS
-WITH latest_allocation AS (
+WITH RECURSIVE closure AS (
+  SELECT
+    ancestor.entity_id AS ancestor_id,
+    descendant.entity_id AS descendant_id
+  FROM dipgos.entities ancestor
+  JOIN dipgos.entities descendant ON ancestor.entity_id = descendant.entity_id
+  UNION ALL
+  SELECT
+    closure.ancestor_id,
+    child.entity_id AS descendant_id
+  FROM closure
+  JOIN dipgos.entities child ON child.parent_id = closure.descendant_id
+),
+latest_allocation AS (
   SELECT
     entity_id,
     amount,
@@ -281,19 +294,6 @@ base_actuals AS (
     SUM(amount) AS actual
   FROM dipgos.fund_outflows
   GROUP BY COALESCE(process_id, sow_id, contract_id)
-),
-closure AS (
-  SELECT
-    ancestor.entity_id AS ancestor_id,
-    descendant.entity_id AS descendant_id
-  FROM dipgos.entities ancestor
-  JOIN dipgos.entities descendant ON ancestor.entity_id = descendant.entity_id
-  UNION ALL
-  SELECT
-    closure.ancestor_id,
-    child.entity_id AS descendant_id
-  FROM closure
-  JOIN dipgos.entities child ON child.parent_id = closure.descendant_id
 ),
 actuals AS (
   SELECT

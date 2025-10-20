@@ -77,9 +77,9 @@ export function ScheduleProjectPage() {
 
   const breadcrumbs = [
     { label: 'Dashboard', onClick: () => navigate('/', { state: { openView: 'dashboard' } }) },
-    { label: projectSlug },
+    { label: projectSlug, onClick: handleNavigateToCcc },
     { label: 'Construction Control Center', onClick: handleNavigateToCcc },
-    { label: 'CCC-Scheduling View' },
+    { label: 'Scheduling View' },
   ]
   const title = `${projectName} · Project Schedule`
 
