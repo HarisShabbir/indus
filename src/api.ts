@@ -278,6 +278,83 @@ export type FinancialOutgoingResponse = {
   expected: FinancialExpectedOutgoingRow[]
 }
 
+export type AtomCategory =
+  | 'actors'
+  | 'materials'
+  | 'machinery'
+  | 'consumables'
+  | 'tools'
+  | 'equipment'
+  | 'systems'
+  | 'technologies'
+  | 'financials'
+
+export type AtomRepositoryNode = {
+  id: string
+  parentId: string | null
+  level: 'category' | 'group' | 'type' | 'atom'
+  name: string
+  category: AtomCategory
+  total: number
+  engaged: number
+  idle: number
+}
+
+export type AtomRepositoryResponse = {
+  asOf: string
+  nodes: AtomRepositoryNode[]
+}
+
+export type AtomSummaryCard = {
+  category: AtomCategory
+  label: string
+  total: number
+  engaged: number
+  idle: number
+  trend: number[]
+}
+
+export type AtomSummaryScope = {
+  level: 'project' | 'contract' | 'sow' | 'process'
+  entityId: string
+  projectId: string
+  contractId?: string | null
+  sowId?: string | null
+  processId?: string | null
+}
+
+export type AtomSummaryResponse = {
+  asOf: string
+  scope: AtomSummaryScope
+  cards: AtomSummaryCard[]
+}
+
+export type AtomDeploymentRecord = {
+  deploymentId: string
+  atomId: string
+  atomName: string
+  atomType: string
+  category: AtomCategory
+  processId: string
+  processName: string
+  startTs: string
+  endTs: string | null
+  status: string
+}
+
+export type AtomDeploymentResponse = {
+  asOf: string
+  deployments: AtomDeploymentRecord[]
+}
+
+export type AtomDeploymentMutation = {
+  atomId: string
+  processId: string
+  action: 'assign' | 'unassign'
+  startTs?: string
+  endTs?: string
+}
+
 export type WeatherPoint = {
   id: string
   name: string
@@ -520,6 +597,95 @@ export async function fetchFinancialOutgoing(projectId: string, contractId?: str
     }
     throw error
   }
+}
+
+const buildAtomQuery = (params: Record<string, string | null | undefined>) => {
+  const query = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      query.append(key, value)
+    }
+  })
+  return query.toString()
+}
+
+export async function fetchAtomRepository(params: {
+  tenantId?: string
+  projectId: string
+  contractId?: string | null
+}): Promise<AtomRepositoryResponse> {
+  const query = buildAtomQuery({
+    tenantId: params.tenantId ?? DEFAULT_TENANT_ID,
+    projectId: params.projectId,
+    contractId: params.contractId ?? undefined,
+  })
+  const res = await fetch(`${API_URL}/api/v2/atoms/repository?${query}`)
+  return handleResponse<AtomRepositoryResponse>(res)
+}
+
+export async function fetchAtomSummary(params: {
+  tenantId?: string
+  projectId: string
+  contractId?: string | null
+  sowId?: string | null
+  processId?: string | null
+}): Promise<AtomSummaryResponse> {
+  const query = buildAtomQuery({
+    tenantId: params.tenantId ?? DEFAULT_TENANT_ID,
+    projectId: params.projectId,
+    contractId: params.contractId ?? undefined,
+    sowId: params.sowId ?? undefined,
+    processId: params.processId ?? undefined,
+  })
+  const res = await fetch(`${API_URL}/api/v2/atoms/summary?${query}`)
+  return handleResponse<AtomSummaryResponse>(res)
+}
+
+export async function fetchAtomDeployments(params: {
+  tenantId?: string
+  projectId: string
+  contractId?: string | null
+  sowId?: string | null
+  processId?: string | null
+}): Promise<AtomDeploymentResponse> {
+  const query = buildAtomQuery({
+    tenantId: params.tenantId ?? DEFAULT_TENANT_ID,
+    projectId: params.projectId,
+    contractId: params.contractId ?? undefined,
+    sowId: params.sowId ?? undefined,
+    processId: params.processId ?? undefined,
+  })
+  const res = await fetch(`${API_URL}/api/v2/atoms/deployments?${query}`)
+  return handleResponse<AtomDeploymentResponse>(res)
+}
+
+export async function mutateAtomDeployment(
+  params: {
+    tenantId?: string
+    projectId: string
+    contractId?: string | null
+    sowId?: string | null
+    processId?: string | null
+  },
+  payload: AtomDeploymentMutation,
+  role: 'contractor' | 'client' = 'contractor',
+): Promise<AtomDeploymentResponse> {
+  const query = buildAtomQuery({
+    tenantId: params.tenantId ?? DEFAULT_TENANT_ID,
+    projectId: params.projectId,
+    contractId: params.contractId ?? undefined,
+    sowId: params.sowId ?? undefined,
+    processId: params.processId ?? undefined,
+  })
+  const res = await fetch(`${API_URL}/api/v2/atoms/deployments?${query}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-User-Role': role,
+    },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse<AtomDeploymentResponse>(res)
 }
 
 function buildContractScheduleFromTasks(contractId: string, tasks: GanttTask[]): ContractSchedule | null {

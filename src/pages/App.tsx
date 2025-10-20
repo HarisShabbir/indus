@@ -30,7 +30,7 @@ import {
 } from '../api'
 import ProjectProductivityPanel from '../panels/ProjectProductivityPanel'
 import HierarchyWipBoard from '../components/wip/HierarchyWipBoard'
-import { FEATURE_SCHEDULE_UI, FEATURE_CCC_V2, FEATURE_FINANCIAL_VIEW } from '../config'
+import { FEATURE_SCHEDULE_UI, FEATURE_CCC_V2, FEATURE_FINANCIAL_VIEW, FEATURE_ATOM_MANAGER } from '../config'
 import 'leaflet/dist/leaflet.css'
 import Breadcrumbs from '../components/breadcrumbs/Breadcrumbs'
 import {
@@ -2146,6 +2146,7 @@ function ContractControlCenterOverlay({
   const visibleUtilityViews = utilityViews.filter((view) => {
     if (view.id === 'scheduling' && !FEATURE_SCHEDULE_UI) return false
     if (view.id === 'financial' && !FEATURE_FINANCIAL_VIEW) return false
+    if (view.id === 'atom' && !FEATURE_ATOM_MANAGER) return false
     return true
   })
   if (!project) {
@@ -2269,6 +2270,35 @@ function ContractControlCenterOverlay({
       })
     }
   }, [focusedContract, isAuthenticated, navigate, project])
+
+  const handleAtomNavigate = useCallback(() => {
+    if (!FEATURE_ATOM_MANAGER) {
+      return
+    }
+    if (!isAuthenticated) {
+      navigate('/', { state: { openView: 'login' } })
+      return
+    }
+    const statePayload = {
+      projectId: project?.id,
+      projectName: project?.name,
+      contractId: focusedContract?.id ?? null,
+      contractName: focusedContract?.name ?? null,
+      sowId: focusedSowId,
+      role: 'contractor',
+    }
+    if (focusedContract) {
+      navigate(`/contracts/${focusedContract.id}/atoms`, {
+        state: statePayload,
+      })
+      return
+    }
+    if (project?.id) {
+      navigate('/atoms', {
+        state: statePayload,
+      })
+    }
+  }, [FEATURE_ATOM_MANAGER, focusedContract, focusedSowId, isAuthenticated, navigate, project])
 
   const sowByContract = useMemo(() => {
     const map = new Map<string, typeof sowGroups[number]['sections']>()
@@ -2802,6 +2832,9 @@ function ContractControlCenterOverlay({
                 } else if (view.id === 'financial') {
                   setActiveUtilityView(view.id)
                   handleFinancialNavigate()
+                } else if (view.id === 'atom') {
+                  setActiveUtilityView(view.id)
+                  handleAtomNavigate()
                 } else {
                   setActiveUtilityView(view.id)
                 }

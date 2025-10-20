@@ -16,6 +16,7 @@ VITE_API_URL=http://localhost:8000
 VITE_FEATURE_CCC_V2=true            # optional: enable the new CCC experience
 VITE_FEATURE_SCHEDULE_UI=true        # optional: enable scheduling routes
 VITE_FEATURE_FINANCIAL_VIEW=true     # optional: enable the Financial View pages
+VITE_FEATURE_ATOM_MANAGER=true       # optional: enable the Atom Manager pages
 ```
 
 ## Run

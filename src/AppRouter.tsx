@@ -7,6 +7,7 @@ import ContractSchedulePage from './pages/schedule/ContractSchedulePage'
 import SowSchedulePage from './pages/schedule/SowSchedulePage'
 import ProcessSchedulePage from './pages/schedule/ProcessSchedulePage'
 import FinancialViewPage from './pages/financial/FinancialViewPage'
+import AtomManagerPage from './pages/atom/AtomManagerPage'
 
 export function AppRouter() {
   return (
@@ -19,6 +20,8 @@ export function AppRouter() {
         <Route path="/process/:id/schedule" element={<ProcessSchedulePage />} />
         <Route path="/financial" element={<FinancialViewPage />} />
         <Route path="/contracts/:id/financial" element={<FinancialViewPage />} />
+        <Route path="/atoms" element={<AtomManagerPage />} />
+        <Route path="/contracts/:id/atoms" element={<AtomManagerPage />} />
       </Routes>
     </BrowserRouter>
   )

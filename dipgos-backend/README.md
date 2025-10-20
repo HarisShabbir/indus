@@ -105,6 +105,29 @@ python -m pytest dipgos-backend/app/tests
 
 > Pytest is not bundled with the base environment; install it via `pip install pytest` if you plan to run the suite locally.
 
+## Atom Manager API (feature flagged)
+
+Set `FEATURE_ATOM_MANAGER=true` to expose the `/api/v2/atoms/*` endpoints. Migration `005_atom_manager.sql` provisions the schema (`atom_groups`, `atom_types`, `atoms`, `atom_deployments`) plus demo records for the Diamer Basha hierarchy.
+
+### Repository Tree
+````
+GET /api/v2/atoms/repository?tenantId=default&projectId=diamer-basha&contractId=mw-01-main-dam
+````
+Returns hierarchical nodes `{ id, parentId, level, category, total, engaged, idle }[]` so the UI can rebuild the collapsible repository.
+
+### Summary Cards
+````
+GET /api/v2/atoms/summary?tenantId=default&projectId=diamer-basha&contractId=mw-01-main-dam
+````
+Produces nine category cards with totals/engaged/idle and a lightweight ratio trend. Supports contract, SOW, and process scopes.
+
+### Deployments
+````
+GET /api/v2/atoms/deployments?tenantId=default&projectId=diamer-basha&contractId=mw-01-main-dam
+POST /api/v2/atoms/deployments  (use `X-User-Role: contractor` for mutations)
+````
+Reads return active and historical deployments. Contractors can `assign` or `unassign` atoms via the POST body `{ "atomId": "…", "processId": "…", "action": "assign" | "unassign" }`; clients remain read-only.
+
 ## Feature flags & API
 
 Set the following environment variables to enable the new contract dashboards:
