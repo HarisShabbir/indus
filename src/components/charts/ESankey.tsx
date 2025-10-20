@@ -24,10 +24,10 @@ type Props = {
 }
 
 const NODE_COLORS: Record<string, string> = {
-  project: '#3b82f6',
-  contract: '#10b981',
+  project: '#2563eb',
+  contract: '#22c55e',
   inflow: '#38bdf8',
-  inflow_expected: '#a855f7',
+  inflow_expected: '#c084fc',
   outflow: '#fb923c',
   outflow_expected: '#facc15',
 }
@@ -57,10 +57,6 @@ export function ESankey({ nodes, links, height = 320, loading = false }: Props) 
       source: link.source,
       target: link.target,
       value: link.value,
-      lineStyle: {
-        color: 'inherit',
-        opacity: 0.5,
-      },
     }))
 
     return {
@@ -77,24 +73,67 @@ export function ESankey({ nodes, links, height = 320, loading = false }: Props) 
         },
         className: 'echarts-tooltip',
       },
+      animation: true,
+      animationDuration: 800,
+      animationEasing: 'quarticOut',
       series: [
         {
           type: 'sankey',
           data: nodeData,
           links: linkData,
+          left: '3%',
+          right: '20%',
+          top: '10%',
+          bottom: '10%',
           emphasis: { focus: 'adjacency' },
-          nodeAlign: 'justify',
+          nodeAlign: 'left',
           draggable: false,
+          nodeGap: 18,
+          nodeWidth: 18,
           lineStyle: {
-            color: 'gradient',
-            opacity: 0.45,
-            curveness: 0.5,
+            color: 'source',
+            opacity: 0.65,
+            curveness: 0.45,
           },
           label: {
             fontFamily: 'Inter, system-ui, sans-serif',
             color: palette.text,
             fontSize: 12,
+            formatter: (params: { data?: { name?: string } }) => {
+              if (!params?.data?.name) return ''
+              const node = nodes.find((n) => n.id === params.data?.name)
+              return node?.label ?? params.data?.name
+            },
           },
+          tooltip: {
+            valueFormatter: (value: number) => `$${(value / 1_000_000).toFixed(1)}M`,
+          },
+          itemStyle: {
+            borderColor: '#0f172a33',
+            borderWidth: 1,
+          },
+          levels: [
+            {
+              depth: 0,
+              itemStyle: { color: '#38bdf8' },
+              lineStyle: { color: '#38bdf8' },
+            },
+            {
+              depth: 1,
+              itemStyle: { color: '#3b82f6' },
+              lineStyle: { color: '#3b82f6' },
+            },
+            {
+              depth: 2,
+              itemStyle: { color: '#10b981' },
+              lineStyle: { color: '#10b981' },
+            },
+            {
+              depth: 3,
+              itemStyle: { color: '#fb923c' },
+              lineStyle: { color: '#fb923c' },
+            },
+          ],
         },
       ],
     }
