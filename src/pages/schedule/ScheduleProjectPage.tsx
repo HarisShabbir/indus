@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-import { FEATURE_SCHEDULE_UI } from '../../config'
+import { FEATURE_SCHEDULE_UI, FEATURE_PROGRESS_V2 } from '../../config'
 import { useProjectSchedule } from '../../hooks/useSchedule'
+import { useProgressSummary } from '../../hooks/useProgress'
 import ScheduleLayout from './ScheduleLayout'
 import type { Project } from '../../api'
 import { readAuthToken } from '../../utils/auth'
@@ -31,6 +32,11 @@ export function ScheduleProjectPage() {
 
   const enabled = FEATURE_SCHEDULE_UI && !!projectId && isAuthenticated
   const { data, loading, error } = useProjectSchedule(projectId, enabled)
+  const progressEnabled = FEATURE_SCHEDULE_UI && FEATURE_PROGRESS_V2 && !!projectId && isAuthenticated
+  const progress = useProgressSummary(
+    { projectId: projectId ?? '', tenantId: 'default' },
+    { enabled: progressEnabled },
+  )
 
   if (!isAuthenticated) {
     return null
@@ -83,7 +89,23 @@ export function ScheduleProjectPage() {
   ]
   const title = `${projectName} · Project Schedule`
 
-  return <ScheduleLayout title={title} breadcrumbs={breadcrumbs} tasks={data} loading={loading} error={error} />
+  return (
+    <ScheduleLayout
+      title={title}
+      breadcrumbs={breadcrumbs}
+      tasks={data}
+      loading={loading}
+      error={error}
+      progress={{
+        summary: progress.data,
+        loading: progress.loading,
+        refreshing: progress.refreshing,
+        error: progress.error,
+        enabled: progressEnabled,
+        onRefresh: progress.refresh,
+      }}
+    />
+  )
 }
 
 export default ScheduleProjectPage

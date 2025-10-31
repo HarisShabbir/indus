@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
-import { FEATURE_SCHEDULE_UI } from '../../config'
+import { FEATURE_SCHEDULE_UI, FEATURE_PROGRESS_V2 } from '../../config'
 import { useProcessSchedule } from '../../hooks/useSchedule'
 import ScheduleLayout from './ScheduleLayout'
 import type { Project } from '../../api'
 import { readAuthToken } from '../../utils/auth'
+import { useProgressSummary } from '../../hooks/useProgress'
 
 type LocationState = {
   projectName?: string
@@ -56,6 +57,22 @@ export function ProcessSchedulePage() {
       projectSnapshot: state?.projectSnapshot ?? null,
     }
   }, [data, id, state?.contractId, state?.contractName, state?.processId, state?.processName, state?.projectId, state?.projectName, state?.projectSnapshot, state?.sowId, state?.sowName])
+
+  const progressEnabled =
+    FEATURE_SCHEDULE_UI &&
+    FEATURE_PROGRESS_V2 &&
+    !!derivedNames.projectId &&
+    isAuthenticated
+  const progress = useProgressSummary(
+    {
+      projectId: derivedNames.projectId ?? '',
+      contractId: derivedNames.contractId ?? undefined,
+      sowId: derivedNames.sowId ?? undefined,
+      processId: derivedNames.processId ?? undefined,
+      tenantId: 'default',
+    },
+    { enabled: progressEnabled },
+  )
 
   if (!FEATURE_SCHEDULE_UI) {
     return (
@@ -124,7 +141,23 @@ export function ProcessSchedulePage() {
   ]
   const title = `${derivedNames.processName} · Process Schedule`
 
-  return <ScheduleLayout title={title} breadcrumbs={breadcrumbs} tasks={data} loading={loading} error={error} />
+  return (
+    <ScheduleLayout
+      title={title}
+      breadcrumbs={breadcrumbs}
+      tasks={data}
+      loading={loading}
+      error={error}
+      progress={{
+        summary: progress.data,
+        loading: progress.loading,
+        refreshing: progress.refreshing,
+        error: progress.error,
+        enabled: progressEnabled,
+        onRefresh: progress.refresh,
+      }}
+    />
+  )
 }
 
 export default ProcessSchedulePage

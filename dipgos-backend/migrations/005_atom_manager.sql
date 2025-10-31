@@ -98,6 +98,11 @@ atom_scope AS (
   JOIN dipgos.atom_types t ON t.id = a.atom_type_id
   WHERE a.active
 ),
+active_deployments AS (
+  SELECT atom_id, process_id, tenant_id
+  FROM dipgos.atom_deployments
+  WHERE COALESCE(end_ts, NOW()) >= NOW()
+),
 atom_rollup AS (
   SELECT
     entity_closure.ancestor_id AS entity_id,
@@ -107,11 +112,6 @@ atom_rollup AS (
   FROM atom_scope
   JOIN entity_closure ON atom_scope.home_entity_id = entity_closure.descendant_id
   GROUP BY entity_closure.ancestor_id, atom_scope.category, atom_scope.tenant_id
-),
-active_deployments AS (
-  SELECT d.atom_id, d.process_id, d.tenant_id
-  FROM dipgos.atom_deployments d
-  WHERE COALESCE(d.end_ts, NOW()) >= NOW()
 ),
 engaged_rollup AS (
   SELECT
@@ -150,6 +150,11 @@ WITH RECURSIVE entity_closure AS (
   SELECT child.entity_id, entity_closure.ancestor_id
   FROM dipgos.entities child
   JOIN entity_closure ON child.parent_id = entity_closure.descendant_id
+),
+active_deployments AS (
+  SELECT atom_id, process_id, tenant_id
+  FROM dipgos.atom_deployments
+  WHERE COALESCE(end_ts, NOW()) >= NOW()
 ),
 group_closure AS (
   SELECT id AS descendant_id, id AS ancestor_id
@@ -316,6 +321,7 @@ VALUES
   ('b0000000-0000-0000-0000-000000000001', 'actors', 'Stakeholders', NULL, (SELECT tenant_id FROM seed)),
   ('b0000000-0000-0000-0000-000000000002', 'actors', 'Teams', NULL, (SELECT tenant_id FROM seed)),
   ('b0000000-0000-0000-0000-000000000003', 'actors', 'Workforce', NULL, (SELECT tenant_id FROM seed)),
+  ('b0000000-0000-0000-0000-000000000005', 'actors', 'Professional', 'b0000000-0000-0000-0000-000000000003', (SELECT tenant_id FROM seed)),
   ('b0000000-0000-0000-0000-000000000004', 'actors', 'Labor', 'b0000000-0000-0000-0000-000000000003', (SELECT tenant_id FROM seed)),
   ('b0000000-0000-0000-0000-000000000010', 'materials', 'Machinery', NULL, (SELECT tenant_id FROM seed)),
   ('b0000000-0000-0000-0000-000000000011', 'materials', 'Excavators', 'b0000000-0000-0000-0000-000000000010', (SELECT tenant_id FROM seed)),
@@ -333,6 +339,10 @@ INSERT INTO dipgos.atom_types (id, group_id, category, name, spec, tenant_id)
 VALUES
   ('c0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000004', 'actors', 'Plumber Crew', '{"certified": true}'::jsonb, '00000000-0000-0000-0000-000000000001'),
   ('c0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000004', 'actors', 'Turbine Mechanic', '{"experienceYears": 8}'::jsonb, '00000000-0000-0000-0000-000000000001'),
+  ('c0000000-0000-0000-0000-000000000003', 'b0000000-0000-0000-0000-000000000005', 'actors', 'Electrical Engineer', '{"discipline": "Power systems"}'::jsonb, '00000000-0000-0000-0000-000000000001'),
+  ('c0000000-0000-0000-0000-000000000004', 'b0000000-0000-0000-0000-000000000005', 'actors', 'Mechanical Engineer', '{"discipline": "Plant & equipment"}'::jsonb, '00000000-0000-0000-0000-000000000001'),
+  ('c0000000-0000-0000-0000-000000000005', 'b0000000-0000-0000-0000-000000000005', 'actors', 'Industrial Engineer', '{"discipline": "Lean delivery"}'::jsonb, '00000000-0000-0000-0000-000000000001'),
+  ('c0000000-0000-0000-0000-000000000006', 'b0000000-0000-0000-0000-000000000005', 'actors', 'Civil Engineer', '{"discipline": "Structures"}'::jsonb, '00000000-0000-0000-0000-000000000001'),
   ('c0000000-0000-0000-0000-000000000010', 'b0000000-0000-0000-0000-000000000011', 'materials', 'Excavator CAT 336', '{"capacityTons": 36}'::jsonb, '00000000-0000-0000-0000-000000000001'),
   ('c0000000-0000-0000-0000-000000000011', 'b0000000-0000-0000-0000-000000000012', 'materials', 'Bulldozer D8T', '{"horsepower": 354}'::jsonb, '00000000-0000-0000-0000-000000000001'),
   ('c0000000-0000-0000-0000-000000000020', 'b0000000-0000-0000-0000-000000000020', 'consumables', 'Diesel Tank', '{"liters": 5000}'::jsonb, '00000000-0000-0000-0000-000000000001'),
@@ -356,6 +366,10 @@ VALUES
   ('d0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'Plumber Crew A', 'crew', (SELECT contractor_id FROM seed), (SELECT contract_id FROM seed), '{"experience": "Tier-1"}'::jsonb, (SELECT tenant_id FROM seed)),
   ('d0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000001', 'Plumber Crew B', 'crew', (SELECT contractor_id FROM seed), (SELECT contract_id FROM seed), '{"experience": "Tier-2"}'::jsonb, (SELECT tenant_id FROM seed)),
   ('d0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000002', 'Turbine Mechanic Alpha', 'person', (SELECT contractor_id FROM seed), (SELECT contract_id FROM seed), '{"certified": true}'::jsonb, (SELECT tenant_id FROM seed)),
+  ('d0000000-0000-0000-0000-000000000004', 'c0000000-0000-0000-0000-000000000003', 'Electrical Engineer · Grid Integration', 'person', (SELECT contractor_id FROM seed), (SELECT contract_id FROM seed), '{"licenses": ["PE", "NFPA70E"], "experienceYears": 11}'::jsonb, (SELECT tenant_id FROM seed)),
+  ('d0000000-0000-0000-0000-000000000005', 'c0000000-0000-0000-0000-000000000004', 'Mechanical Engineer · Heavy Plant', 'person', (SELECT contractor_id FROM seed), (SELECT contract_id FROM seed), '{"licenses": ["API 673"], "experienceYears": 9}'::jsonb, (SELECT tenant_id FROM seed)),
+  ('d0000000-0000-0000-0000-000000000006', 'c0000000-0000-0000-0000-000000000005', 'Industrial Engineer · Lean Delivery', 'person', (SELECT contractor_id FROM seed), (SELECT contract_id FROM seed), '{"certifications": ["Lean Black Belt"], "experienceYears": 8}'::jsonb, (SELECT tenant_id FROM seed)),
+  ('d0000000-0000-0000-0000-000000000007', 'c0000000-0000-0000-0000-000000000006', 'Civil Engineer · RCC Structures', 'person', (SELECT contractor_id FROM seed), (SELECT contract_id FROM seed), '{"licenses": ["PEC Registered Engineer"], "experienceYears": 12}'::jsonb, (SELECT tenant_id FROM seed)),
   ('d0000000-0000-0000-0000-000000000010', 'c0000000-0000-0000-0000-000000000010', 'Excavator CAT 336 #12', 'unit', (SELECT contractor_id FROM seed), (SELECT contract_id FROM seed), '{"hours": 1200}'::jsonb, (SELECT tenant_id FROM seed)),
   ('d0000000-0000-0000-0000-000000000011', 'c0000000-0000-0000-0000-000000000011', 'Bulldozer D8T #7', 'unit', (SELECT contractor_id FROM seed), (SELECT contract_id FROM seed), '{"hours": 750}'::jsonb, (SELECT tenant_id FROM seed)),
   ('d0000000-0000-0000-0000-000000000020', 'c0000000-0000-0000-0000-000000000020', 'Diesel Tank 5kL', 'tank', (SELECT contractor_id FROM seed), (SELECT contract_id FROM seed), '{"location": "Fuel Yard"}'::jsonb, (SELECT tenant_id FROM seed)),

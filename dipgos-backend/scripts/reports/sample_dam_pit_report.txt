@@ -1,0 +1,13 @@
+Date: 10-Aug-25
+Weather: Sunny
+Temperature (max/min): 49.8°C / 30.7°C
+River Water Level: U/S EL. 966.81 & D/S EL. 961.93
+
+1 - Excavation (Quantities in m3)
+Location/Structure          Designed   Day 0   Night   Total/day   Excavated   Remain    Completion
+DTs & Power Intake Structures  2,136,492    0       0       0           1,550,990   585,502   73%
+RB Power Tunnel Outlets        1,113,905    0       0       0           1,099,135    14,770   99%
+Dam Right Abutment             2,520,686    0       0       0           1,478,855  1,042,010  59%
+Dam Foundation Pit*            2,157,680    0    5,847   13,599        1,692,284   465,396  78%
+LB Flushing & Power Outlet       439,529    0       0       0             313,124   126,405  71%
+LB Flushing Tunnel & Power Intake 1,452,197 483   432      914         1,243,921   208,276  86%

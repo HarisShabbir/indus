@@ -33,16 +33,10 @@ import HierarchyWipBoard from '../components/wip/HierarchyWipBoard'
 import { FEATURE_SCHEDULE_UI, FEATURE_CCC_V2, FEATURE_FINANCIAL_VIEW, FEATURE_ATOM_MANAGER } from '../config'
 import 'leaflet/dist/leaflet.css'
 import Breadcrumbs from '../components/breadcrumbs/Breadcrumbs'
-import {
-  SidebarNav,
-  sidebarItems,
-  HOME_NAV_INDEX,
-  ACCS_NAV_INDEX,
-  ThemeToggleButton,
-  type ThemeMode,
-} from '../layout/navigation'
+import { SidebarNav, sidebarItems, HOME_NAV_INDEX, ACCS_NAV_INDEX, ThemeToggleButton, type ThemeMode } from '../layout/navigation'
 import { useScheduleStore } from '../state/scheduleStore'
 import { persistCredentials, readAuthToken, readSavedCredentials, setAuthToken } from '../utils/auth'
+import { applyTheme, resolveInitialTheme, toggleThemeValue } from '../utils/theme'
 
 type Theme = ThemeMode
 type View = 'landing' | 'login' | 'dashboard' | 'contract'
@@ -626,7 +620,7 @@ export default function App() {
   const routerNavigate = useNavigate()
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => readAuthToken())
   const [view, setView] = useState<View>(() => (readAuthToken() ? 'dashboard' : 'landing'))
-  const [theme, setTheme] = useState<Theme>('light')
+  const [theme, setTheme] = useState<Theme>(() => resolveInitialTheme())
   const [activeNav, setActiveNav] = useState(0)
   const [contractProject, setContractProject] = useState<Project | null>(null)
   const [previousNav, setPreviousNav] = useState(0)
@@ -636,10 +630,10 @@ export default function App() {
   const [weather, setWeather] = useState<WeatherSummary | null>(null)
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
+    applyTheme(theme)
   }, [theme])
 
-  const toggleTheme = () => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  const handleThemeToggle = useCallback(() => setTheme((prev) => toggleThemeValue(prev)), [])
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -835,7 +829,7 @@ export default function App() {
           onPrimary={() => setView('login')}
           onExplore={() => setView(isAuthenticated ? 'dashboard' : 'login')}
           theme={theme}
-          onToggleTheme={toggleTheme}
+          onToggleTheme={handleThemeToggle}
         />
       )
     }
@@ -851,7 +845,7 @@ export default function App() {
             setView('dashboard')
           }}
           theme={theme}
-          onToggleTheme={toggleTheme}
+          onToggleTheme={handleThemeToggle}
         />
       )
     }
@@ -861,7 +855,7 @@ export default function App() {
           project={contractProject}
           onBack={handleCloseContract}
           theme={theme}
-          onToggleTheme={toggleTheme}
+          onToggleTheme={handleThemeToggle}
           isAuthenticated={isAuthenticated}
           weather={weather}
           initialUtilityView={utilityViewOverride ?? undefined}
@@ -874,7 +868,7 @@ export default function App() {
     return (
       <Dashboard
         theme={theme}
-        onToggleTheme={toggleTheme}
+        onToggleTheme={handleThemeToggle}
         onOpenContract={handleOpenContract}
         weather={weather}
       />
@@ -887,7 +881,7 @@ export default function App() {
         activeIndex={activeNav}
         onSelect={handleSelectNav}
         theme={theme}
-        onToggleTheme={toggleTheme}
+        onToggleTheme={handleThemeToggle}
         onNavigateLanding={() => {
           setContractProject(null)
           setView('landing')

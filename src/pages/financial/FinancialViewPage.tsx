@@ -18,18 +18,15 @@ import {
   type Project,
   type ContractSite,
 } from '../../api'
-import { FEATURE_FINANCIAL_VIEW } from '../../config'
-import {
-  SidebarNav,
-  ThemeToggleButton,
-  HOME_NAV_INDEX,
-  ACCS_NAV_INDEX,
-  type ThemeMode,
-} from '../../layout/navigation'
-import Breadcrumbs from '../../components/breadcrumbs/Breadcrumbs'
+import { FEATURE_FINANCIAL_VIEW, FEATURE_PROGRESS_V2 } from '../../config'
+import { SidebarNav, HOME_NAV_INDEX, ACCS_NAV_INDEX, type ThemeMode } from '../../layout/navigation'
+import TopBar from '../../layout/TopBar'
+import TopBarGlobalActions from '../../layout/TopBarActions'
 import ESankey from '../../components/charts/ESankey'
 import { useScheduleStore } from '../../state/scheduleStore'
 import { readAuthToken } from '../../utils/auth'
+import { useProgressSummary } from '../../hooks/useProgress'
+import { applyTheme, resolveInitialTheme, toggleThemeValue } from '../../utils/theme'
 
 const formatCompactCurrency = (value: number | null | undefined) => {
   if (value === null || value === undefined) return '--'
@@ -78,7 +75,7 @@ export default function FinancialViewPage(): JSX.Element {
     [routeContractId, locationState?.contractId, scheduleStore.currentContractId],
   )
 
-  const [theme, setTheme] = useState<ThemeMode>('light')
+  const [theme, setTheme] = useState<ThemeMode>(() => resolveInitialTheme())
   const [selectedContractId, setSelectedContractId] = useState<string | null>(initialContractId)
   const [project, setProject] = useState<Project | null>(locationState?.projectSnapshot ?? null)
   const [contracts, setContracts] = useState<ContractSite[]>([])
@@ -92,6 +89,27 @@ export default function FinancialViewPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const [expandedContracts, setExpandedContracts] = useState<Record<string, boolean>>({})
   const [activeTab, setActiveTab] = useState<'owner' | 'engineer'>('owner')
+
+  const progressEnabled = FEATURE_FINANCIAL_VIEW && FEATURE_PROGRESS_V2 && Boolean(initialProjectId)
+  const {
+    data: progressSummary,
+    lastFetched: progressLastFetched,
+    refresh: refreshProgress,
+    error: progressError,
+    refreshing: progressRefreshing,
+    loading: progressLoading,
+  } = useProgressSummary(
+    {
+      projectId: initialProjectId ?? '',
+      contractId: selectedContractId,
+      tenantId: 'default',
+    },
+    { enabled: progressEnabled },
+  )
+
+  useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
 
   useEffect(() => {
     setSelectedContractId(initialContractId)
@@ -182,12 +200,12 @@ export default function FinancialViewPage(): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [initialProjectId, selectedContractId, isAuthenticated])
+  }, [initialProjectId, selectedContractId, isAuthenticated, progressLastFetched, progressEnabled])
 
   const projectId = initialProjectId
   const projectName = project?.name ?? initialProjectName
 
-  const handleThemeToggle = () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))
+  const handleThemeToggle = () => setTheme((prev) => toggleThemeValue(prev))
 
   const handleNavSelect = (index: number) => {
     if (index === HOME_NAV_INDEX) {
@@ -220,6 +238,19 @@ export default function FinancialViewPage(): JSX.Element {
       { label: 'Financial View' },
     ],
     [handleNavigateToCcc, navigate, projectSlug],
+  )
+
+  const topBarActions = (
+    <TopBarGlobalActions
+      theme={theme}
+      onToggleTheme={handleThemeToggle}
+      scope={{
+        projectId: initialProjectId,
+        projectName: initialProjectName ?? null,
+        contractId: selectedContractId,
+        contractName: contracts.find((c) => c.id === selectedContractId)?.name ?? null,
+      }}
+    />
   )
 
   const engineerRows = useMemo(() => {
@@ -287,7 +318,6 @@ export default function FinancialViewPage(): JSX.Element {
     )
   }
 
-  const summaryAsOf = summary?.as_of ? new Date(summary.as_of).toLocaleString() : '--'
   const allocationContracts = allocation?.contracts ?? []
   const isProjectView = !selectedContractId
   const formatDate = (value?: string | null) => {
@@ -299,11 +329,28 @@ export default function FinancialViewPage(): JSX.Element {
   const totalActual = expenses.reduce((sum, row) => sum + (row.actual ?? 0), 0)
   const totalPaid = expenses.reduce((sum, row) => sum + (row.paid ?? 0), 0)
   const totalBalance = expenses.reduce((sum, row) => sum + (row.balance ?? 0), 0)
+  const progressPercentValue =
+    typeof progressSummary?.percentComplete === 'number' ? progressSummary.percentComplete * 100 : null
+  const progressSlipValue = typeof progressSummary?.slips === 'number' ? Math.round(progressSummary.slips) : null
+
+  const summaryAsOf = useMemo(() => {
+    if (progressSummary?.asOf) {
+      const timestamp = new Date(progressSummary.asOf)
+      return Number.isNaN(timestamp.getTime()) ? progressSummary.asOf : timestamp.toLocaleString()
+    }
+    if (summary?.as_of) {
+      const timestamp = new Date(summary.as_of)
+      return Number.isNaN(timestamp.getTime()) ? summary.as_of : timestamp.toLocaleString()
+    }
+    return '--'
+  }, [progressSummary, summary])
 
   return (
     <div className="financial-view" data-theme={theme}>
       <SidebarNav activeIndex={ACCS_NAV_INDEX} onSelect={handleNavSelect} theme={theme} onToggleTheme={handleThemeToggle} />
-      <div className="financial-stage">
+      <div className="app-shell topbar-layout">
+        <TopBar breadcrumbs={breadcrumbs} actions={topBarActions} />
+        <div className="financial-stage">
         <aside className="financial-left" aria-label="Project and contracts">
           <div className="financial-left-header">
             <h2>{projectName}</h2>
@@ -336,7 +383,6 @@ export default function FinancialViewPage(): JSX.Element {
         </aside>
         <main className="financial-main">
           <header className="financial-header">
-            <Breadcrumbs items={breadcrumbs} />
             <div className="financial-summary">
               <div className="financial-summary-card">
                 <span>Earned Value (EV)</span>
@@ -358,6 +404,36 @@ export default function FinancialViewPage(): JSX.Element {
                 <small>As of {summaryAsOf}</small>
               </div>
             </div>
+            {progressEnabled && (
+              <div className="financial-header-controls">
+                <div className="financial-progress-meta">
+                  <span>
+                    <strong>
+                      {progressPercentValue !== null ? `${progressPercentValue.toFixed(1)}%` : '--'}
+                    </strong>
+                    <small>Percent complete</small>
+                  </span>
+                  <span>
+                    <strong>
+                      {progressSlipValue !== null
+                        ? progressSlipValue === 0
+                          ? 'On plan'
+                          : `${progressSlipValue} d`
+                        : '--'}
+                    </strong>
+                    <small>Schedule slip</small>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="refresh-cta"
+                  onClick={() => refreshProgress()}
+                  disabled={progressRefreshing || progressLoading}
+                >
+                  {progressRefreshing ? 'Refreshing…' : 'Refresh'}
+                </button>
+              </div>
+            )}
           </header>
 
           <div className="financial-tabs" role="tablist" aria-label="Financial perspectives">
@@ -382,6 +458,7 @@ export default function FinancialViewPage(): JSX.Element {
           </div>
 
           {error && <div className="financial-error">{error}</div>}
+          {!error && progressError && <div className="financial-error">Unable to refresh progress snapshot.</div>}
 
           {activeTab === 'owner' ? (
             <div className="financial-grid">
@@ -663,6 +740,7 @@ export default function FinancialViewPage(): JSX.Element {
             </table>
           </section>
         </aside>
+      </div>
       </div>
     </div>
   )

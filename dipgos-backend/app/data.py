@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Dict, List, Optional
 
 FALLBACK_PROJECTS: List[Dict[str, object]] = [
@@ -591,3 +593,60 @@ def fallback_sows(project_id: str) -> List[Dict[str, object]]:
                 }
             )
     return results
+
+
+def _load_fallback_alerts() -> List[Dict[str, object]]:
+    alerts_path = Path(__file__).resolve().parent / "fixtures" / "alerts.json"
+    if not alerts_path.exists():
+        return []
+    try:
+        return json.loads(alerts_path.read_text())
+    except json.JSONDecodeError:
+        return []
+
+
+_FALLBACK_ALERTS = _load_fallback_alerts()
+
+
+def fallback_alerts(project_id: Optional[str] = None) -> List[Dict[str, object]]:
+    results: List[Dict[str, object]] = []
+    for alert in _FALLBACK_ALERTS:
+        if project_id and alert.get("project_id") != project_id:
+            continue
+        items = [
+            {
+                "type": item.get("item_type", item.get("type", "")),
+                "label": item.get("label", ""),
+                "detail": item.get("detail", ""),
+            }
+            for item in alert.get("items", [])
+        ]
+        results.append(
+            {
+                "id": alert.get("id"),
+                "project_id": alert.get("project_id"),
+                "title": alert.get("title"),
+                "location": alert.get("location"),
+                "activity": alert.get("activity"),
+                "severity": alert.get("severity"),
+                "category": alert.get("category"),
+                "status": alert.get("status", "open"),
+                "owner": alert.get("owner"),
+                "root_cause": alert.get("root_cause"),
+                "recommendation": alert.get("recommendation"),
+                "acknowledged_at": alert.get("acknowledged_at"),
+                "due_at": alert.get("due_at"),
+                "cleared_at": alert.get("cleared_at"),
+                "raised_at": alert.get("raised_at"),
+                "metadata": alert.get("metadata", {}),
+                "items": items,
+            }
+        )
+    return results
+
+
+def fallback_alert_by_id(alert_id: str) -> Optional[Dict[str, object]]:
+    for alert in fallback_alerts():
+        if alert["id"] == alert_id:
+            return alert
+    return None

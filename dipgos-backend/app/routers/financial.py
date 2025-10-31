@@ -30,7 +30,7 @@ def financial_summary(
     project_id: str = Query(..., alias="projectId"),
     contract_id: Optional[str] = Query(default=None, alias="contractId"),
 ) -> FinancialSummary:
-    return get_financial_summary(project_id=project_id, contract_code=contract_id, tenant_id=tenant_id)
+    return get_financial_summary(project_code=project_id, contract_code=contract_id, tenant_id=tenant_id)
 
 
 @router.get("/fund-allocation", response_model=FundAllocationResponse)

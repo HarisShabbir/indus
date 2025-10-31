@@ -32,25 +32,32 @@ export function ScheduleTaskListTable({
   onExpanderClick,
 }: TaskListTableProps): JSX.Element {
   const formatDate = useMemo(() => new Intl.DateTimeFormat(locale, DATE_FORMAT_OPTIONS), [locale])
+  const baseWidth = Number.parseInt(rowWidth, 10) || 320
+  const nameMinWidth = Math.max(220, baseWidth)
+  const dateMinWidth = Math.max(160, Math.round(baseWidth * 0.55))
+  const columnTemplate = `minmax(${nameMinWidth}px, 2.5fr) repeat(2, minmax(${dateMinWidth}px, 1.2fr))`
+  const nameCellStyle: React.CSSProperties = { minWidth: `${nameMinWidth}px` }
+  const dateCellStyle: React.CSSProperties = { minWidth: `${dateMinWidth}px` }
 
   return (
     <div className="schedule-task-list" style={{ fontFamily, fontSize }}>
       {tasks.map((task) => {
+        const extended = task as Task & { fullName?: string }
+        const displayName = extended.fullName ?? task.name
         const isCollapsible = task.hideChildren !== undefined
         const isCollapsed = task.hideChildren === true
         const isExpanded = task.hideChildren === false
         const isSelected = task.id === selectedTaskId
-        const cellStyle = { minWidth: rowWidth, maxWidth: rowWidth, width: rowWidth }
         return (
           <div
             key={`${task.id}-row`}
             className={`schedule-task-list-row${isCollapsed ? ' collapsed' : ''}${isSelected ? ' selected' : ''}`}
-            style={{ height: rowHeight }}
+            style={{ height: rowHeight, gridTemplateColumns: columnTemplate }}
             data-task-id={task.id}
             data-collapsed={isCollapsed || undefined}
             onClick={() => setSelectedTask(task.id)}
           >
-            <div className="schedule-task-list-cell name" style={cellStyle} title={task.name}>
+            <div className="schedule-task-list-cell name" style={nameCellStyle} title={displayName}>
               <div className="schedule-task-list-name">
                 <button
                   type="button"
@@ -65,13 +72,13 @@ export function ScheduleTaskListTable({
                 >
                   {isCollapsible ? (isCollapsed ? '▶' : '▼') : ''}
                 </button>
-                <span>{task.name}</span>
+                <span>{displayName}</span>
               </div>
             </div>
-            <div className="schedule-task-list-cell date" style={cellStyle}>
+            <div className="schedule-task-list-cell date" style={dateCellStyle}>
               {formatDate.format(task.start)}
             </div>
-            <div className="schedule-task-list-cell date" style={cellStyle}>
+            <div className="schedule-task-list-cell date" style={dateCellStyle}>
               {formatDate.format(task.end)}
             </div>
           </div>

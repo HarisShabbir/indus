@@ -1,9 +1,11 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export type BreadcrumbItem = {
   label: string
   onClick?: () => void
   href?: string
+  state?: unknown
   isCurrent?: boolean
 }
 
@@ -13,21 +15,23 @@ type BreadcrumbsProps = {
 }
 
 export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
+  const navigate = useNavigate()
+
   return (
     <nav className={`breadcrumbs ${className ?? ''}`} aria-label="Breadcrumb trail">
       {items.map((item, index) => {
         const isLast = index === items.length - 1 || item.isCurrent
+        const isInteractive = Boolean(item.onClick || item.href || (!isLast && item.label === 'Dashboard'))
         const handleClick = (event: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
           if (item.onClick) {
             event.preventDefault()
             item.onClick()
+            return
           }
-        }
-
-        const commonProps = {
-          className: `breadcrumbs-link ${isLast ? 'current' : ''}`,
-          onClick: handleClick,
-          'aria-current': isLast ? 'page' : undefined,
+          if (!item.href && item.label === 'Dashboard') {
+            event.preventDefault()
+            navigate('/', { state: { openView: 'dashboard' } })
+          }
         }
 
         return (
@@ -37,14 +41,28 @@ export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
                 ›
               </span>
             )}
-            {item.href && !item.onClick ? (
-              <a href={item.href} {...commonProps}>
+            {item.href ? (
+              <a
+                href={item.href}
+                className={`breadcrumbs-link ${isLast ? 'current' : ''}`}
+                onClick={item.onClick ? handleClick : undefined}
+                aria-current={isLast ? 'page' : undefined}
+              >
                 {item.label}
               </a>
-            ) : (
-              <button type="button" {...commonProps}>
+            ) : isInteractive ? (
+              <button
+                type="button"
+                className={`breadcrumbs-link ${isLast ? 'current' : ''}`}
+                onClick={handleClick}
+                aria-current={isLast ? 'page' : undefined}
+              >
                 {item.label}
               </button>
+            ) : (
+              <span className={`breadcrumbs-link ${isLast ? 'current' : ''}`} aria-current={isLast ? 'page' : undefined}>
+                {item.label}
+              </span>
             )}
           </React.Fragment>
         )

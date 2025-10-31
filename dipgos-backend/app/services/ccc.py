@@ -624,8 +624,8 @@ def _fetch_series(level: str, project_id: str, contract_id: Optional[str], metri
 
 
 def _series_values(series: List[Tuple[datetime, Optional[float], Optional[float]]]) -> Tuple[List[float], List[float]]:
-    actual = [value for (_, value, _) in series if value is not None]
-    planned = [value for (_, _, value2) in series if value2 is not None]
+    actual = [actual_value for (_, actual_value, _) in series if actual_value is not None]
+    planned = [planned_value for (_, _, planned_value) in series if planned_value is not None]
     return actual, planned
 
 
@@ -636,26 +636,26 @@ def _group_contract_categories(contracts, metrics_lookup) -> WorkInProgressCard:
         actual = entry.value("prod_actual_pct") if entry else _to_float(row.get("status_pct"))
         planned = entry.value("prod_planned_pct") if entry else None
         stage = (row.get("status_label") or row.get("phase") or "Unknown").title()
-    categories[stage].append((actual, planned))
+        categories[stage].append((actual, planned))
 
     items: List[WorkInProgressCategory] = []
     for stage, values in categories.items():
-      actual_vals = [v for v, _ in values if v is not None]
-      planned_vals = [v for _, v in values if v is not None]
-      actual_avg = sum(actual_vals) / len(actual_vals) if actual_vals else None
-      planned_avg = sum(planned_vals) / len(planned_vals) if planned_vals else None
-      variance = None
-      if actual_avg is not None and planned_avg is not None:
-        variance = actual_avg - planned_avg
-      items.append(
-        WorkInProgressCategory(
-          name=stage,
-          count=len(values),
-          planned_percent=planned_avg,
-          actual_percent=actual_avg,
-          variance_percent=variance,
+        actual_vals = [v for v, _ in values if v is not None]
+        planned_vals = [v for _, v in values if v is not None]
+        actual_avg = sum(actual_vals) / len(actual_vals) if actual_vals else None
+        planned_avg = sum(planned_vals) / len(planned_vals) if planned_vals else None
+        variance = None
+        if actual_avg is not None and planned_avg is not None:
+            variance = actual_avg - planned_avg
+        items.append(
+            WorkInProgressCategory(
+                name=stage,
+                count=len(values),
+                planned_percent=planned_avg,
+                actual_percent=actual_avg,
+                variance_percent=variance,
+            )
         )
-      )
     items.sort(key=lambda item: item.name.lower())
 
     return WorkInProgressCard(categories=items)

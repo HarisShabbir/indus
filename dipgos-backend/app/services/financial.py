@@ -351,6 +351,70 @@ def get_fund_flow(project_code: str, contract_code: Optional[str], tenant_id: st
         if parent_id and amount_value and amount_value > 0:
             links.append(SankeyLink(source=node_id, target=parent_id, value=amount_value))
 
+    if not links:
+        allocation = get_fund_allocation(project_code=project_code, tenant_id=tenant_id)
+        fallback_nodes: Dict[str, SankeyNode] = {}
+        fallback_links: list[SankeyLink] = []
+        selected_contract_code = contract["code"] if contract else None
+
+        project_code_str = project["code"]
+        project_label = project.get("name") or project_code_str
+        fallback_nodes[project_code_str] = SankeyNode(id=project_code_str, label=project_label, type="project")
+
+        total_allocation = 0.0
+        contract_rows = []
+        for row in allocation.contracts:
+            if not row.contract_id:
+                continue
+            if selected_contract_code and row.contract_id != selected_contract_code:
+                continue
+            summary = get_financial_summary(project_code=project_code, contract_code=row.contract_id, tenant_id=tenant_id)
+            spent_value = _to_float(summary.ac) or _to_float(summary.ev) or 0.0
+            amount_value = _to_float(row.amount) or 0.0
+            if amount_value <= 0 and spent_value > 0:
+                amount_value = spent_value
+            contract_rows.append(
+                (row.contract_id, row.description or row.contract_id, amount_value, spent_value),
+            )
+
+        for _, _, amount_value, _ in contract_rows:
+            total_allocation += max(0.0, amount_value)
+
+        if selected_contract_code and not contract_rows:
+            summary = get_financial_summary(project_code=project_code, contract_code=selected_contract_code, tenant_id=tenant_id)
+            amount_value = _to_float(summary.pv) or _to_float(summary.ev) or 0.0
+            spent_value = _to_float(summary.ac) or _to_float(summary.ev) or 0.0
+            label = contract.get("name") if contract else selected_contract_code
+            contract_rows.append((selected_contract_code, label or selected_contract_code, amount_value, spent_value))
+            total_allocation = max(total_allocation, max(0.0, amount_value))
+
+        funding_node_id = f"{project_code_str}-funding"
+        fallback_nodes[funding_node_id] = SankeyNode(id=funding_node_id, label="Funding Pool", type="inflow")
+        if total_allocation > 0:
+            fallback_links.append(SankeyLink(source=funding_node_id, target=project_code_str, value=total_allocation))
+
+        for contract_code, description, amount, spent_value in contract_rows:
+            if not contract_code:
+                continue
+            label = description or contract_code
+            contract_node_id = contract_code
+            fallback_nodes[contract_node_id] = SankeyNode(id=contract_node_id, label=label, type="contract")
+            if amount and amount > 0:
+                fallback_links.append(SankeyLink(source=project_code_str, target=contract_node_id, value=amount))
+
+            if spent_value and spent_value > 0:
+                spent_node_id = f"{contract_node_id}-spent"
+                fallback_nodes[spent_node_id] = SankeyNode(
+                    id=spent_node_id,
+                    label=f"{label} Spend",
+                    type="outflow",
+                )
+                fallback_links.append(SankeyLink(source=contract_node_id, target=spent_node_id, value=spent_value))
+
+        if fallback_links:
+            nodes = fallback_nodes
+            links = fallback_links
+
     response = FundFlowResponse(nodes=list(nodes.values()), links=links)
     _cache_set(_flow_cache, cache_key, response)
     return response

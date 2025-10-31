@@ -97,6 +97,42 @@ Incoming responses return `available` (deposited) and `expected` sections. Outgo
 
 Responses are cached for 45s per tenant/project/contract tuple.
 
+## Progress v2 API (feature flagged)
+
+Set `FEATURE_PROGRESS_V2=true` to expose the `/api/v2/progress/*` endpoints backed by the daily project progress report (DPPR) tables.
+
+### Bulk ingest
+
+````
+POST /api/v2/progress/bulk
+````
+
+Accepts `{ tenantId, rows[] }` payloads and upserts DPPR entries idempotently for process or SOW entities. SPI, CPI, and percent complete are recalculated per report date, and caches are invalidated immediately so downstream summaries refresh on the next poll.
+
+### Summary
+
+````
+GET /api/v2/progress/summary?tenantId=default&projectId=<code>&contractId=<optional>&sowId=<optional>&processId=<optional>
+````
+
+Returns `{ ev, pv, ac, spi, cpi, percentComplete, slips, nextActivities[], as_of }` scoped to any hierarchy level. Slips are expressed in days (positive = behind plan). Responses are cached for ~45s per tenant/scope tuple unless new DPPR records arrive.
+
+### Seed DPPR data from a daily report
+
+The helper script in `scripts/seed_dppr_from_report.py` parses an OCR/plain-text export of the Diamer Basha daily progress report and synthesises six months of DPPR history for the Dam Pit excavation process. This drives the schedule, financial, CCC, and Atom Manager UIs from a single source of truth.
+
+````bash
+cd dipgos-backend
+# optional: convert PDF → text first, for example with `pdftotext report.pdf report.txt`
+python -m scripts.seed_dppr_from_report \
+    --report scripts/reports/sample_dam_pit_report.txt \
+    --entity mw-01-dam-pit \
+    --months 6 \
+    --as-of 2025-08-10
+````
+
+Custom reports can be supplied via the `--report` flag; the script smooths daily increments to match the cumulative excavated quantity in the snapshot, upserts `dipgos.dppr`, and keeps `dipgos.evm_metrics` in sync so `/api/v2/progress/summary` immediately reflects the new data.
+
 ## Tests
 
 ```bash
@@ -127,6 +163,74 @@ GET /api/v2/atoms/deployments?tenantId=default&projectId=diamer-basha&contractId
 POST /api/v2/atoms/deployments  (use `X-User-Role: contractor` for mutations)
 ````
 Reads return active and historical deployments. Contractors can `assign` or `unassign` atoms via the POST body `{ "atomId": "…", "processId": "…", "action": "assign" | "unassign" }`; clients remain read-only.
+
+### Deployment report (grouped)
+```http
+GET /api/v2/atoms/deployments/report?tenantId=default&projectId=diamer-basha&contractId=mw-01-main-dam&status=active|idle
+```
+Returns a reporting-grade payload used by the new Atom Manager right panel:
+
+```json
+{
+  "scope": {"level": "contract", "entityId": "…", "projectId": "diamer-basha", "contractId": "mw-01-main-dam"},
+  "status": "active",
+  "groups": [{
+    "atomType": "machinery",
+    "model": "Excavator CAT 336",
+    "vendor": "Caterpillar Inc.",
+    "capacity": {"bucket_m3": 1.2},
+    "count": 4,
+    "hoursCompleted": 128.5,
+    "workCompleted": {"qtyDone": 5200, "percentComplete": 0.37},
+    "journeyStatus": "engaged",
+    "processName": "Dam Pit excavation",
+    "items": [{
+      "atomId": "…",
+      "serial": "CAT-EX-021-009",
+      "deploymentStart": "2025-10-06T07:00:00Z",
+      "hoursCompleted": 31.5,
+      "journey": [{"status": "warehouse", "ts": "2025-10-01T10:00:00Z"}, …]
+    }]
+  }],
+  "totals": {"engaged": 10, "idle": 3, "completed": 1},
+  "pagination": {"page": 1, "size": 50, "totalGroups": 6},
+  "as_of": "2025-10-22T19:00:00Z"
+}
+```
+
+Active and idle tabs are cached for ~45 s per tenant/scope. Idle responses include both idle and completed resources so the UI can split the tab client-side.
+
+### Change requests (contractor stub)
+```http
+POST /api/v2/change-requests
+GET  /api/v2/change-requests?tenantId=default&projectId=diamer-basha&contractId=mw-01-main-dam
+```
+`POST` validates the hierarchy (project/contract/SOW/process codes) before inserting a pending capacity increase record. The response echoes the stored row. `GET` lists the most recent 200 requests for the supplied scope.
+
+### Atom journey events
+```http
+POST /api/v2/atoms/journey
+```
+Record a status transition for an atom instance `{ atomId, status: 'warehouse'|'in_transit'|'on_site'|'engaged', ts? }`. The deployment report surfaces the latest state and the full timeline for each atom in the right-panel drawer.
+
+### Atom dataset enrichment (dev utility)
+
+Generate a large synthetic dataset for the Atom Manager (atoms, deployments, journey history):
+
+```bash
+cd dipgos-backend
+.venv/bin/python -m scripts.enrich_atom_dataset --atoms 1000 --active-ratio 0.8
+.venv/bin/python -m scripts.load_atom_manifestation
+```
+
+Arguments:
+
+- `--atoms` (default `1000`): number of atom records to ensure.
+- `--active-ratio` (default `0.75`): fraction of atoms to seed with deployments.
+- `--seed` (default `42`): RNG seed to keep the output deterministic.
+- `--database-url`: optional explicit Postgres URL (falls back to `app.config.Settings.database_url`).
+
+`scripts.load_atom_manifestation` hydrates the `atom_manifestation` table with vendor/model attribute rows that power the Manifestation Layer tab (e.g., Caterpillar CAT 395, Volvo EC750E). Re-run it whenever the CSV in `scripts/data/atom_manifestation.csv` changes.
 
 ## Feature flags & API
 

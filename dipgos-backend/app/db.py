@@ -44,8 +44,44 @@ SCHEMA_STATEMENTS: Iterable[str] = (
         location TEXT,
         activity TEXT,
         severity TEXT,
+        category TEXT,
+        status TEXT NOT NULL DEFAULT 'open',
+        owner TEXT,
+        root_cause TEXT,
+        recommendation TEXT,
+        acknowledged_at TIMESTAMPTZ,
+        due_at TIMESTAMPTZ,
+        cleared_at TIMESTAMPTZ,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
         raised_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+    """,
+    """
+    ALTER TABLE dipgos.alerts ADD COLUMN IF NOT EXISTS category TEXT
+    """,
+    """
+    ALTER TABLE dipgos.alerts ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'open'
+    """,
+    """
+    ALTER TABLE dipgos.alerts ADD COLUMN IF NOT EXISTS owner TEXT
+    """,
+    """
+    ALTER TABLE dipgos.alerts ADD COLUMN IF NOT EXISTS root_cause TEXT
+    """,
+    """
+    ALTER TABLE dipgos.alerts ADD COLUMN IF NOT EXISTS recommendation TEXT
+    """,
+    """
+    ALTER TABLE dipgos.alerts ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMPTZ
+    """,
+    """
+    ALTER TABLE dipgos.alerts ADD COLUMN IF NOT EXISTS due_at TIMESTAMPTZ
+    """,
+    """
+    ALTER TABLE dipgos.alerts ADD COLUMN IF NOT EXISTS cleared_at TIMESTAMPTZ
+    """,
+    """
+    ALTER TABLE dipgos.alerts ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb
     """,
     """
     CREATE TABLE IF NOT EXISTS dipgos.alert_items (
@@ -243,24 +279,59 @@ def seed_database() -> None:
                 logger.info("Seeding dipgos.alerts from %s", alerts_path)
                 alerts = json.loads(alerts_path.read_text())
                 with conn.cursor() as cur:
-                    for alert in alerts:
+                    for raw_alert in alerts:
+                        alert = raw_alert.copy()
                         items = alert.pop("items", [])
+                        metadata = alert.pop("metadata", {})
+                        payload = {
+                            "id": alert.get("id"),
+                            "project_id": alert.get("project_id"),
+                            "title": alert.get("title"),
+                            "location": alert.get("location"),
+                            "activity": alert.get("activity"),
+                            "severity": alert.get("severity"),
+                            "category": alert.get("category"),
+                            "status": alert.get("status", "open"),
+                            "owner": alert.get("owner"),
+                            "root_cause": alert.get("root_cause"),
+                            "recommendation": alert.get("recommendation"),
+                            "acknowledged_at": alert.get("acknowledged_at"),
+                            "due_at": alert.get("due_at"),
+                            "cleared_at": alert.get("cleared_at"),
+                            "raised_at": alert.get("raised_at"),
+                            "metadata": json.dumps(metadata or {}),
+                        }
                         cur.execute(
                             """
                             INSERT INTO dipgos.alerts (
-                                id, project_id, title, location, activity, severity, raised_at
+                                id, project_id, title, location, activity, severity,
+                                category, status, owner, root_cause, recommendation,
+                                acknowledged_at, due_at, cleared_at, raised_at, metadata
                             )
-                            VALUES (%(id)s, %(project_id)s, %(title)s, %(location)s,
-                                    %(activity)s, %(severity)s, %(raised_at)s)
+                            VALUES (
+                                %(id)s, %(project_id)s, %(title)s, %(location)s, %(activity)s, %(severity)s,
+                                %(category)s, %(status)s, %(owner)s, %(root_cause)s, %(recommendation)s,
+                                %(acknowledged_at)s, %(due_at)s, %(cleared_at)s, %(raised_at)s, %(metadata)s::jsonb
+                            )
                             ON CONFLICT (id) DO UPDATE SET
                                 title = EXCLUDED.title,
                                 location = EXCLUDED.location,
                                 activity = EXCLUDED.activity,
                                 severity = EXCLUDED.severity,
-                                raised_at = EXCLUDED.raised_at
+                                category = EXCLUDED.category,
+                                status = EXCLUDED.status,
+                                owner = EXCLUDED.owner,
+                                root_cause = EXCLUDED.root_cause,
+                                recommendation = EXCLUDED.recommendation,
+                                acknowledged_at = EXCLUDED.acknowledged_at,
+                                due_at = EXCLUDED.due_at,
+                                cleared_at = EXCLUDED.cleared_at,
+                                raised_at = EXCLUDED.raised_at,
+                                metadata = EXCLUDED.metadata
                             """,
-                            alert,
+                            payload,
                         )
+                        cur.execute("DELETE FROM dipgos.alert_items WHERE alert_id = %s", (payload["id"],))
                         for item in items:
                             cur.execute(
                                 """
@@ -268,7 +339,12 @@ def seed_database() -> None:
                                 VALUES (%s, %s, %s, %s)
                                 ON CONFLICT DO NOTHING
                                 """,
-                                (alert["id"], item["item_type"], item["label"], item["detail"]),
+                                (
+                                    payload["id"],
+                                    item.get("item_type") or item.get("type"),
+                                    item.get("label"),
+                                    item.get("detail"),
+                                ),
                             )
                 conn.commit()
 
