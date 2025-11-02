@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from datetime import date, datetime, timedelta, timezone
-from typing import Dict, List, Optional, Sequence
+from datetime import date, datetime, time, timedelta, timezone
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from fastapi import HTTPException, status
 from psycopg.errors import UndefinedTable
@@ -84,56 +84,334 @@ def _scope_info_from_row(level: str, row_key: str, rows: Sequence[dict]) -> Atom
     return AtomFinancialScopeInfo(level=level, id=None, code=None, name=None)
 
 
-def get_atom_financial_view(
-    tenant_id: Optional[str],
-    project_code: str,
-    contract_code: Optional[str],
-    sow_code: Optional[str],
-    process_code: Optional[str],
-    atom_id: Optional[str],
-    start_date_str: Optional[str],
-    end_date_str: Optional[str],
-    basis_filter: Optional[List[str]],
-    location_filter: Optional[str],
-    atom_type_filter: Optional[str],
-    shift_filter: Optional[str],
-    billable_filter: Optional[str],
-    group_by: Optional[str],
-) -> AtomFinancialViewResponse:
-    _ensure_feature_enabled()
+def _as_float(value: Optional[object]) -> Optional[float]:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
-    tenant_hint = progress_normalise_tenant(tenant_id or "default")
 
-    scope: ProgressScope = _resolve_scope_with_fallback(
-        tenant_hint=tenant_hint,
-        project_code=project_code,
-        contract_code=contract_code,
-        sow_code=sow_code,
-        process_code=process_code,
-    )
+def _extract_schedule_window(
+    schedule_date: date,
+    payload: Optional[dict],
+    busy_minutes: float,
+    idle_minutes: float,
+) -> Tuple[Optional[datetime], Optional[datetime], Optional[str], Optional[str]]:
+    start_dt: Optional[datetime] = None
+    end_dt: Optional[datetime] = None
+    location_label: Optional[str] = None
+    shift_label: Optional[str] = None
 
-    start_date = _parse_date(start_date_str)
-    end_date = _parse_date(end_date_str)
+    if payload:
+        time_slots = payload.get("timeSlots") or []
+        for slot in time_slots:
+            start_raw = slot.get("start")
+            end_raw = slot.get("end")
+            slot_location = slot.get("location")
+            slot_shift = slot.get("shift")
+            try:
+                if start_raw:
+                    parsed_start = datetime.combine(
+                        schedule_date,
+                        datetime.strptime(start_raw, "%H:%M").time(),
+                        tzinfo=timezone.utc,
+                    )
+                else:
+                    parsed_start = None
+                if end_raw:
+                    parsed_end = datetime.combine(
+                        schedule_date,
+                        datetime.strptime(end_raw, "%H:%M").time(),
+                        tzinfo=timezone.utc,
+                    )
+                else:
+                    parsed_end = None
+            except ValueError:
+                parsed_start = None
+                parsed_end = None
 
-    today = date.today()
-    if end_date is None:
-        end_date = today
-    if start_date is None:
-        start_date = end_date - timedelta(days=6)
+            if parsed_start and (start_dt is None or parsed_start < start_dt):
+                start_dt = parsed_start
+            if parsed_end and (end_dt is None or parsed_end > end_dt):
+                end_dt = parsed_end
 
-    if start_date > end_date:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="startDate must be before endDate")
+            if not location_label and slot_location:
+                location_label = slot_location
+            if not shift_label and slot_shift:
+                shift_label = slot_shift
 
-    applied_basis_filter = [value.lower() for value in (basis_filter or []) if value]
-    applied_location_filter = location_filter.strip() if location_filter else None
-    applied_atom_type_filter = atom_type_filter.strip() if atom_type_filter else None
-    applied_shift_filter = shift_filter.strip() if shift_filter else None
-    applied_billable_filter = billable_filter.lower().strip() if billable_filter else None
-    applied_group_by = group_by.strip() if group_by else None
+    if start_dt is None and busy_minutes > 0:
+        start_dt = datetime.combine(schedule_date, time(8, 0), tzinfo=timezone.utc)
+    if start_dt is not None and end_dt is None and busy_minutes > 0:
+        end_dt = start_dt + timedelta(minutes=busy_minutes + idle_minutes)
 
-    rows: List[dict]
+    return start_dt, end_dt, location_label, shift_label
+
+
+DEFAULT_RATE_CARDS: Dict[str, Dict[str, float]] = {
+    "d0000000-0000-0000-0000-000000000007": {"time_rate": 120.0, "unit_rate": 38.0},
+    "d0000000-0000-0000-0000-000000000010": {"time_rate": 165.0, "unit_rate": 3.25},
+}
+
+
+def _fetch_dynamic_financial_rows(
+    scope: ProgressScope,
+    start_date: date,
+    end_date: date,
+) -> List[dict]:
+    tenant_uuid = scope.tenant_id or scope.project.get("tenant_id")
+    if tenant_uuid is None:
+        return []
+
+    filters: List[str] = []
+    params: List = [tenant_uuid, scope.project["entity_id"], start_date, end_date]
+
+    if scope.contract:
+        filters.append("se.contract_id = %s")
+        params.append(scope.contract["entity_id"])
+    if scope.sow:
+        filters.append("se.sow_id = %s")
+        params.append(scope.sow["entity_id"])
+    if scope.process:
+        filters.append("se.process_id = %s")
+        params.append(scope.process["entity_id"])
+
+    filter_sql = ""
+    if filters:
+        filter_sql = " AND " + " AND ".join(filters)
+
+    query = f"""
+        SELECT
+            sd.id AS daily_id,
+            sd.schedule_date,
+            sd.total_busy_minutes,
+            sd.total_idle_minutes,
+            sd.total_allocations,
+            sd.volume_committed,
+            sd.volume_unit,
+            sd.notes AS daily_notes,
+            sd.payload,
+            sd.created_at AS daily_created_at,
+            sd.updated_at AS daily_updated_at,
+            se.id AS schedule_entry_id,
+            se.status AS schedule_status,
+            se.notes AS schedule_notes,
+            se.milestone,
+            se.criticality,
+            se.percent_complete,
+            se.planned_start,
+            se.planned_finish,
+            se.actual_start,
+            se.actual_finish,
+            se.contract_id,
+            se.sow_id,
+            se.process_id,
+            se.project_id,
+            process.code AS process_code,
+            process.name AS process_name,
+            sow.code AS sow_code,
+            sow.name AS sow_name,
+            contract.code AS contract_code,
+            contract.name AS contract_name,
+            project.code AS project_code,
+            project.name AS project_name,
+            atom.id AS atom_id,
+            atom.name AS atom_name,
+            atom.unit AS atom_unit,
+            atom_type.id AS atom_type_id,
+            atom_type.name AS atom_type_name,
+            atom_type.category AS atom_category,
+            rate.basis AS rate_basis,
+            rate.time_rate,
+            rate.unit_rate,
+            rate.standby_rate,
+            rate.overtime_multiplier,
+            rate.surcharge_multiplier,
+            rate.location AS rate_location,
+            rate.shift AS rate_shift
+        FROM dipgos.atom_schedule_daily sd
+        JOIN dipgos.atom_schedule_entries se
+          ON se.tenant_id = sd.tenant_id
+         AND se.atom_id = sd.atom_id
+         AND sd.schedule_date BETWEEN COALESCE(se.actual_start, se.planned_start, sd.schedule_date)
+                                 AND COALESCE(se.actual_finish, se.planned_finish, sd.schedule_date)
+        JOIN dipgos.entities process ON process.entity_id = se.process_id
+        LEFT JOIN dipgos.entities sow ON sow.entity_id = se.sow_id
+        LEFT JOIN dipgos.entities contract ON contract.entity_id = se.contract_id
+        LEFT JOIN dipgos.entities project ON project.entity_id = se.project_id
+        JOIN dipgos.atoms atom ON atom.id = sd.atom_id
+        JOIN dipgos.atom_types atom_type ON atom_type.id = atom.atom_type_id
+        LEFT JOIN LATERAL (
+            SELECT
+                fa.basis,
+                fa.time_rate,
+                fa.unit_rate,
+                fa.standby_rate,
+                fa.overtime_multiplier,
+                fa.surcharge_multiplier,
+                fa.location,
+                fa.shift
+            FROM dipgos.atom_financial_allocations fa
+            WHERE fa.atom_id = sd.atom_id
+              AND fa.tenant_id = sd.tenant_id
+              AND (fa.process_id IS NULL OR fa.process_id = se.process_id)
+            ORDER BY fa.allocation_date DESC NULLS LAST, fa.updated_at DESC NULLS LAST, fa.created_at DESC NULLS LAST
+            LIMIT 1
+        ) rate ON TRUE
+        WHERE sd.tenant_id = %s
+          AND se.project_id = %s
+          AND sd.schedule_date BETWEEN %s AND %s
+          {filter_sql}
+        ORDER BY sd.schedule_date ASC, atom.name ASC
+    """
+
+    try:
+        with pool.connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(query, params)
+                raw_rows = cur.fetchall()
+    except UndefinedTable:
+        return []
+
+    results: List[dict] = []
+    for row in raw_rows:
+        schedule_date: date = row["schedule_date"]
+        busy_minutes = float(row["total_busy_minutes"] or 0)
+        idle_minutes = float(row["total_idle_minutes"] or 0)
+
+        schedule_status_raw = (row.get("schedule_status") or "billable").strip()
+        schedule_status = schedule_status_raw.lower()
+        billable_minutes = busy_minutes
+        non_billable_minutes = 0.0
+        if schedule_status in {"standby", "idle", "non_billable"}:
+            non_billable_minutes = busy_minutes
+            billable_minutes = 0.0
+
+        start_dt, end_dt, location_label, shift_label = _extract_schedule_window(
+            schedule_date,
+            row.get("payload"),
+            busy_minutes,
+            idle_minutes,
+        )
+
+        basis = (row.get("rate_basis") or "time").lower()
+        time_rate = _as_float(row.get("time_rate"))
+        unit_rate = _as_float(row.get("unit_rate"))
+        standby_rate = _as_float(row.get("standby_rate"))
+        overtime_multiplier = _as_float(row.get("overtime_multiplier")) or 1.0
+        surcharge_multiplier = _as_float(row.get("surcharge_multiplier")) or 1.0
+
+        rate_card = DEFAULT_RATE_CARDS.get(str(row["atom_id"]))
+        if rate_card:
+            if time_rate is None and rate_card.get("time_rate") is not None:
+                time_rate = rate_card["time_rate"]
+            if unit_rate is None and rate_card.get("unit_rate") is not None:
+                unit_rate = rate_card["unit_rate"]
+
+        planned_minutes: Optional[float] = None
+        planned_start: Optional[date] = row.get("planned_start")
+        planned_finish: Optional[date] = row.get("planned_finish")
+        if planned_start:
+            finish_date = planned_finish or planned_start
+            if finish_date < planned_start:
+                finish_date = planned_start
+            planned_days = (finish_date - planned_start).days + 1
+            typical_minutes = busy_minutes + idle_minutes
+            if typical_minutes <= 0:
+                typical_minutes = 480.0
+            planned_minutes = float(planned_days) * float(typical_minutes)
+
+        if location_label is None:
+            location_label = row.get("rate_location") or row.get("process_name")
+        if shift_label is None:
+            shift_label = row.get("rate_shift") or "Day"
+
+        volume_committed = _as_float(row.get("volume_committed"))
+        quantity_value = volume_committed if volume_committed and volume_committed > 0 else None
+        quantity_unit = row.get("volume_unit") if quantity_value else None
+
+        if quantity_value:
+            hours_reference = billable_minutes or busy_minutes
+            if unit_rate is None and time_rate and quantity_value > 0 and hours_reference:
+                unit_rate = ((hours_reference / 60.0) * time_rate) / quantity_value
+            basis = "volume"
+
+        planned_earned: Optional[float] = None
+        if basis == "volume" and quantity_value and unit_rate:
+            planned_earned = quantity_value * unit_rate * overtime_multiplier * surcharge_multiplier
+        elif planned_minutes and time_rate:
+            planned_earned = (planned_minutes / 60.0) * time_rate * overtime_multiplier * surcharge_multiplier
+
+        notes_parts = []
+        if row.get("schedule_notes"):
+            notes_parts.append(row["schedule_notes"])
+        if row.get("daily_notes"):
+            notes_parts.append(row["daily_notes"])
+        notes = " ".join(notes_parts) if notes_parts else None
+
+        results.append(
+            {
+                "id": row["daily_id"],
+                "atom_id": row["atom_id"],
+                "basis": basis,
+                "allocation_date": schedule_date,
+                "start_ts": start_dt,
+                "end_ts": end_dt,
+                "busy_minutes": busy_minutes,
+                "idle_minutes": idle_minutes,
+                "billable_minutes": billable_minutes,
+                "non_billable_minutes": non_billable_minutes,
+                "quantity": quantity_value,
+                "unit": quantity_unit or row.get("atom_unit"),
+                "time_rate": time_rate,
+                "unit_rate": unit_rate,
+                "standby_rate": standby_rate,
+                "overtime_multiplier": overtime_multiplier,
+                "surcharge_multiplier": surcharge_multiplier,
+                "location": location_label,
+                "shift": shift_label,
+                "status": schedule_status_raw or "billable",
+                "notes": notes,
+                "non_billable_reason": None,
+                "sensor_condition": None,
+                "planned_billable_minutes": planned_minutes or 0.0,
+                "planned_earned": planned_earned,
+                "created_at": row.get("daily_created_at"),
+                "updated_at": row.get("daily_updated_at"),
+                "atom_name": row.get("atom_name"),
+                "atom_type_name": row.get("atom_type_name"),
+                "atom_type_id": row.get("atom_type_id"),
+                "atom_category": row.get("atom_category"),
+                "contract_entity_id": row.get("contract_id"),
+                "contract_code": row.get("contract_code"),
+                "contract_name": row.get("contract_name"),
+                "sow_entity_id": row.get("sow_id"),
+                "sow_code": row.get("sow_code"),
+                "sow_name": row.get("sow_name"),
+                "process_entity_id": row.get("process_id"),
+                "process_code": row.get("process_code"),
+                "process_name": row.get("process_name"),
+            }
+        )
+
+    return results
+
+
+def _fetch_legacy_financial_rows(
+    scope: ProgressScope,
+    start_date: date,
+    end_date: date,
+) -> List[dict]:
+    tenant_uuid = scope.tenant_id or scope.project.get("tenant_id")
+    if tenant_uuid is None:
+        return []
+
     params: List = [
-        scope.tenant_id,
+        tenant_uuid,
         scope.project["entity_id"],
         start_date,
         end_date,
@@ -209,9 +487,74 @@ def get_atom_financial_view(
         with pool.connection() as conn:
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute(query, params)
-                rows = list(cur.fetchall())
+                return list(cur.fetchall())
     except UndefinedTable:
-        rows = []
+        return []
+
+
+def get_atom_financial_view(
+    tenant_id: Optional[str],
+    project_code: str,
+    contract_code: Optional[str],
+    sow_code: Optional[str],
+    process_code: Optional[str],
+    atom_id: Optional[str],
+    start_date_str: Optional[str],
+    end_date_str: Optional[str],
+    basis_filter: Optional[List[str]],
+    location_filter: Optional[str],
+    atom_type_filter: Optional[str],
+    shift_filter: Optional[str],
+    billable_filter: Optional[str],
+    group_by: Optional[str],
+) -> AtomFinancialViewResponse:
+    _ensure_feature_enabled()
+
+    tenant_hint = progress_normalise_tenant(tenant_id or "default")
+
+    scope: ProgressScope = _resolve_scope_with_fallback(
+        tenant_hint=tenant_hint,
+        project_code=project_code,
+        contract_code=contract_code,
+        sow_code=sow_code,
+        process_code=process_code,
+    )
+
+    start_date = _parse_date(start_date_str)
+    end_date = _parse_date(end_date_str)
+
+    today = date.today()
+    if end_date is None:
+        end_date = today
+    if start_date is None:
+        start_date = end_date - timedelta(days=6)
+
+    if start_date > end_date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="startDate must be before endDate")
+
+    applied_basis_filter = [value.lower() for value in (basis_filter or []) if value]
+    applied_location_filter = location_filter.strip() if location_filter else None
+    applied_atom_type_filter = atom_type_filter.strip() if atom_type_filter else None
+    applied_shift_filter = shift_filter.strip() if shift_filter else None
+    applied_billable_filter = billable_filter.lower().strip() if billable_filter else None
+    applied_group_by = group_by.strip() if group_by else None
+
+    rows = _fetch_dynamic_financial_rows(scope, start_date, end_date)
+    if rows:
+        legacy_rows = _fetch_legacy_financial_rows(scope, start_date, end_date)
+        if legacy_rows:
+            seen_ids = {str(row.get("id")) for row in rows if row.get("id")}
+            for legacy in legacy_rows:
+                basis = (legacy.get("basis") or "").lower()
+                if basis not in {"volume", "sensor"}:
+                    continue
+                legacy_id = str(legacy.get("id"))
+                if legacy_id in seen_ids:
+                    continue
+                rows.append(legacy)
+                seen_ids.add(legacy_id)
+    else:
+        rows = _fetch_legacy_financial_rows(scope, start_date, end_date)
 
     if not rows:
         return AtomFinancialViewResponse(

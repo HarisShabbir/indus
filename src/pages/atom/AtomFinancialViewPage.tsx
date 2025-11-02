@@ -16,6 +16,7 @@ import { SidebarNav, HOME_NAV_INDEX, ACCS_NAV_INDEX, type ThemeMode } from '../.
 import { applyTheme, resolveInitialTheme, toggleThemeValue } from '../../utils/theme'
 import { ensureScheduleTheme, SCHEDULE_ECHARTS_THEME_NAME } from '../../theme/echartsTheme'
 import { formatCurrency, formatHours, formatNumber } from './utils'
+import AtomUtilityDock from './components/AtomUtilityDock'
 
 type ScopeState = {
   tenantId?: string | null
@@ -294,6 +295,7 @@ export default function AtomFinancialViewPage(): JSX.Element | null {
 
   const [activeScope, setActiveScope] = useState<string>('atom')
   const [scopePagination, setScopePagination] = useState<Record<string, PaginationState>>({})
+  const [allocationSearch, setAllocationSearch] = useState<string>('')
 
   const currentScopeState = useMemo(
     () => ({
@@ -409,10 +411,63 @@ export default function AtomFinancialViewPage(): JSX.Element | null {
   }, [currentBlock, activeGroupingKey])
 
   const basisChips: AtomFinancialBasisBreakdown[] = currentBlock?.basisBreakdown ?? []
+  const allocationSearchValue = allocationSearch.trim().toLowerCase()
+  const filteredAllocations = useMemo(() => {
+    if (!currentBlock) return []
+    if (!allocationSearchValue) return currentBlock.allocations.items
+    return currentBlock.allocations.items.filter((allocation) => {
+      const haystack = [
+        allocation.atomName,
+        allocation.processName,
+        allocation.location,
+        allocation.shift,
+        allocation.status,
+        allocation.notes,
+        allocation.nonBillableReason,
+        allocation.sensorCondition,
+        allocation.basis,
+      ]
+        .concat(allocation.formula ? [allocation.formula] : [])
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      if (haystack.includes(allocationSearchValue)) return true
+      if (allocation.quantity != null && allocation.quantity.toString().toLowerCase().includes(allocationSearchValue)) {
+        return true
+      }
+      return false
+    })
+  }, [currentBlock, allocationSearchValue])
+  const volumeSummary = useMemo(() => {
+    if (!currentBlock) return '--'
+    if (!currentBlock.kpis.volumeBilled || currentBlock.kpis.volumeBilled <= 0) return '--'
+    const unitSet = new Set<string>()
+    currentBlock.allocations.items.forEach((allocation) => {
+      if (allocation.basis === 'volume' && allocation.quantityUnit) {
+        unitSet.add(allocation.quantityUnit)
+      }
+    })
+    const unitLabel = unitSet.size === 1 ? Array.from(unitSet)[0] : 'units'
+    return `${currentBlock.kpis.volumeBilled.toFixed(1)} ${unitLabel}`
+  }, [currentBlock])
 
   const pagination = scopePagination[activeScope] ?? { page: 1, pageSize: DEFAULT_PAGE_SIZE }
-  const allocations = currentBlock?.allocations.items ?? []
-  const { slice, total, adjustedPage, totalPages } = paginate(allocations, pagination.page, pagination.pageSize)
+  const totalAllocations = filteredAllocations.length
+  const originalAllocationsTotal = currentBlock?.allocations.total ?? totalAllocations
+  const { slice, total, adjustedPage, totalPages } = paginate(
+    filteredAllocations,
+    pagination.page,
+    pagination.pageSize,
+  )
+
+  useEffect(() => {
+    if (pagination.page !== adjustedPage) {
+      setScopePagination((prev) => ({
+        ...prev,
+        [activeScope]: { page: adjustedPage, pageSize: prev[activeScope]?.pageSize ?? DEFAULT_PAGE_SIZE },
+      }))
+    }
+  }, [pagination.page, adjustedPage, activeScope])
 
   const handlePageChange = useCallback(
     (page: number) => {
@@ -429,6 +484,17 @@ export default function AtomFinancialViewPage(): JSX.Element | null {
       setScopePagination((prev) => ({
         ...prev,
         [activeScope]: { page: 1, pageSize },
+      }))
+    },
+    [activeScope],
+  )
+
+  const handleAllocationSearchChange = useCallback(
+    (value: string) => {
+      setAllocationSearch(value)
+      setScopePagination((prev) => ({
+        ...prev,
+        [activeScope]: { page: 1, pageSize: prev[activeScope]?.pageSize ?? DEFAULT_PAGE_SIZE },
       }))
     },
     [activeScope],
@@ -691,13 +757,7 @@ export default function AtomFinancialViewPage(): JSX.Element | null {
                     value={currentBlock.kpis.averageRate != null ? formatCurrency(currentBlock.kpis.averageRate, 1) : '--'}
                     helper="Weighted average hourly rate"
                   />
-                  <KpiCard
-                    label="Volume billed"
-                    value={
-                      currentBlock.kpis.volumeBilled ? `${currentBlock.kpis.volumeBilled.toFixed(1)} units` : '--'
-                    }
-                    helper="Aggregated volume-based billing"
-                  />
+                  <KpiCard label="Volume billed" value={volumeSummary} helper="Aggregated volume-based billing" />
                   <KpiCard label="Non-billable hours" value={formatHours(currentBlock.kpis.nonBillableHours)} helper="Idle and internal rework windows" />
                 </div>
 
@@ -800,7 +860,32 @@ export default function AtomFinancialViewPage(): JSX.Element | null {
 
                 <div className="atom-financial-subsection atom-financial-subsection--allocations">
                   <div className="atom-financial-card__header">
-                    <h3>Allocations ({total})</h3>
+                    <h3>
+                      Allocations (
+                      {allocationSearch
+                        ? `${total} of ${formatNumber(originalAllocationsTotal)}`
+                        : formatNumber(total)}
+                      )
+                    </h3>
+                    <div className="atom-search-field">
+                      <input
+                        type="search"
+                        placeholder="Search allocations…"
+                        value={allocationSearch}
+                        onChange={(event) => handleAllocationSearchChange(event.target.value)}
+                        aria-label="Search allocations"
+                      />
+                      {allocationSearch ? (
+                        <button
+                          type="button"
+                          className="atom-search-clear"
+                          onClick={() => handleAllocationSearchChange('')}
+                          aria-label="Clear allocation search"
+                        >
+                          ×
+                        </button>
+                      ) : null}
+                    </div>
                     <div className="atom-financial-pagination">
                       <label>
                         Rows per page
@@ -914,6 +999,7 @@ export default function AtomFinancialViewPage(): JSX.Element | null {
           )}
         </main>
       </div>
+      <AtomUtilityDock activeView="financial" scopeState={currentScopeState} />
     </div>
   )
 }

@@ -70,6 +70,10 @@ class _Scope:
         return self.project["code"]
 
 
+# Public alias used by other services
+ProgressScope = _Scope
+
+
 def _ensure_feature_enabled() -> None:
     if not settings.feature_progress_v2:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Progress v2 API is disabled")
@@ -191,6 +195,54 @@ def _resolve_scope(
     )
 
 
+def progress_normalise_tenant(raw: Optional[str]) -> Optional[str]:
+    """Expose tenant normaliser for modules that need shared behaviour."""
+
+    return _normalise_tenant(raw)
+
+
+def resolve_scope_with_fallback(
+    tenant_hint: Optional[str],
+    project_code: str,
+    contract_code: Optional[str],
+    sow_code: Optional[str],
+    process_code: Optional[str],
+) -> ProgressScope:
+    """Attempt to resolve the requested scope, backing off to broader levels when entities are missing."""
+
+    current_contract = contract_code
+    current_sow = sow_code
+    current_process = process_code
+
+    while True:
+        try:
+            return _resolve_scope(
+                tenant_hint,
+                project_code,
+                current_contract,
+                current_sow,
+                current_process,
+            )
+        except HTTPException as exc:
+            detail = str(exc.detail or "").lower()
+            if exc.status_code != status.HTTP_404_NOT_FOUND:
+                raise
+
+            if current_process and "process not found" in detail:
+                current_process = None
+                continue
+            if current_sow and "sow not found" in detail:
+                current_sow = None
+                current_process = None
+                continue
+            if current_contract and "contract not found" in detail:
+                current_contract = None
+                current_sow = None
+                current_process = None
+                continue
+            raise
+
+
 def get_progress_hierarchy(tenant_id: Optional[str]) -> ProgressHierarchyResponse:
     _ensure_feature_enabled()
     tenant_hint = _normalise_tenant(tenant_id)
@@ -270,7 +322,7 @@ def get_progress_hierarchy(tenant_id: Optional[str]) -> ProgressHierarchyRespons
 
     return ProgressHierarchyResponse(
         projects=list(projects.values()),
-        as_of=datetime.now(timezone.utc),
+        asOf=datetime.now(timezone.utc),
     )
 
 

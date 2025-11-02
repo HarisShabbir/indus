@@ -164,6 +164,11 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
   onUpdate,
   onDelete,
 }) => {
+  const itemsById = useMemo(() => {
+    const map = new Map<string, AtomScheduleItem>()
+    data?.items.forEach((item) => map.set(item.scheduleId, item))
+    return map
+  }, [data])
   const criticalSet = useMemo(() => new Set(data?.criticalPath ?? []), [data?.criticalPath])
   const baseTasks = useMemo(
     () => (data ? data.items.map((item, index) => buildTask(item, index, criticalSet)) : []),
@@ -183,6 +188,8 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
   const historyRef = useRef<Task[][]>([])
   const redoRef = useRef<Task[][]>([])
   const [editForm, setEditForm] = useState<EditFormState | null>(null)
+  const [taskSearch, setTaskSearch] = useState<string>('')
+  const [conflictSearch, setConflictSearch] = useState<string>('')
 
   useEffect(() => {
     if (!whatIfMode) {
@@ -246,19 +253,46 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
   const filteredTasks = useMemo(() => {
     const start = dateFilterStart ? parseDate(dateFilterStart) : null
     const end = dateFilterEnd ? parseDate(dateFilterEnd) : null
+    const searchValue = taskSearch.trim().toLowerCase()
     return tasks.filter((task) => {
-      const status = normalizeStatus(
-        data?.items.find((item) => item.scheduleId === task.id)?.status ?? undefined,
-      )
+      const item = itemsById.get(task.id)
+      const status = normalizeStatus(item?.status ?? undefined)
       if (statusFilter !== 'all' && status !== statusFilter) {
         return false
       }
       if (start && task.end < start) return false
       if (end && addDays(task.start, 1) > addDays(end, 1)) return false
+      if (searchValue) {
+        const searchable = [
+          task.name,
+          item?.atomName,
+          item?.milestone,
+          item?.processName,
+          item?.notes,
+          item?.status,
+          item?.processCode,
+          item?.contractCode,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        if (
+          !searchable.includes(searchValue) &&
+          !task.id.toLowerCase().includes(searchValue)
+        ) {
+          return false
+        }
+      }
       return true
     })
-  }, [tasks, statusFilter, dateFilterStart, dateFilterEnd, data])
+  }, [tasks, statusFilter, dateFilterStart, dateFilterEnd, itemsById, taskSearch])
   const hasTasks = filteredTasks.length > 0
+
+  useEffect(() => {
+    if (selectedTaskId && !filteredTasks.some((task) => task.id === selectedTaskId)) {
+      setSelectedTaskId(filteredTasks.length ? filteredTasks[0].id : null)
+    }
+  }, [filteredTasks, selectedTaskId])
 
   const handleDateChange = useCallback(
     async (task: Task) => {
@@ -340,10 +374,10 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
     [onDelete, onRefresh, pushHistory, whatIfMode],
   )
 
-  const selectedItem = useMemo(
-    () => data?.items.find((item) => item.scheduleId === selectedTaskId) ?? null,
-    [data, selectedTaskId],
-  )
+  const selectedItem = useMemo(() => {
+    if (!selectedTaskId) return null
+    return itemsById.get(selectedTaskId) ?? null
+  }, [itemsById, selectedTaskId])
 
   const selectedStart = selectedItem ? parseDate(selectedItem.plannedStart) : null
   const selectedFinish = selectedItem ? parseDate(selectedItem.plannedFinish) : null
@@ -676,7 +710,27 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
   const conflicts = data?.conflicts ?? []
   const [conflictPage, setConflictPage] = useState(1)
   const CONFLICTS_PER_PAGE = 9
-  const totalConflictPages = Math.max(1, Math.ceil(conflicts.length / CONFLICTS_PER_PAGE))
+  const conflictSearchValue = conflictSearch.trim().toLowerCase()
+  const filteredConflicts = useMemo(() => {
+    if (!conflictSearchValue) return conflicts
+    return conflicts.filter((conflict) => {
+      const base = `${conflict.conflictType ?? ''} ${conflict.message ?? ''}`.toLowerCase()
+      if (base.includes(conflictSearchValue)) return true
+      return conflict.scheduleIds.some((scheduleId) => {
+        const item = itemsById.get(scheduleId)
+        const haystack = [scheduleId, item?.atomName, item?.milestone, item?.processName, item?.notes]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        return haystack.includes(conflictSearchValue)
+      })
+    })
+  }, [conflicts, conflictSearchValue, itemsById])
+  const totalConflictPages = Math.max(1, Math.ceil(filteredConflicts.length / CONFLICTS_PER_PAGE))
+
+  useEffect(() => {
+    setConflictPage(1)
+  }, [conflictSearchValue])
 
   useEffect(() => {
     if (conflictPage > totalConflictPages) {
@@ -686,8 +740,8 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
 
   const pagedConflicts = useMemo(() => {
     const start = (conflictPage - 1) * CONFLICTS_PER_PAGE
-    return conflicts.slice(start, start + CONFLICTS_PER_PAGE)
-  }, [conflicts, conflictPage])
+    return filteredConflicts.slice(start, start + CONFLICTS_PER_PAGE)
+  }, [filteredConflicts, conflictPage])
 
   const capacitySeries = useMemo(() => {
     if (!data) return []
@@ -811,6 +865,25 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
             End
             <input type="date" value={dateFilterEnd} onChange={(event) => setDateFilterEnd(event.target.value)} />
           </label>
+        </div>
+        <div className="atom-search-field atom-schedule-search">
+          <input
+            type="search"
+            placeholder="Search allocations, atoms, or processes…"
+            value={taskSearch}
+            onChange={(event) => setTaskSearch(event.target.value)}
+            aria-label="Search schedule allocations"
+          />
+          {taskSearch ? (
+            <button
+              type="button"
+              className="atom-search-clear"
+              onClick={() => setTaskSearch('')}
+              aria-label="Clear allocation search"
+            >
+              ×
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -1034,9 +1107,34 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
               <h4>Conflict & risk intelligence</h4>
               <p>Understand schedule clashes and apply quick fixes before they escalate.</p>
             </div>
-            <span className="atom-conflict-count">{conflicts.length} active</span>
+            <div className="atom-conflict-tools">
+              <span className="atom-conflict-count">
+                {conflictSearch
+                  ? `${filteredConflicts.length} of ${conflicts.length} active`
+                  : `${filteredConflicts.length} active`}
+              </span>
+              <div className="atom-search-field">
+                <input
+                  type="search"
+                  placeholder="Search conflicts…"
+                  value={conflictSearch}
+                  onChange={(event) => setConflictSearch(event.target.value)}
+                  aria-label="Search conflicts"
+                />
+                {conflictSearch ? (
+                  <button
+                    type="button"
+                    className="atom-search-clear"
+                    onClick={() => setConflictSearch('')}
+                    aria-label="Clear conflict search"
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </div>
+            </div>
           </header>
-          {conflicts.length ? (
+          {filteredConflicts.length ? (
             <ul className="atom-conflict-list">
               {pagedConflicts.map((conflict) => (
                 <li key={`${conflict.conflictType}-${conflict.scheduleIds.join('-')}`} className="atom-conflict-card">
@@ -1062,9 +1160,11 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
               ))}
             </ul>
           ) : (
-            <p className="atom-conflict-empty">No scheduling conflicts detected.</p>
+            <p className="atom-conflict-empty">
+              {conflictSearch ? 'No conflicts match your search.' : 'No scheduling conflicts detected.'}
+            </p>
           )}
-          {conflicts.length ? (
+          {filteredConflicts.length ? (
             <div className="atom-conflict-pagination">
               <button
                 type="button"

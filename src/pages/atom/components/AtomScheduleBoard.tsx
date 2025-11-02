@@ -63,22 +63,37 @@ type AtomScheduleBoardProps = {
 
 const AtomScheduleBoard: React.FC<AtomScheduleBoardProps> = ({ data, loading, error, categoryFilter, onRefresh, refreshing }) => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [searchTerm, setSearchTerm] = useState('')
   const [tablePage, setTablePage] = useState(1)
   const ROWS_PER_PAGE = 9
 
   const filteredItems = useMemo(() => {
+    const searchValue = searchTerm.trim().toLowerCase()
     if (!data) return []
     return data.items.filter((item) => {
       const matchesCategory = !categoryFilter || item.category === categoryFilter
       const status = normaliseStatus(item.status)
       const matchesStatus = statusFilter === 'all' || status === statusFilter
-      return matchesCategory && matchesStatus
+      const searchFields = [
+        item.atomName,
+        item.milestone,
+        item.processName,
+        item.notes,
+        item.status,
+        item.processCode,
+        item.contractCode,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      const matchesSearch = !searchValue || searchFields.includes(searchValue) || item.scheduleId.toLowerCase().includes(searchValue)
+      return matchesCategory && matchesStatus && matchesSearch
     })
-  }, [data, categoryFilter, statusFilter])
+  }, [data, categoryFilter, statusFilter, searchTerm])
 
   useEffect(() => {
     setTablePage(1)
-  }, [categoryFilter, statusFilter])
+  }, [categoryFilter, statusFilter, searchTerm])
 
   const totalTablePages = useMemo(
     () => Math.max(1, Math.ceil(filteredItems.length / ROWS_PER_PAGE)),
@@ -117,6 +132,25 @@ const AtomScheduleBoard: React.FC<AtomScheduleBoardProps> = ({ data, loading, er
           {summary?.asOf ? <span>As of {formatDate(summary.asOf)}</span> : null}
         </div>
         <div className="atom-schedule-board__actions">
+          <div className="atom-search-field">
+            <input
+              type="search"
+              placeholder="Search schedule…"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              aria-label="Search scheduled atoms"
+            />
+            {searchTerm ? (
+              <button
+                type="button"
+                className="atom-search-clear"
+                onClick={() => setSearchTerm('')}
+                aria-label="Clear schedule search"
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
           {error ? <span className="atom-error">{error}</span> : null}
           {onRefresh ? (
             <button type="button" className="atom-refresh" onClick={onRefresh} disabled={loading || refreshing}>

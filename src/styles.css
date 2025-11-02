@@ -4330,17 +4330,34 @@ button.refresh-cta,
 /* Atom financial view ------------------------------------------------------ */
 
 .atom-financial-layout {
+  position: relative;
   display: grid;
   grid-template-columns: 84px minmax(0, 1fr);
   min-height: 100vh;
-  background: var(--app-bg);
+  background: radial-gradient(circle at 20% -10%, rgba(59, 130, 246, 0.45), transparent 60%),
+    radial-gradient(circle at 85% 0%, rgba(99, 102, 241, 0.35), transparent 55%),
+    linear-gradient(180deg, #050915 0%, #0e1527 45%, #0b101f 100%);
   color: var(--text-primary);
 }
 
+.atom-financial-layout::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 35% 15%, rgba(37, 99, 235, 0.08), transparent 45%),
+    radial-gradient(circle at 75% 25%, rgba(59, 130, 246, 0.08), transparent 55%);
+  mix-blend-mode: screen;
+}
+
 .atom-financial-main {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  padding-right: 128px;
+  padding-bottom: 48px;
+  z-index: 1;
 }
 
 .atom-financial-content {
@@ -4351,15 +4368,54 @@ button.refresh-cta,
   gap: 24px;
 }
 
+.atom-search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.atom-search-field input {
+  min-width: 220px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(37, 99, 235, 0.12));
+  color: rgba(226, 232, 240, 0.85);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.atom-search-field input:focus {
+  outline: none;
+  border-color: rgba(147, 197, 253, 0.75);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.28);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(15, 23, 42, 0.9));
+}
+
+.atom-search-clear {
+  border: none;
+  background: transparent;
+  color: rgba(203, 213, 225, 0.6);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.atom-search-clear:hover {
+  background: rgba(59, 130, 246, 0.18);
+  color: #f8fafc;
+}
+
 .atom-financial-controls {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 18px 20px;
-  border-radius: 18px;
-  background: var(--surface-1);
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-soft);
+  padding: 22px 24px;
+  border-radius: 22px;
+  background: linear-gradient(140deg, rgba(15, 23, 42, 0.72), rgba(37, 99, 235, 0.08));
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  box-shadow: 0 24px 48px rgba(8, 11, 22, 0.55), inset 0 1px 0 rgba(148, 163, 184, 0.08);
+  backdrop-filter: blur(16px);
 }
 
 .atom-financial-control-row {
@@ -4380,17 +4436,18 @@ button.refresh-cta,
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-muted);
+  color: rgba(203, 213, 225, 0.72);
 }
 
 .atom-financial-control-group select,
 .atom-financial-control-group input[type='date'] {
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-2);
-  color: var(--text-primary);
-  border-radius: 10px;
-  padding: 8px 12px;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(59, 130, 246, 0.15));
+  color: rgba(226, 232, 240, 0.9);
+  border-radius: 12px;
+  padding: 9px 14px;
   font-size: 0.9rem;
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.12);
 }
 
 .atom-financial-range-row {
@@ -4413,19 +4470,22 @@ button.refresh-cta,
 }
 
 .atom-financial-chip {
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-2);
+  border: 1px solid rgba(79, 70, 229, 0.32);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.7));
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 6px 16px;
   font-size: 0.85rem;
-  color: var(--text-muted);
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  color: rgba(226, 232, 240, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.65);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, color 0.18s ease, background 0.18s ease;
 }
 
 .atom-financial-chip.is-active {
-  background: rgba(37, 99, 235, 0.15);
-  border-color: rgba(37, 99, 235, 0.35);
-  color: var(--text-primary);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.35), rgba(59, 130, 246, 0.15));
+  border-color: rgba(96, 165, 250, 0.55);
+  color: #f8fafc;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.35);
+  transform: translateY(-1px);
 }
 
 .atom-financial-reset {
@@ -4433,22 +4493,23 @@ button.refresh-cta,
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  border: 1px solid var(--border-subtle);
-  background: transparent;
-  color: var(--text-muted);
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(37, 99, 235, 0.08));
+  color: rgba(226, 232, 240, 0.75);
   padding: 8px 14px;
   font-size: 0.85rem;
   cursor: pointer;
 }
 
 .atom-financial-reset:hover {
-  color: var(--text-primary);
-  border-color: rgba(37, 99, 235, 0.35);
+  color: #f8fafc;
+  border-color: rgba(96, 165, 250, 0.45);
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.28);
 }
 
 .atom-financial-updated {
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: rgba(224, 231, 255, 0.65);
 }
 
 .atom-financial-scope-tabs {
@@ -4458,39 +4519,42 @@ button.refresh-cta,
 }
 
 .atom-financial-scope-tab {
-  border-radius: 14px;
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-1);
-  padding: 10px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(96, 165, 250, 0.24);
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.78));
+  padding: 12px 20px;
   display: inline-flex;
   flex-direction: column;
   gap: 4px;
   font-size: 0.85rem;
-  color: var(--text-muted);
-  transition: border 0.2s ease, background 0.2s ease, color 0.2s ease;
+  color: rgba(226, 232, 240, 0.65);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border 0.2s ease, color 0.2s ease;
 }
 
 .atom-financial-scope-tab strong {
   font-size: 1rem;
-  color: var(--text-primary);
+  color: #f1f5f9;
 }
 
 .atom-financial-scope-tab.is-active {
-  border-color: rgba(37, 99, 235, 0.4);
-  background: rgba(37, 99, 235, 0.12);
-  color: var(--text-primary);
+  border-color: rgba(96, 165, 250, 0.65);
+  background: linear-gradient(150deg, rgba(37, 99, 235, 0.42), rgba(59, 130, 246, 0.18));
+  color: #f8fafc;
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.32);
+  transform: translateY(-2px);
 }
 
 .atom-financial-loading,
 .atom-financial-error,
 .atom-financial-empty {
   padding: clamp(20px, 4vw, 36px);
-  border-radius: 18px;
-  border: 1px dashed var(--border-subtle);
-  background: var(--surface-2);
+  border-radius: 20px;
+  border: 1px dashed rgba(96, 165, 250, 0.35);
+  background: linear-gradient(140deg, rgba(15, 23, 42, 0.88), rgba(37, 99, 235, 0.15));
   text-align: center;
   font-size: 0.95rem;
-  color: var(--text-muted);
+  color: rgba(226, 232, 240, 0.7);
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08);
 }
 
 .atom-financial-grid {
@@ -4499,11 +4563,12 @@ button.refresh-cta,
 }
 
 .atom-financial-panel {
-  border-radius: 18px;
-  background: var(--surface-1);
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-soft);
-  padding: clamp(20px, 3.2vw, 26px);
+  border-radius: 22px;
+  background: linear-gradient(150deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.75));
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  box-shadow: 0 28px 55px rgba(8, 11, 22, 0.65), inset 0 1px 0 rgba(148, 163, 184, 0.06);
+  padding: clamp(22px, 3.5vw, 30px);
+  backdrop-filter: blur(12px);
 }
 
 .atom-financial-panel--primary {
@@ -4521,33 +4586,47 @@ button.refresh-cta,
 .atom-financial-kpi-card {
   display: grid;
   gap: 6px;
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: var(--surface-2);
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 18px 20px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(37, 99, 235, 0.25), rgba(15, 23, 42, 0.85));
+  border: 1px solid rgba(129, 140, 248, 0.4);
+  box-shadow: 0 22px 44px rgba(37, 99, 235, 0.25);
 }
 
 .atom-financial-kpi-card span {
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-muted);
+  color: rgba(148, 163, 184, 0.75);
 }
 
 .atom-financial-kpi-card strong {
   font-size: 1.4rem;
   font-weight: 600;
+  color: #f8fafc;
 }
 
 .atom-financial-kpi-card small {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: rgba(226, 232, 240, 0.65);
 }
 
 .atom-financial-subsection {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.atom-financial-subsection h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.atom-financial-subsection__header span {
+  font-size: 0.82rem;
+  color: rgba(203, 213, 225, 0.7);
 }
 
 .atom-financial-basis-grid {
@@ -4557,29 +4636,31 @@ button.refresh-cta,
 }
 
 .atom-financial-basis-card {
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 14px;
-  padding: 14px 16px;
-  background: var(--surface-2);
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: linear-gradient(155deg, rgba(59, 130, 246, 0.22), rgba(15, 23, 42, 0.85));
+  box-shadow: inset 0 1px 0 rgba(226, 232, 240, 0.04);
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .atom-financial-basis-card > span {
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: rgba(224, 231, 255, 0.7);
 }
 
 .atom-financial-basis-card > strong {
   font-size: 1.1rem;
   font-weight: 600;
+  color: #f8fafc;
 }
 
 .atom-financial-basis-meta {
   display: grid;
   gap: 2px;
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: rgba(203, 213, 225, 0.7);
 }
 
 .atom-financial-group-table-wrapper {
@@ -4609,25 +4690,38 @@ button.refresh-cta,
 }
 
 .atom-financial-card {
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: var(--surface-2);
-  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  background: linear-gradient(150deg, rgba(15, 23, 42, 0.95), rgba(37, 99, 235, 0.14));
+  padding: 20px 22px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  box-shadow: 0 24px 46px rgba(8, 11, 22, 0.55);
+  backdrop-filter: blur(10px);
 }
 
 .atom-financial-card__header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .atom-financial-card__header h3 {
   margin: 0;
   font-size: 1rem;
+  color: #f8fafc;
+}
+
+.atom-financial-card__header .atom-search-field {
+  margin-left: auto;
+  flex: 0 1 280px;
+}
+
+.atom-financial-card__header .atom-search-field input {
+  width: 100%;
 }
 
 .atom-financial-trend-grid {
@@ -4637,9 +4731,11 @@ button.refresh-cta,
 }
 
 .atom-financial-table-wrapper {
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  overflow: auto;
+  border-radius: 18px;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.78));
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.07);
 }
 
 .atom-financial-table {
@@ -4649,19 +4745,44 @@ button.refresh-cta,
 }
 
 .atom-financial-table thead tr {
-  background: var(--surface-2);
+  background: linear-gradient(160deg, rgba(37, 99, 235, 0.24), rgba(15, 23, 42, 0.92));
 }
 
 .atom-financial-table th,
 .atom-financial-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.35);
   vertical-align: top;
+}
+
+.atom-financial-table th {
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.atom-financial-table td {
+  color: rgba(226, 232, 240, 0.82);
+}
+
+.atom-financial-table tbody tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.atom-financial-table tbody tr:hover {
+  background: linear-gradient(120deg, rgba(37, 99, 235, 0.25), rgba(15, 23, 42, 0.7));
 }
 
 .atom-financial-cell {
   display: grid;
   gap: 4px;
+}
+
+.atom-financial-cell strong {
+  color: #f8fafc;
+}
+
+.atom-financial-cell span {
+  color: rgba(203, 213, 225, 0.75);
 }
 
 .atom-financial-cell--status {
@@ -4679,8 +4800,8 @@ button.refresh-cta,
   align-items: center;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(37, 99, 235, 0.12);
-  color: var(--text-primary);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.32), rgba(59, 130, 246, 0.18));
+  color: #f8fafc;
   font-size: 0.72rem;
   font-weight: 600;
 }
@@ -4692,23 +4813,23 @@ button.refresh-cta,
 
 .atom-financial-tag.status-non_billable,
 .atom-financial-tag.status-non-billable {
-  background: rgba(148, 163, 184, 0.18);
-  color: rgba(55, 65, 81, 0.95);
+  background: rgba(148, 163, 184, 0.24);
+  color: rgba(15, 23, 42, 0.85);
 }
 
 .atom-financial-note {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: rgba(203, 213, 225, 0.7);
 }
 
 .atom-financial-formula {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: rgba(148, 163, 184, 0.75);
   font-family: 'Menlo', 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 .atom-financial-row.is-overlap {
-  background: rgba(248, 113, 113, 0.08);
+  background: linear-gradient(125deg, rgba(248, 113, 113, 0.32), rgba(15, 23, 42, 0.65));
 }
 
 .atom-financial-pagination {
@@ -4716,10 +4837,16 @@ button.refresh-cta,
   align-items: center;
   gap: 14px;
   font-size: 0.82rem;
+  color: rgba(203, 213, 225, 0.7);
 }
 
 .atom-financial-pagination select {
   margin-left: 8px;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(37, 99, 235, 0.18));
+  color: rgba(226, 232, 240, 0.85);
+  border-radius: 10px;
+  padding: 6px 10px;
 }
 
 .atom-financial-pagination__controls {
@@ -4729,12 +4856,19 @@ button.refresh-cta,
 }
 
 .atom-financial-pagination__controls button {
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-2);
-  color: var(--text-primary);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(37, 99, 235, 0.14));
+  color: rgba(226, 232, 240, 0.85);
   border-radius: 8px;
-  padding: 4px 10px;
+  padding: 4px 12px;
   font-size: 0.82rem;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.atom-financial-pagination__controls button:hover:not(:disabled) {
+  border-color: rgba(129, 140, 248, 0.55);
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.3);
+  transform: translateY(-1px);
 }
 
 .atom-financial-reconciliation {
@@ -4774,17 +4908,27 @@ button.refresh-cta,
   font-size: 0.78rem;
 }
 
+@media (max-width: 1200px) {
+  .atom-financial-main {
+    padding-right: 0;
+  }
+
+  .atom-search-field input {
+    min-width: 160px;
+  }
+}
+
 .atom-financial-flags {
   display: flex;
   flex-direction: column;
   gap: 6px;
   font-size: 0.78rem;
-  color: rgba(217, 119, 6, 0.95);
+  color: rgba(252, 211, 77, 0.92);
 }
 
 .atom-financial-card__header span {
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: rgba(203, 213, 225, 0.7);
 }
 
 .atom-financial-top-meta {
@@ -4792,23 +4936,30 @@ button.refresh-cta,
   gap: 12px;
   align-items: baseline;
   font-size: 0.85rem;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(37, 99, 235, 0.18));
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  box-shadow: 0 18px 35px rgba(8, 11, 22, 0.45);
 }
 
 .atom-financial-top-meta__title {
   font-weight: 600;
+  color: #f8fafc;
 }
 
 .atom-financial-top-meta__range {
-  color: var(--text-muted);
+  color: rgba(203, 213, 225, 0.65);
   font-size: 0.78rem;
 }
 
 .atom-financial-top-meta__atom {
   border-radius: 999px;
-  background: rgba(147, 197, 253, 0.2);
-  color: rgba(37, 99, 235, 0.95);
-  padding: 4px 10px;
+  background: linear-gradient(145deg, rgba(37, 99, 235, 0.4), rgba(79, 70, 229, 0.35));
+  color: #f8fafc;
+  padding: 4px 12px;
   font-size: 0.78rem;
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.35);
 }
 
 .atom-card__label {
@@ -7586,6 +7737,11 @@ button.refresh-cta,
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.atom-schedule-board__actions .atom-search-field {
+  flex: 0 1 280px;
 }
 
 .atom-schedule-board__summary,
@@ -7844,6 +8000,15 @@ button.refresh-cta,
   flex-wrap: wrap;
 }
 
+.atom-schedule-filters .atom-search-field {
+  flex: 1 1 260px;
+  justify-content: flex-end;
+}
+
+.atom-schedule-filters .atom-search-field input {
+  width: 100%;
+}
+
 .atom-filter-row {
   display: flex;
   gap: 0.75rem;
@@ -7995,6 +8160,20 @@ button.refresh-cta,
   align-items: center;
   color: var(--text-muted);
   font-size: 0.9rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.atom-conflict-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.atom-conflict-tools .atom-search-field {
+  flex: 0 1 260px;
 }
 
 .atom-schedule-conflicts ul {
@@ -9091,8 +9270,9 @@ button.refresh-cta,
   gap: 6px;
   padding: 16px 18px;
   border-radius: 18px;
-  background: rgba(148, 163, 184, 0.14);
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: linear-gradient(140deg, rgba(30, 100, 240, 0.18), rgba(255, 138, 61, 0.12));
+  border: 1px solid rgba(30, 100, 240, 0.24);
+  box-shadow: 0 18px 32px rgba(15, 23, 42, 0.2);
 }
 
 .financial-summary-card span {
@@ -9104,6 +9284,12 @@ button.refresh-cta,
 
 .financial-summary-card strong {
   font-size: 1.2rem;
+  color: #1f2937;
+}
+
+[data-theme='dark'] .financial-summary-card span,
+[data-theme='dark'] .financial-summary-card strong {
+  color: #f8fafc;
 }
 
 .financial-summary-card small {

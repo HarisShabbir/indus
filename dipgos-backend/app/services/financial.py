@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import time
+from collections import defaultdict
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import Dict, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -25,6 +26,12 @@ from ..models import (
     OutgoingFundsResponse,
     SankeyLink,
     SankeyNode,
+)
+from ..models.financial import FundAllocationRow as FundAllocationRowModel
+from ..services.progress_v2 import (
+    ProgressScope,
+    progress_normalise_tenant,
+    resolve_scope_with_fallback,
 )
 
 CACHE_TTL_SECONDS = 45.0
@@ -146,6 +153,67 @@ def _resolve_scope(conn, project_code: str, contract_code: Optional[str], tenant
     return project, contract
 
 
+def _schedule_rollup_rows(
+    conn,
+    tenant_uuid: str,
+    project_entity_id: UUID,
+) -> List[dict]:
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT
+              level,
+              entity_id,
+              project_id,
+              contract_id,
+              sow_id,
+              process_id,
+              planned_value,
+              actual_cost,
+              percent_complete,
+              earned_value
+            FROM dipgos.vw_atom_schedule_financial_rollup
+            WHERE tenant_id = %s
+              AND project_id = %s
+            """,
+            (tenant_uuid, project_entity_id),
+        )
+        return list(cur.fetchall())
+
+
+def _entity_details(conn, entity_ids: Iterable[UUID]) -> Dict[UUID, dict]:
+    ids = [eid for eid in entity_ids if eid is not None]
+    if not ids:
+        return {}
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT entity_id, level, name, code
+            FROM dipgos.entities
+            WHERE entity_id = ANY(%s)
+            """,
+            (ids,),
+        )
+        return {row["entity_id"]: row for row in cur.fetchall()}
+
+
+def _ratio(numerator: Optional[float], denominator: Optional[float]) -> Optional[float]:
+    if numerator is None or denominator in (None, 0):
+        return None
+    return numerator / denominator if denominator else None
+
+
+def _status_for_budget(actual: Optional[float], planned: Optional[float]) -> str:
+    if planned in (None, 0):
+        return "unbudgeted" if (actual or 0) > 0 else "unallocated"
+    ratio = (actual or 0) / planned if planned else 0
+    if ratio < 0.85:
+        return "under-budget"
+    if ratio <= 1.1:
+        return "on-budget"
+    return "over-budget"
+
+
 def get_financial_summary(project_code: str, contract_code: Optional[str], tenant_id: str) -> FinancialSummary:
     _ensure_feature_enabled()
     cache_key: _SummaryKey = (tenant_id, project_code, contract_code or "")
@@ -155,28 +223,27 @@ def get_financial_summary(project_code: str, contract_code: Optional[str], tenan
 
     with pool.connection() as conn:
         project, contract = _resolve_scope(conn, project_code, contract_code, tenant_id)
-        target_entity = contract["entity_id"] if contract else project["entity_id"]
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
-                SELECT ev, pv, ac, spi, cpi, percent_complete, as_of
-                FROM dipgos.vw_evm_rollup
-                WHERE entity_id = %s
-                """,
-                (target_entity,),
-            )
-            row = cur.fetchone()
+        tenant_uuid = str(project["tenant_id"])
+        rows = _schedule_rollup_rows(conn, tenant_uuid, project["entity_id"])
 
-    if not row:
+    target_id = contract["entity_id"] if contract else project["entity_id"]
+    target_level = "contract" if contract else "project"
+    target_row = next(
+        (row for row in rows if row["level"] == target_level and row["entity_id"] == target_id),
+        None,
+    )
+
+    if not target_row:
         summary = FinancialSummary()
         _cache_set(_summary_cache, cache_key, summary)
         return summary
 
-    ev = _to_float(row.get("ev"))
-    pv = _to_float(row.get("pv"))
-    ac = _to_float(row.get("ac"))
-    spi = _to_float(row.get("spi"))
-    cpi = _to_float(row.get("cpi"))
+    pv = _to_float(target_row.get("planned_value"))
+    ac = _to_float(target_row.get("actual_cost"))
+    ev = _to_float(target_row.get("earned_value"))
+    percent_complete = _to_float(target_row.get("percent_complete"))
+    spi = _ratio(ev, pv)
+    cpi = _ratio(ev, ac)
 
     variance_abs = None
     variance_pct = None
@@ -197,7 +264,7 @@ def get_financial_summary(project_code: str, contract_code: Optional[str], tenan
         burn_rate=burn_rate,
         variance_abs=variance_abs,
         variance_pct=variance_pct,
-        as_of=_as_datetime(row.get("as_of")),
+        as_of=datetime.now(timezone.utc),
     )
     _cache_set(_summary_cache, cache_key, summary)
     return summary
@@ -212,36 +279,39 @@ def get_fund_allocation(project_code: str, tenant_id: str) -> FundAllocationResp
 
     with pool.connection() as conn:
         project, _ = _resolve_scope(conn, project_code, None, tenant_id)
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
-                SELECT level, entity_id, description, amount, status, code
-                FROM dipgos.vw_financial_allocation
-                WHERE project_id = %s
-                ORDER BY CASE WHEN level = 'project' THEN 0 ELSE 1 END, description
-                """,
-                (project["entity_id"],),
-            )
-            rows = cur.fetchall()
+        tenant_uuid = str(project["tenant_id"])
+        rows = _schedule_rollup_rows(conn, tenant_uuid, project["entity_id"])
+        contract_rows = [row for row in rows if row["level"] == "contract"]
+        entity_ids = [project["entity_id"]] + [row["entity_id"] for row in contract_rows if row["entity_id"]]
+        entity_map = _entity_details(conn, entity_ids)
 
-    project_row = FundAllocationRow(description=project["name"], amount=None, status=None)
+    project_meta = entity_map.get(project["entity_id"], {"name": project["name"]})
+    project_data = next((row for row in rows if row["level"] == "project" and row["entity_id"] == project["entity_id"]), None)
+    project_amount = _to_float(project_data["planned_value"]) if project_data else None
+    project_status = _status_for_budget(
+        _to_float(project_data["actual_cost"]) if project_data else None,
+        project_amount,
+    ) if project_data else None
+    project_row = FundAllocationRow(
+        description=project_meta.get("name") or project_code,
+        amount=project_amount,
+        status=project_status,
+    )
+
     contracts: list[FundAllocationRow] = []
-
-    for row in rows:
-        amount = _to_float(row.get("amount"))
-        status = row.get("status") or None
-        description = row.get("description") or "—"
-        if row.get("level") == "project":
-            project_row = FundAllocationRow(description=description, amount=amount, status=status)
-        else:
-            contracts.append(
-                FundAllocationRow(
-                    description=description,
-                    amount=amount,
-                    status=status,
-                    contractId=row.get("code"),
-                )
+    for row in contract_rows:
+        entity_id: UUID = row["entity_id"]
+        meta = entity_map.get(entity_id, {})
+        planned = _to_float(row.get("planned_value"))
+        actual = _to_float(row.get("actual_cost"))
+        contracts.append(
+            FundAllocationRow(
+                description=meta.get("name") or meta.get("code") or "—",
+                amount=planned,
+                status=_status_for_budget(actual, planned),
+                contractId=meta.get("code"),
             )
+        )
 
     response = FundAllocationResponse(project=project_row, contracts=contracts)
     _cache_set(_allocation_cache, cache_key, response)
@@ -257,48 +327,98 @@ def get_expenses(project_code: str, contract_code: Optional[str], tenant_id: str
 
     with pool.connection() as conn:
         project, contract = _resolve_scope(conn, project_code, contract_code, tenant_id)
-        contract_entity_id = contract["entity_id"] if contract else None
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
-                SELECT level, entity_id, parent_id, description, contract_code, code, actual, paid, balance, status
-                FROM dipgos.vw_expenses_rollup
-                WHERE project_id = %s
-                ORDER BY CASE WHEN level = 'contract' THEN 0 ELSE 1 END, description
-                """,
-                (project["entity_id"],),
-            )
-            rows = cur.fetchall()
+        tenant_uuid = str(project["tenant_id"])
+        rows = _schedule_rollup_rows(conn, tenant_uuid, project["entity_id"])
+
+    contract_entity_id = contract["entity_id"] if contract else None
+    process_rows = [
+        row
+        for row in rows
+        if row["level"] == "process" and (not contract_entity_id or row["contract_id"] == contract_entity_id)
+    ]
+
+    if not process_rows:
+        result: Tuple[ExpenseRow, ...] = ()
+        _cache_set(_expenses_cache, cache_key, result)
+        return result
+
+    entity_ids = set()
+    for row in process_rows:
+        if row["process_id"]:
+            entity_ids.add(row["process_id"])
+        if row["sow_id"]:
+            entity_ids.add(row["sow_id"])
+        if row["contract_id"]:
+            entity_ids.add(row["contract_id"])
+    entity_map = _entity_details(conn, entity_ids)
 
     contracts_map: Dict[UUID, ExpenseRow] = {}
+    sow_map: Dict[Tuple[UUID, UUID], ExpenseRow] = {}
     response: list[ExpenseRow] = []
 
-    for row in rows:
-        level = row.get("level")
-        entity_id = row.get("entity_id")
-        parent_id = row.get("parent_id")
-        contract_code_value = row.get("contract_code") or row.get("code")
-        item = ExpenseRow(
-            description=row.get("description") or "—",
-            contractCode=contract_code_value,
-            actual=_to_float(row.get("actual")),
-            paid=_to_float(row.get("paid")),
-            balance=_to_float(row.get("balance")),
-            status=row.get("status") or None,
+    grouped_by_contract: Dict[UUID, List[dict]] = defaultdict(list)
+    for row in process_rows:
+        contract_id = row["contract_id"]
+        if contract_id is None:
+            continue
+        grouped_by_contract[contract_id].append(row)
+
+    for contract_id, contract_rows in grouped_by_contract.items():
+        meta = entity_map.get(contract_id, {})
+        contract_name = meta.get("name") or meta.get("code") or "—"
+        planned = sum(_to_float(r.get("planned_value")) or 0 for r in contract_rows)
+        actual = sum(_to_float(r.get("actual_cost")) or 0 for r in contract_rows)
+        contract_expense = ExpenseRow(
+            description=contract_name,
+            contractCode=meta.get("code"),
+            actual=actual,
+            paid=actual,
+            balance=(planned or 0) - (actual or 0),
+            status=_status_for_budget(actual, planned),
             children=[],
         )
+        contracts_map[contract_id] = contract_expense
+        response.append(contract_expense)
 
-        if level == "contract":
-            if contract_entity_id and entity_id != contract_entity_id:
-                continue
-            contracts_map[entity_id] = item
-            response.append(item)
-        elif level == "sow":
-            if contract_entity_id and parent_id != contract_entity_id:
-                continue
-            parent = contracts_map.get(parent_id)
-            if parent:
-                parent.children.append(item)
+        grouped_by_sow: Dict[UUID, List[dict]] = defaultdict(list)
+        for row in contract_rows:
+            if row["sow_id"]:
+                grouped_by_sow[row["sow_id"]].append(row)
+
+        for sow_id, sow_rows in grouped_by_sow.items():
+            sow_meta = entity_map.get(sow_id, {})
+            sow_name = sow_meta.get("name") or sow_meta.get("code") or "—"
+            sow_planned = sum(_to_float(r.get("planned_value")) or 0 for r in sow_rows)
+            sow_actual = sum(_to_float(r.get("actual_cost")) or 0 for r in sow_rows)
+            sow_row = ExpenseRow(
+                description=sow_name,
+                contractCode=sow_meta.get("code") or meta.get("code"),
+                actual=sow_actual,
+                paid=sow_actual,
+                balance=(sow_planned or 0) - (sow_actual or 0),
+                status=_status_for_budget(sow_actual, sow_planned),
+                children=[],
+            )
+            sow_map[(contract_id, sow_id)] = sow_row
+            contract_expense.children.append(sow_row)
+
+            for process_row in sow_rows:
+                process_id = process_row["process_id"]
+                proc_meta = entity_map.get(process_id, {})
+                proc_name = proc_meta.get("name") or proc_meta.get("code") or "—"
+                proc_planned = _to_float(process_row.get("planned_value")) or 0
+                proc_actual = _to_float(process_row.get("actual_cost")) or 0
+                sow_row.children.append(
+                    ExpenseRow(
+                        description=proc_name,
+                        contractCode=proc_meta.get("code") or sow_meta.get("code") or meta.get("code"),
+                        actual=proc_actual,
+                        paid=proc_actual,
+                        balance=proc_planned - proc_actual,
+                        status=_status_for_budget(proc_actual, proc_planned),
+                        children=[],
+                    )
+                )
 
     result = tuple(response)
     _cache_set(_expenses_cache, cache_key, result)
@@ -314,106 +434,101 @@ def get_fund_flow(project_code: str, contract_code: Optional[str], tenant_id: st
 
     with pool.connection() as conn:
         project, contract = _resolve_scope(conn, project_code, contract_code, tenant_id)
-        contract_entity_id = contract["entity_id"] if contract else None
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
-                SELECT node_id, node_label, node_type, parent_node_id, amount, project_id
-                FROM dipgos.vw_fund_flow
-                WHERE project_id = %s
-                """,
-                (project["entity_id"],),
-            )
-            rows = cur.fetchall()
+        tenant_uuid = str(project["tenant_id"])
+        rows = _schedule_rollup_rows(conn, tenant_uuid, project["entity_id"])
+        entity_ids: List[UUID] = [project["entity_id"]]
+        for row in rows:
+            if row.get("entity_id"):
+                entity_ids.append(row["entity_id"])
+            for key in ("contract_id", "sow_id", "process_id"):
+                value = row.get(key)
+                if value:
+                    entity_ids.append(value)
+        entity_map = _entity_details(conn, entity_ids)
+
+    contract_entity_id = contract["entity_id"] if contract else None
+    process_rows = [
+        row
+        for row in rows
+        if row["level"] == "process" and (not contract_entity_id or row["contract_id"] == contract_entity_id)
+    ]
+
+    if not process_rows:
+        response = FundFlowResponse(nodes=[], links=[])
+        _cache_set(_flow_cache, cache_key, response)
+        return response
 
     nodes: Dict[str, SankeyNode] = {}
-    links: list[SankeyLink] = []
+    links: List[SankeyLink] = []
+    sow_totals: Dict[UUID, float] = defaultdict(float)
+    contract_totals: Dict[UUID, float] = defaultdict(float)
 
-    for row in rows:
-        node_id = row.get("node_id")
-        parent_id = row.get("parent_node_id")
-        node_type = row.get("node_type") or "unknown"
-        label = row.get("node_label") or "—"
+    project_node_id = str(project["entity_id"])
+    project_meta = entity_map.get(project["entity_id"], {"name": project.get("name") or project_code})
+    nodes[project_node_id] = SankeyNode(id=project_node_id, label=project_meta.get("name") or project_code, type="project")
 
-        if contract_entity_id and node_type == "contract" and parent_id:
-            # Skip contracts outside scope
-            if node_id != str(contract_entity_id):
-                continue
-        if contract_entity_id and node_type.startswith("outflow"):
-            parent_match = row.get("parent_node_id")
-            if parent_match and parent_match != str(contract_entity_id):
-                continue
+    for row in process_rows:
+        process_id: Optional[UUID] = row.get("process_id")
+        sow_id: Optional[UUID] = row.get("sow_id")
+        contract_id: Optional[UUID] = row.get("contract_id")
+        actual = _to_float(row.get("actual_cost")) or 0.0
+        if actual <= 0 or not process_id:
+            continue
+        process_node_id = str(process_id)
+        meta = entity_map.get(process_id, {})
+        nodes.setdefault(
+            process_node_id,
+            SankeyNode(id=process_node_id, label=meta.get("name") or meta.get("code") or "Process", type="process"),
+        )
 
-        if node_id not in nodes:
-            nodes[node_id] = SankeyNode(id=node_id, label=label, type=node_type)
-
-        amount_value = _to_float(row.get("amount")) or 0.0
-        if parent_id and amount_value and amount_value > 0:
-            links.append(SankeyLink(source=node_id, target=parent_id, value=amount_value))
-
-    if not links:
-        allocation = get_fund_allocation(project_code=project_code, tenant_id=tenant_id)
-        fallback_nodes: Dict[str, SankeyNode] = {}
-        fallback_links: list[SankeyLink] = []
-        selected_contract_code = contract["code"] if contract else None
-
-        project_code_str = project["code"]
-        project_label = project.get("name") or project_code_str
-        fallback_nodes[project_code_str] = SankeyNode(id=project_code_str, label=project_label, type="project")
-
-        total_allocation = 0.0
-        contract_rows = []
-        for row in allocation.contracts:
-            if not row.contract_id:
-                continue
-            if selected_contract_code and row.contract_id != selected_contract_code:
-                continue
-            summary = get_financial_summary(project_code=project_code, contract_code=row.contract_id, tenant_id=tenant_id)
-            spent_value = _to_float(summary.ac) or _to_float(summary.ev) or 0.0
-            amount_value = _to_float(row.amount) or 0.0
-            if amount_value <= 0 and spent_value > 0:
-                amount_value = spent_value
-            contract_rows.append(
-                (row.contract_id, row.description or row.contract_id, amount_value, spent_value),
+        if sow_id:
+            sow_node_id = str(sow_id)
+            sow_meta = entity_map.get(sow_id, {})
+            nodes.setdefault(
+                sow_node_id,
+                SankeyNode(id=sow_node_id, label=sow_meta.get("name") or sow_meta.get("code") or "SOW", type="sow"),
             )
+            links.append(SankeyLink(source=process_node_id, target=sow_node_id, value=actual))
+            sow_totals[sow_id] += actual
+        elif contract_id:
+            contract_node_id = str(contract_id)
+            contract_meta = entity_map.get(contract_id, {})
+            nodes.setdefault(
+                contract_node_id,
+                SankeyNode(id=contract_node_id, label=contract_meta.get("name") or contract_meta.get("code") or "Contract", type="contract"),
+            )
+            links.append(SankeyLink(source=process_node_id, target=contract_node_id, value=actual))
+            contract_totals[contract_id] += actual
 
-        for _, _, amount_value, _ in contract_rows:
-            total_allocation += max(0.0, amount_value)
+        if sow_id and contract_id:
+            sow_totals[sow_id] += 0  # ensure key exists
+            contract_totals[contract_id] += actual
 
-        if selected_contract_code and not contract_rows:
-            summary = get_financial_summary(project_code=project_code, contract_code=selected_contract_code, tenant_id=tenant_id)
-            amount_value = _to_float(summary.pv) or _to_float(summary.ev) or 0.0
-            spent_value = _to_float(summary.ac) or _to_float(summary.ev) or 0.0
-            label = contract.get("name") if contract else selected_contract_code
-            contract_rows.append((selected_contract_code, label or selected_contract_code, amount_value, spent_value))
-            total_allocation = max(total_allocation, max(0.0, amount_value))
+    for sow_id, value in sow_totals.items():
+        contract_id = next(
+            (row["contract_id"] for row in process_rows if row.get("sow_id") == sow_id and row.get("contract_id")),
+            None,
+        )
+        if not contract_id:
+            continue
+        sow_node_id = str(sow_id)
+        contract_node_id = str(contract_id)
+        contract_meta = entity_map.get(contract_id, {})
+        nodes.setdefault(
+            contract_node_id,
+            SankeyNode(id=contract_node_id, label=contract_meta.get("name") or contract_meta.get("code") or "Contract", type="contract"),
+        )
+        if value > 0:
+            links.append(SankeyLink(source=sow_node_id, target=contract_node_id, value=value))
+            contract_totals[contract_id] += 0
 
-        funding_node_id = f"{project_code_str}-funding"
-        fallback_nodes[funding_node_id] = SankeyNode(id=funding_node_id, label="Funding Pool", type="inflow")
-        if total_allocation > 0:
-            fallback_links.append(SankeyLink(source=funding_node_id, target=project_code_str, value=total_allocation))
-
-        for contract_code, description, amount, spent_value in contract_rows:
-            if not contract_code:
-                continue
-            label = description or contract_code
-            contract_node_id = contract_code
-            fallback_nodes[contract_node_id] = SankeyNode(id=contract_node_id, label=label, type="contract")
-            if amount and amount > 0:
-                fallback_links.append(SankeyLink(source=project_code_str, target=contract_node_id, value=amount))
-
-            if spent_value and spent_value > 0:
-                spent_node_id = f"{contract_node_id}-spent"
-                fallback_nodes[spent_node_id] = SankeyNode(
-                    id=spent_node_id,
-                    label=f"{label} Spend",
-                    type="outflow",
-                )
-                fallback_links.append(SankeyLink(source=contract_node_id, target=spent_node_id, value=spent_value))
-
-        if fallback_links:
-            nodes = fallback_nodes
-            links = fallback_links
+    for contract_id, value in contract_totals.items():
+        contract_node_id = str(contract_id)
+        if value <= 0:
+            continue
+        if contract_entity_id and contract_id != contract_entity_id:
+            continue
+        links.append(SankeyLink(source=contract_node_id, target=project_node_id, value=value))
 
     response = FundFlowResponse(nodes=list(nodes.values()), links=links)
     _cache_set(_flow_cache, cache_key, response)
@@ -429,47 +544,40 @@ def get_incoming(project_code: str, tenant_id: str) -> IncomingFundsResponse:
 
     with pool.connection() as conn:
         project, _ = _resolve_scope(conn, project_code, None, tenant_id)
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
-                SELECT id, account, amount, txn_date
-                FROM dipgos.fund_inflows
-                WHERE project_id = %s
-                ORDER BY txn_date DESC
-                """,
-                (project["entity_id"],),
-            )
-            inflow_rows = cur.fetchall()
-            cur.execute(
-                """
-                SELECT id, account, amount, expected_date
-                FROM dipgos.fund_expected
-                WHERE project_id = %s
-                ORDER BY expected_date DESC
-                """,
-                (project["entity_id"],),
-            )
-            expected_rows = cur.fetchall()
+        tenant_uuid = str(project["tenant_id"])
+        rows = _schedule_rollup_rows(conn, tenant_uuid, project["entity_id"])
+        contract_rows = [row for row in rows if row["level"] == "contract"]
+        entity_map = _entity_details(conn, [row["entity_id"] for row in contract_rows if row["entity_id"]])
 
-    available = [
-        IncomingFundRow(
-            id=str(row["id"]),
-            accountName=row.get("account") or "—",
-            fundsDeposited=_to_float(row.get("amount")),
-            dateOfDeposit=row.get("txn_date").isoformat() if row.get("txn_date") else None,
-        )
-        for row in inflow_rows
-    ]
+    available: List[IncomingFundRow] = []
+    expected: List[ExpectedFundRow] = []
 
-    expected = [
-        ExpectedFundRow(
-            id=str(row["id"]),
-            accountName=row.get("account") or "—",
-            fundsExpected=_to_float(row.get("amount")),
-            expectedDateOfDeposit=row.get("expected_date").isoformat() if row.get("expected_date") else None,
-        )
-        for row in expected_rows
-    ]
+    for row in contract_rows:
+        entity_id: UUID = row["entity_id"]
+        meta = entity_map.get(entity_id, {})
+        label = meta.get("name") or meta.get("code") or "Contract"
+        code = meta.get("code") or str(entity_id)
+        planned = _to_float(row.get("planned_value")) or 0.0
+        actual = _to_float(row.get("actual_cost")) or 0.0
+        remaining = max(planned - actual, 0.0)
+        if actual > 0:
+            available.append(
+                IncomingFundRow(
+                    id=str(entity_id),
+                    accountName=label,
+                    fundsDeposited=actual,
+                    dateOfDeposit=None,
+                )
+            )
+        if remaining > 0:
+            expected.append(
+                ExpectedFundRow(
+                    id=f"{entity_id}-remaining",
+                    accountName=label,
+                    fundsExpected=remaining,
+                    expectedDateOfDeposit=None,
+                )
+            )
 
     response = IncomingFundsResponse(available=available, expected=expected)
     _cache_set(_incoming_cache, cache_key, response)
@@ -485,49 +593,47 @@ def get_outgoing(project_code: str, contract_code: Optional[str], tenant_id: str
 
     with pool.connection() as conn:
         project, contract = _resolve_scope(conn, project_code, contract_code, tenant_id)
-        contract_entity_id = contract["entity_id"] if contract else None
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                """
-                SELECT id, category, amount, txn_date
-                FROM dipgos.fund_outflows
-                WHERE project_id = %s AND (%s::uuid IS NULL OR contract_id = %s::uuid)
-                ORDER BY txn_date DESC
-                """,
-                (project["entity_id"], contract_entity_id, contract_entity_id),
-            )
-            actual_rows = cur.fetchall()
-            cur.execute(
-                """
-                SELECT id, category, amount, expected_date
-                FROM dipgos.expense_expected
-                WHERE project_id = %s AND (%s::uuid IS NULL OR contract_id = %s::uuid)
-                ORDER BY expected_date DESC
-                """,
-                (project["entity_id"], contract_entity_id, contract_entity_id),
-            )
-            expected_rows = cur.fetchall()
+        tenant_uuid = str(project["tenant_id"])
+        rows = _schedule_rollup_rows(conn, tenant_uuid, project["entity_id"])
+        entity_ids = [row["entity_id"] for row in rows if row["level"] == "contract" and row["entity_id"]]
+        entity_map = _entity_details(conn, entity_ids)
 
-    actual = [
-        OutgoingFundRow(
-            id=str(row["id"]),
-            accountName=row.get("category") or "—",
-            expenseValue=_to_float(row.get("amount")),
-            dateOfExpense=row.get("txn_date").isoformat() if row.get("txn_date") else None,
-        )
-        for row in actual_rows
+    contract_entity_id = contract["entity_id"] if contract else None
+    contract_rows = [
+        row
+        for row in rows
+        if row["level"] == "contract" and (not contract_entity_id or row["entity_id"] == contract_entity_id)
     ]
 
-    expected = [
-        ExpectedOutgoingFundRow(
-            id=str(row["id"]),
-            accountName=row.get("category") or "—",
-            expectedExpenseValue=_to_float(row.get("amount")),
-            expectedDateOfExpense=row.get("expected_date").isoformat() if row.get("expected_date") else None,
-        )
-        for row in expected_rows
-    ]
+    actual_rows: List[OutgoingFundRow] = []
+    expected_rows: List[ExpectedOutgoingFundRow] = []
 
-    response = OutgoingFundsResponse(actual=actual, expected=expected)
+    for row in contract_rows:
+        entity_id: UUID = row["entity_id"]
+        meta = entity_map.get(entity_id, {})
+        label = meta.get("name") or meta.get("code") or "Contract"
+        actual = _to_float(row.get("actual_cost")) or 0.0
+        planned = _to_float(row.get("planned_value")) or 0.0
+        remaining = max(planned - actual, 0.0)
+        if actual > 0:
+            actual_rows.append(
+                OutgoingFundRow(
+                    id=str(entity_id),
+                    accountName=label,
+                    expenseValue=actual,
+                    dateOfExpense=None,
+                )
+            )
+        if remaining > 0:
+            expected_rows.append(
+                ExpectedOutgoingFundRow(
+                    id=f"{entity_id}-expected",
+                    accountName=label,
+                    expectedExpenseValue=remaining,
+                    expectedDateOfExpense=None,
+                )
+            )
+
+    response = OutgoingFundsResponse(actual=actual_rows, expected=expected_rows)
     _cache_set(_outgoing_cache, cache_key, response)
     return response
