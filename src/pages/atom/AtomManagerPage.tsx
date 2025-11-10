@@ -29,10 +29,10 @@ import {
   fetchProgressHierarchy,
   type ProgressHierarchyResponse,
 } from '../../api'
-import { SidebarNav, sidebarItems, ACCS_NAV_INDEX, type ThemeMode } from '../../layout/navigation'
+import { SidebarNav, sidebarItems, ACCS_NAV_INDEX, CHANGE_NAV_INDEX, HOME_NAV_INDEX, type ThemeMode } from '../../layout/navigation'
 import TopBar from '../../layout/TopBar'
 import TopBarGlobalActions from '../../layout/TopBarActions'
-import { FEATURE_ATOM_MANAGER, FEATURE_PROGRESS_V2 } from '../../config'
+import { FEATURE_ATOM_MANAGER, FEATURE_PROGRESS_V2, FEATURE_SCM_VISUAL } from '../../config'
 import { applyTheme, resolveInitialTheme, toggleThemeValue } from '../../utils/theme'
 import { useProgressSummary } from '../../hooks/useProgress'
 import { formatNumber, formatCurrency, formatPercent, ratio, formatShortDate, formatHours, formatDate } from './utils'
@@ -1400,8 +1400,12 @@ useEffect(() => {
   const [activeNavIndex, setActiveNavIndex] = useState(ACCS_NAV_INDEX)
   const handleNavSelect = (index: number) => {
     setActiveNavIndex(index)
-    if (index === sidebarItems.findIndex((item) => item.label === 'Home')) {
+    if (index === HOME_NAV_INDEX) {
       navigate('/')
+      return
+    }
+    if (index === CHANGE_NAV_INDEX) {
+      navigate('/change-management')
     }
   }
 
@@ -1452,6 +1456,19 @@ useEffect(() => {
         >
           Atom Cost
         </button>
+        {FEATURE_SCM_VISUAL ? (
+          <button
+            type="button"
+            className="atom-topbar-button"
+            onClick={() =>
+              navigate('/atoms/scm/visual', {
+                state: currentScopeState,
+              })
+            }
+          >
+            SCM Visual Flow
+          </button>
+        ) : null}
       </div>
       <TopBarGlobalActions theme={theme} onToggleTheme={handleThemeToggle} scope={currentScopeState} />
     </div>

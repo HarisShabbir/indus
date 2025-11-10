@@ -19,7 +19,7 @@ import {
   type ContractSite,
 } from '../../api'
 import { FEATURE_FINANCIAL_VIEW, FEATURE_PROGRESS_V2 } from '../../config'
-import { SidebarNav, HOME_NAV_INDEX, ACCS_NAV_INDEX, type ThemeMode } from '../../layout/navigation'
+import { SidebarNav, HOME_NAV_INDEX, ACCS_NAV_INDEX, CHANGE_NAV_INDEX, type ThemeMode } from '../../layout/navigation'
 import TopBar from '../../layout/TopBar'
 import TopBarGlobalActions from '../../layout/TopBarActions'
 import ESankey from '../../components/charts/ESankey'
@@ -210,6 +210,15 @@ export default function FinancialViewPage(): JSX.Element {
   const handleNavSelect = (index: number) => {
     if (index === HOME_NAV_INDEX) {
       navigate('/')
+      return
+    }
+    if (index === CHANGE_NAV_INDEX) {
+      navigate('/change-management', {
+        state: {
+          projectId,
+          projectName,
+        },
+      })
     }
   }
 

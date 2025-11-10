@@ -3,10 +3,13 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any, Dict, List, Optional
+from uuid import uuid4
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from psycopg.rows import dict_row
+from psycopg.types.json import Json
 
 from ..data import fallback_alert_by_id, fallback_alerts
 from ..db import pool
@@ -40,6 +43,32 @@ class Alert(BaseModel):
     raised_at: str
     metadata: Optional[Dict[str, Any]] = None
     items: List[AlertItem]
+
+
+class AlertItemPayload(BaseModel):
+    item_type: str
+    label: str
+    detail: str
+
+
+class CreateAlertPayload(BaseModel):
+    id: Optional[str] = None
+    project_id: str
+    title: str
+    location: Optional[str] = None
+    activity: Optional[str] = None
+    severity: Optional[str] = None
+    category: Optional[str] = None
+    status: Optional[str] = Field(default="open")
+    owner: Optional[str] = None
+    root_cause: Optional[str] = None
+    recommendation: Optional[str] = None
+    acknowledged_at: Optional[str] = None
+    due_at: Optional[str] = None
+    cleared_at: Optional[str] = None
+    raised_at: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    items: List[AlertItemPayload] = Field(default_factory=list)
 
 
 def _normalise_metadata(raw) -> Dict[str, Any]:
@@ -216,3 +245,110 @@ def get_alert(alert_id: str):
         if fallback:
             return Alert(**fallback)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+
+
+def _parse_timestamp(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+@router.post("/", response_model=Alert, status_code=status.HTTP_201_CREATED)
+def create_alert(payload: CreateAlertPayload):
+    alert_id = payload.id or str(uuid4())
+    raised_at = _parse_timestamp(payload.raised_at) or datetime.utcnow()
+    acknowledged_at = _parse_timestamp(payload.acknowledged_at)
+    due_at = _parse_timestamp(payload.due_at)
+    cleared_at = _parse_timestamp(payload.cleared_at)
+
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO dipgos.alerts (
+                    id,
+                    project_id,
+                    title,
+                    location,
+                    activity,
+                    severity,
+                    category,
+                    status,
+                    owner,
+                    root_cause,
+                    recommendation,
+                    acknowledged_at,
+                    due_at,
+                    cleared_at,
+                    raised_at,
+                    metadata
+                )
+                VALUES (
+                    %(id)s,
+                    %(project_id)s,
+                    %(title)s,
+                    %(location)s,
+                    %(activity)s,
+                    %(severity)s,
+                    %(category)s,
+                    %(status)s,
+                    %(owner)s,
+                    %(root_cause)s,
+                    %(recommendation)s,
+                    %(acknowledged_at)s,
+                    %(due_at)s,
+                    %(cleared_at)s,
+                    %(raised_at)s,
+                    %(metadata)s
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                    project_id = EXCLUDED.project_id,
+                    title = EXCLUDED.title,
+                    location = EXCLUDED.location,
+                    activity = EXCLUDED.activity,
+                    severity = EXCLUDED.severity,
+                    category = EXCLUDED.category,
+                    status = EXCLUDED.status,
+                    owner = EXCLUDED.owner,
+                    root_cause = EXCLUDED.root_cause,
+                    recommendation = EXCLUDED.recommendation,
+                    acknowledged_at = EXCLUDED.acknowledged_at,
+                    due_at = EXCLUDED.due_at,
+                    cleared_at = EXCLUDED.cleared_at,
+                    raised_at = EXCLUDED.raised_at,
+                    metadata = EXCLUDED.metadata
+                """,
+                {
+                    "id": alert_id,
+                    "project_id": payload.project_id,
+                    "title": payload.title,
+                    "location": payload.location,
+                    "activity": payload.activity,
+                    "severity": payload.severity,
+                    "category": payload.category,
+                    "status": payload.status or "open",
+                    "owner": payload.owner,
+                    "root_cause": payload.root_cause,
+                    "recommendation": payload.recommendation,
+                    "acknowledged_at": acknowledged_at,
+                    "due_at": due_at,
+                    "cleared_at": cleared_at,
+                    "raised_at": raised_at,
+                    "metadata": Json(payload.metadata or {}),
+                },
+            )
+            cur.execute("DELETE FROM dipgos.alert_items WHERE alert_id = %s", (alert_id,))
+            if payload.items:
+                cur.executemany(
+                    """
+                    INSERT INTO dipgos.alert_items (alert_id, item_type, label, detail)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [(alert_id, item.item_type, item.label, item.detail) for item in payload.items],
+                )
+        conn.commit()
+
+    return get_alert(alert_id)

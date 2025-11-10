@@ -3,10 +3,18 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Body, Query, status
+from pydantic import BaseModel, Field
 
-from ..services.change_requests import create_change_request, list_change_requests
+from ..services.change_requests import create_change_request, list_change_requests, record_change_decision
 
 router = APIRouter(prefix="/api/v2/change-requests", tags=["change-requests-v2"])
+
+
+class ChangeDecisionPayload(BaseModel):
+    decision: str = Field(pattern="^(approved|rejected|returned|hold)$")
+    actorGroup: str
+    actorName: str
+    notes: Optional[str] = None
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -42,3 +50,13 @@ def list_change_requests_endpoint(
         process_id=process_id,
     )
 
+
+@router.post("/{change_id}/decision", status_code=status.HTTP_200_OK)
+def change_request_decision(change_id: str, payload: ChangeDecisionPayload):
+    return record_change_decision(
+        change_request_id=change_id,
+        decision=payload.decision,
+        actor_group=payload.actorGroup,
+        actor_name=payload.actorName,
+        notes=payload.notes,
+    )

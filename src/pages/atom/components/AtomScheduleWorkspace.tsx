@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Gantt, Task, ViewMode } from 'gantt-task-react'
 import 'gantt-task-react/dist/index.css'
+import { useNavigate } from 'react-router-dom'
 
-import type {
+import {
+  fetchScmProcessCanvas,
   AtomScheduleCreatePayload,
   AtomScheduleItem,
   AtomScheduleResponse,
   AtomScheduleUpdatePayload,
+  type ScmProcessCanvasResponse,
 } from '../../../api'
 import { formatDate, formatNumber, formatPercent, formatShortDate } from '../utils'
 
@@ -164,6 +167,7 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
   onUpdate,
   onDelete,
 }) => {
+  const navigate = useNavigate()
   const itemsById = useMemo(() => {
     const map = new Map<string, AtomScheduleItem>()
     data?.items.forEach((item) => map.set(item.scheduleId, item))
@@ -189,7 +193,10 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
   const redoRef = useRef<Task[][]>([])
   const [editForm, setEditForm] = useState<EditFormState | null>(null)
   const [taskSearch, setTaskSearch] = useState<string>('')
-  const [conflictSearch, setConflictSearch] = useState<string>('')
+  const [conflictSearch, setConflictSearch] = useState<string>('') 
+  const [scmProcess, setScmProcess] = useState<ScmProcessCanvasResponse | null>(null)
+  const [scmLoading, setScmLoading] = useState(false)
+  const [scmError, setScmError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!whatIfMode) {
@@ -743,6 +750,42 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
     return filteredConflicts.slice(start, start + CONFLICTS_PER_PAGE)
   }, [filteredConflicts, conflictPage])
 
+  useEffect(() => {
+    if (!scope?.processId || !scope.projectId) {
+      setScmProcess(null)
+      setScmError(null)
+      return
+    }
+    const controller = new AbortController()
+    setScmLoading(true)
+    setScmError(null)
+    fetchScmProcessCanvas(
+      {
+        tenantId: scope.tenantId,
+        projectId: scope.projectId,
+        contractId: scope.contractId ?? undefined,
+        sowId: scope.sowId ?? undefined,
+        processId: scope.processId,
+      },
+      controller.signal,
+    )
+      .then((payload) => {
+        setScmProcess(payload)
+      })
+      .catch((err) => {
+        if (err.name === 'AbortError') return
+        console.error('Failed to load SCM canvas', err)
+        setScmProcess(null)
+        setScmError('Unable to load SCM readiness.')
+      })
+      .finally(() => setScmLoading(false))
+
+    return () => controller.abort()
+  }, [scope?.tenantId, scope?.projectId, scope?.contractId, scope?.sowId, scope?.processId])
+
+  const scmTopRequirements = useMemo(() => (scmProcess?.requirements ?? []).slice(0, 3), [scmProcess])
+  const scmUpcomingShipments = useMemo(() => (scmProcess?.logistics ?? []).slice(0, 2), [scmProcess])
+
   const capacitySeries = useMemo(() => {
     if (!data) return []
     const map = new Map<string, number>()
@@ -914,6 +957,74 @@ const AtomScheduleWorkspace: React.FC<AtomScheduleWorkspaceProps> = ({
 
       <div className="atom-schedule-workspace__grid">
         <aside className="atom-schedule-sidebar">
+          {scope?.processId ? (
+            <div className="atom-scm-sidebar-card">
+              <article
+                className={`atom-scm-card atom-scm-card--sidebar ${scmProcess?.metrics?.riskLevel && scmProcess.metrics.riskLevel !== 'normal' ? `risk-${scmProcess.metrics.riskLevel}` : ''}`}
+              >
+                <header>
+                  <span className="atom-scm-card-title">Material readiness</span>
+                  {scmProcess ? (
+                    <span className="atom-scm-card-status">{scmProcess.metrics.coveragePct.toFixed(1)}% coverage</span>
+                  ) : null}
+                </header>
+                <div className="atom-scm-card-body">
+                  {scmLoading ? <span>Loading SCM status…</span> : null}
+                  {scmError ? <span className="atom-scm-placeholder">{scmError}</span> : null}
+                  {scmProcess ? (
+                    <>
+                      <span>Required qty: {formatNumber(scmProcess.metrics.requiredQty)}</span>
+                      <span>Committed qty: {formatNumber(scmProcess.metrics.committedQty)}</span>
+                      <span>Open POs: {formatNumber(scmProcess.metrics.openPurchaseOrders)}</span>
+                      <span>Open shipments: {formatNumber(scmProcess.metrics.openShipments)}</span>
+                    </>
+                  ) : null}
+                </div>
+                {scmProcess?.metrics.riskReasons?.length ? (
+                  <ul className="atom-scm-risk-list">
+                    {scmProcess.metrics.riskReasons.slice(0, 3).map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {scmTopRequirements.length ? (
+                  <div className="atom-scm-card-body">
+                    <strong>Top requirements</strong>
+                    <ul className="atom-scm-mini-list">
+                      {scmTopRequirements.map((item) => (
+                        <li key={item.id}>
+                          {item.title}
+                          {item.neededDate ? <span>{formatShortDate(item.neededDate)}</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {scmUpcomingShipments.length ? (
+                  <div className="atom-scm-card-body">
+                    <strong>Upcoming shipments</strong>
+                    <ul className="atom-scm-mini-list">
+                      {scmUpcomingShipments.map((item) => (
+                        <li key={item.id}>
+                          {item.title}
+                          {item.eta ? <span>{formatShortDate(item.eta)}</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                <footer className="atom-scm-card-footer">
+                  <button
+                    type="button"
+                    className="atom-scm-mini-link"
+                    onClick={() => navigate('/atoms/scm', { state: scope })}
+                  >
+                    Open SCM workspace
+                  </button>
+                </footer>
+              </article>
+            </div>
+          ) : null}
           <h4>Allocation insights</h4>
           {selectedItem ? (
             <div className="atom-allocation-panel">

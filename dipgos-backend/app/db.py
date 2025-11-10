@@ -168,6 +168,36 @@ SCHEMA_STATEMENTS: Iterable[str] = (
     ALTER TABLE dipgos.projects
         ALTER COLUMN updated_at SET DEFAULT NOW()
     """,
+    """
+    CREATE TABLE IF NOT EXISTS dipgos.process_historian (
+        id BIGSERIAL PRIMARY KEY,
+        record_id TEXT,
+        alarm_id TEXT,
+        record_type TEXT NOT NULL,
+        action TEXT NOT NULL,
+        project_id TEXT,
+        project_name TEXT,
+        contract_id TEXT,
+        contract_name TEXT,
+        sow_id TEXT,
+        sow_name TEXT,
+        process_id TEXT,
+        process_name TEXT,
+        title TEXT,
+        severity TEXT,
+        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_by TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        closed_at TIMESTAMPTZ,
+        notes TEXT
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_process_historian_process_id ON dipgos.process_historian(process_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_process_historian_record_type ON dipgos.process_historian(record_type)
+    """,
 )
 
 

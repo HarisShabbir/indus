@@ -65,10 +65,14 @@ export const sidebarItems: Array<{ label: string; icon: React.ReactNode }> = [
     ),
   },
   {
-    label: 'Placeholder 1',
+    label: 'Change',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <rect x="6" y="6" width="12" height="12" rx="3" />
+        <path d="M4 7h7l-2-2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M4 11h11a3 3 0 0 1 0 6h-3" strokeLinecap="round" />
+        <path d="M10 17l-3 3" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M20 7h-5a3 3 0 0 0 0-6h-3" strokeLinecap="round" />
+        <path d="M14 1 11 4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
@@ -84,6 +88,7 @@ export const sidebarItems: Array<{ label: string; icon: React.ReactNode }> = [
 
 export const HOME_NAV_INDEX = sidebarItems.findIndex((item) => item.label === 'Home')
 export const ACCS_NAV_INDEX = sidebarItems.findIndex((item) => item.label === 'ACCS')
+export const CHANGE_NAV_INDEX = sidebarItems.findIndex((item) => item.label === 'Change')
 
 type SidebarNavProps = {
   activeIndex: number

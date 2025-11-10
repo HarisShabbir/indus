@@ -11,7 +11,7 @@ import {
   type Project,
 } from '../../api'
 import { FEATURE_SCHEDULE_UI, FEATURE_PROGRESS_V2 } from '../../config'
-import { SidebarNav, ACCS_NAV_INDEX, HOME_NAV_INDEX, sidebarItems } from '../../layout/navigation'
+import { SidebarNav, ACCS_NAV_INDEX, HOME_NAV_INDEX, CHANGE_NAV_INDEX, sidebarItems } from '../../layout/navigation'
 import Breadcrumbs from '../../components/breadcrumbs/Breadcrumbs'
 import ScheduleGantt, { ScheduleRow } from '../../components/schedule/ScheduleGantt'
 import GaugeCard from '../../components/kpi/GaugeCard'
@@ -741,6 +741,15 @@ export default function ContractSchedulePage(): JSX.Element {
     if (!item) return
     if (index === HOME_NAV_INDEX) {
       navigate('/')
+      return
+    }
+    if (index === CHANGE_NAV_INDEX) {
+      navigate('/change-management', {
+        state: {
+          projectId: state?.projectId ?? projectId ?? null,
+          contractId,
+        },
+      })
     }
   }
 

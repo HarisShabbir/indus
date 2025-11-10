@@ -24,6 +24,9 @@ from .routers import (
     progress_v2,
     schedule_v2,
     financial_v2,
+    scm,
+    process_historian,
+    collaboration,
 )
 from .db import open_pool, close_pool, pool, initialize_database
 
@@ -93,6 +96,9 @@ app.include_router(change_requests_v2.router)
 app.include_router(progress_v2.router)
 app.include_router(schedule_v2.router)
 app.include_router(financial_v2.router)
+app.include_router(scm.router)
+app.include_router(process_historian.router, prefix="/api/process-historian", tags=["process historian"])
+app.include_router(collaboration.router, prefix="/api/collaboration", tags=["collaboration"])
 
 @app.get("/api/health")
 def health():

@@ -1,8 +1,10 @@
-import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useMemo } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { type ThemeMode } from './navigation'
 import { TopBarIcons } from './TopBar'
+import { getAlarmTowerSummary, markAlarmOrigin, useAlarmTowerSummary } from '../state/alarmTowerStore'
+import { generateClientId } from '../utils/id'
 
 type ScopeParams = {
   projectId?: string | null
@@ -13,24 +15,91 @@ type ScopeParams = {
   contractName?: string | null
   sowName?: string | null
   processName?: string | null
+  tenantId?: string | null
 }
 
 type Props = {
   theme: ThemeMode
   onToggleTheme: () => void
   scope: ScopeParams
+  alarmCount?: number
+  alarmSeverity?: 'info' | 'warn' | 'critical' | null
 }
 
-export function TopBarGlobalActions({ theme, onToggleTheme, scope }: Props) {
+export function TopBarGlobalActions({ theme, onToggleTheme, scope, alarmCount, alarmSeverity }: Props) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const towerSummary = useAlarmTowerSummary()
+
+  const derivedCount = alarmCount ?? towerSummary.count
+  const derivedSeverity = alarmSeverity ?? towerSummary.severity ?? 'info'
 
   const handleNavigate = (path: string) => () => {
+    if (path === '/alarms') {
+      markAlarmOrigin({
+        path: location.pathname,
+        label: scope.processName ?? scope.contractName ?? scope.projectName ?? 'Last view',
+        state: {
+          tenantId: scope.tenantId ?? 'default',
+          projectId: scope.projectId ?? null,
+          contractId: scope.contractId ?? null,
+          sowId: scope.sowId ?? null,
+          processId: scope.processId ?? null,
+          processName: scope.processName ?? null,
+        },
+      })
+    }
     navigate(path, {
       state: {
         ...scope,
       },
     })
   }
+
+  const derivePageLabel = () => {
+    const path = location.pathname
+    if (path === '/alarms') return 'Alarms'
+    if (path.startsWith('/change')) return 'Change'
+    if (path.startsWith('/atoms')) return 'Atoms'
+    if (path.startsWith('/financial')) return 'Financial'
+    if (path.startsWith('/schedule')) return 'Schedule'
+    if (path.startsWith('/process')) return 'Process'
+    if (path === '/') return 'Dashboard'
+    return 'Workspace'
+  }
+
+  const handleOpenCollaboration = () => {
+    const label = derivePageLabel()
+    const contextPayload = {
+      title: `${label} context`,
+      path: location.pathname,
+      timestamp: new Date().toISOString(),
+      scope,
+      filters: location.state ?? null,
+    }
+    navigate('/collaboration', {
+      state: {
+        threadId: generateClientId(),
+        origin: {
+          path: location.pathname,
+          label,
+          chain: [label],
+          state: location.state,
+        },
+        context: {
+          kind: 'page',
+          payload: contextPayload,
+        },
+      },
+    })
+  }
+
+  const badgeClass = useMemo(() => {
+    if (!derivedCount) return null
+    const severity = derivedSeverity ?? 'info'
+    return `topbar-action-btn__badge topbar-action-btn__badge--${severity}`
+  }, [derivedCount, derivedSeverity])
+  const alarmLabel = derivedCount && derivedCount > 99 ? '99+' : String(derivedCount ?? '')
 
   return (
     <>
@@ -49,6 +118,15 @@ export function TopBarGlobalActions({ theme, onToggleTheme, scope }: Props) {
       <button
         type="button"
         className="topbar-action-btn"
+        aria-label="Open collaboration workspace"
+        title="Open collaboration workspace"
+        onClick={handleOpenCollaboration}
+      >
+        <TopBarIcons.Chat />
+      </button>
+      <button
+        type="button"
+        className="topbar-action-btn"
         aria-label="Open change management"
         title="Open change management"
         onClick={handleNavigate('/change-management')}
@@ -63,7 +141,7 @@ export function TopBarGlobalActions({ theme, onToggleTheme, scope }: Props) {
         onClick={handleNavigate('/alarms')}
       >
         <TopBarIcons.Alert />
-        <span className="topbar-action-btn__badge">•</span>
+        {derivedCount && derivedCount > 0 ? <span className={badgeClass ?? undefined}>{alarmLabel}</span> : null}
       </button>
       <button type="button" className="topbar-action-btn" aria-label="Team directory" title="Team directory">
         <TopBarIcons.Users />

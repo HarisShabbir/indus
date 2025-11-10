@@ -11,7 +11,7 @@ import {
   type AtomSummaryResponse,
   type ProgressSummaryResponse,
 } from '../../api'
-import { SidebarNav, sidebarItems, ACCS_NAV_INDEX, type ThemeMode } from '../../layout/navigation'
+import { SidebarNav, sidebarItems, ACCS_NAV_INDEX, CHANGE_NAV_INDEX, HOME_NAV_INDEX, type ThemeMode } from '../../layout/navigation'
 import TopBar from '../../layout/TopBar'
 import TopBarGlobalActions from '../../layout/TopBarActions'
 import { FEATURE_ATOM_MANAGER, FEATURE_PROGRESS_V2 } from '../../config'
@@ -134,8 +134,17 @@ export default function AtomDeploymentsPage(): JSX.Element | null {
 
   const handleNavSelect = (index: number) => {
     setActiveNavIndex(index)
-    if (index === sidebarItems.findIndex((item) => item.label === 'Home')) {
+    if (index === HOME_NAV_INDEX) {
       navigate('/')
+      return
+    }
+    if (index === CHANGE_NAV_INDEX) {
+      navigate('/change-management', {
+        state: {
+          projectId: preservedStateRef.current?.projectId ?? null,
+          contractId: preservedStateRef.current?.contractId ?? null,
+        },
+      })
     }
   }
 

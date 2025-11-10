@@ -149,6 +149,68 @@ export type Alert = {
   items: AlertItem[]
 }
 
+export type CreateAlarmPayload = {
+  id?: string
+  projectId: string
+  title: string
+  severity: string
+  location?: string | null
+  activity?: string | null
+  category?: string | null
+  status?: string | null
+  owner?: string | null
+  rootCause?: string | null
+  recommendation?: string | null
+  dueAt?: string | null
+  raisedAt?: string | null
+  metadata?: Record<string, unknown>
+  items?: AlertItem[]
+}
+
+export type ProcessHistorianEntryInput = {
+  recordId?: string | null
+  alarmId?: string | null
+  recordType: string
+  action: 'acknowledge' | 'collaborate' | 'change'
+  projectId?: string | null
+  projectName?: string | null
+  contractId?: string | null
+  contractName?: string | null
+  sowId?: string | null
+  sowName?: string | null
+  processId?: string | null
+  processName?: string | null
+  title?: string | null
+  severity?: string | null
+  payload?: Record<string, unknown>
+  createdBy?: string | null
+  closedAt?: string | null
+  notes?: string | null
+}
+
+export type ProcessHistorianEntry = {
+  id: number
+  recordId: string | null
+  alarmId: string | null
+  recordType: string
+  action: string
+  projectId: string | null
+  projectName: string | null
+  contractId: string | null
+  contractName: string | null
+  sowId: string | null
+  sowName: string | null
+  processId: string | null
+  processName: string | null
+  title: string | null
+  severity: string | null
+  payload: Record<string, unknown>
+  createdBy: string | null
+  createdAt: string
+  closedAt: string | null
+  notes: string | null
+}
+
 export type ProjectCreatePayload = {
   name: string
   phase: string
@@ -1148,6 +1210,143 @@ export async function fetchAlerts(projectId?: string): Promise<Alert[]> {
   }
 }
 
+export async function createAlarm(payload: CreateAlarmPayload): Promise<Alert> {
+  const body = {
+    id: payload.id,
+    project_id: payload.projectId,
+    title: payload.title,
+    severity: payload.severity,
+    location: payload.location,
+    activity: payload.activity,
+    category: payload.category ?? 'SCM',
+    status: payload.status ?? 'open',
+    owner: payload.owner,
+    root_cause: payload.rootCause,
+    recommendation: payload.recommendation,
+    due_at: payload.dueAt,
+    raised_at: payload.raisedAt,
+    metadata: payload.metadata ?? {},
+    items: (payload.items ?? []).map((item) => ({
+      item_type: item.type,
+      label: item.label,
+      detail: item.detail,
+    })),
+  }
+  const res = await fetch(`${API_URL}/api/alerts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return handleResponse<Alert>(res)
+}
+
+export async function acknowledgeAlert(alertId: string): Promise<Alert> {
+  const res = await fetch(`${API_URL}/api/alerts/${encodeURIComponent(alertId)}/acknowledge`, {
+    method: 'POST',
+  })
+  return handleResponse<Alert>(res)
+}
+
+type ProcessHistorianResponse = {
+  id: number
+  record_id: string | null
+  alarm_id: string | null
+  record_type: string
+  action: string
+  project_id: string | null
+  project_name: string | null
+  contract_id: string | null
+  contract_name: string | null
+  sow_id: string | null
+  sow_name: string | null
+  process_id: string | null
+  process_name: string | null
+  title: string | null
+  severity: string | null
+  payload: Record<string, unknown>
+  created_by: string | null
+  created_at: string
+  closed_at: string | null
+  notes: string | null
+}
+
+const mapProcessHistorianEntry = (record: ProcessHistorianResponse): ProcessHistorianEntry => ({
+  id: record.id,
+  recordId: record.record_id,
+  alarmId: record.alarm_id,
+  recordType: record.record_type,
+  action: record.action,
+  projectId: record.project_id,
+  projectName: record.project_name,
+  contractId: record.contract_id,
+  contractName: record.contract_name,
+  sowId: record.sow_id,
+  sowName: record.sow_name,
+  processId: record.process_id,
+  processName: record.process_name,
+  title: record.title,
+  severity: record.severity,
+  payload: record.payload ?? {},
+  createdBy: record.created_by,
+  createdAt: record.created_at,
+  closedAt: record.closed_at,
+  notes: record.notes,
+})
+
+export async function createProcessHistorianEntry(payload: ProcessHistorianEntryInput): Promise<ProcessHistorianEntry> {
+  const res = await fetch(`${API_URL}/api/process-historian`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      record_id: payload.recordId ?? null,
+      alarm_id: payload.alarmId ?? null,
+      record_type: payload.recordType,
+      action: payload.action,
+      project_id: payload.projectId ?? null,
+      project_name: payload.projectName ?? null,
+      contract_id: payload.contractId ?? null,
+      contract_name: payload.contractName ?? null,
+      sow_id: payload.sowId ?? null,
+      sow_name: payload.sowName ?? null,
+      process_id: payload.processId ?? null,
+      process_name: payload.processName ?? null,
+      title: payload.title ?? null,
+      severity: payload.severity ?? null,
+      payload: payload.payload ?? {},
+      created_by: payload.createdBy ?? 'alarm-center',
+      closed_at: payload.closedAt ?? null,
+      notes: payload.notes ?? null,
+    }),
+  })
+  const record = await handleResponse<ProcessHistorianResponse>(res)
+  return mapProcessHistorianEntry(record)
+}
+
+export type CollaborationAiRequestPayload = {
+  prompt: string
+  persona: 'pm' | 'assistant'
+  intent: 'notify' | 'advise' | 'both'
+  context: Record<string, unknown>
+  history: Array<{ role: string; content: string }>
+}
+
+export type CollaborationAiResponse = {
+  reply: string
+  persona: string
+  confidence: number
+  escalate: boolean
+  suggested_actions?: string[]
+}
+
+export async function requestCollaborationAi(payload: CollaborationAiRequestPayload): Promise<CollaborationAiResponse> {
+  const res = await fetch(`${API_URL}/api/collaboration/ai/respond`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse<CollaborationAiResponse>(res)
+}
+
 export async function fetchProjectControlCenter(projectId: string): Promise<ProjectControlCenterPayload> {
   try {
     const res = await fetch(`${API_URL}/api/projects/${encodeURIComponent(projectId)}/control-center`)
@@ -1729,6 +1928,249 @@ export async function mutateAtomDeployment(
   return handleResponse<AtomDeploymentResponse>(res)
 }
 
+export type ScmCanvasCard = {
+  id: string
+  title: string
+  subtitle?: string | null
+  status?: string | null
+  quantity?: number | null
+  unit?: string | null
+  neededDate?: string | null
+  eta?: string | null
+  progress?: number | null
+  risk?: string | null
+  tags: string[]
+  metadata: Record<string, unknown>
+}
+
+export type ScmCanvasLane = {
+  title: string
+  cards: ScmCanvasCard[]
+}
+
+export type ScmInventoryCard = {
+  id: string
+  itemCode: string
+  itemName: string
+  location?: string | null
+  onHand: number
+  reserved: number
+  available: number
+  unitCost?: number | null
+  snapshotDate: string
+}
+
+export type ScmProcessMetrics = {
+  coveragePct: number
+  requiredQty: number
+  committedQty: number
+  openRequisitions: number
+  openPurchaseOrders: number
+  openShipments: number
+  inventoryValue: number
+  riskLevel: string
+  riskReasons: string[]
+}
+
+export type ScmScopeInfo = {
+  level: string
+  id?: string | null
+  code?: string | null
+  name?: string | null
+}
+
+export type ScmProcessCanvasResponse = {
+  generatedAt: string
+  scope: ScmScopeInfo
+  requirements: ScmCanvasCard[]
+  inputs: ScmCanvasCard[]
+  outputs: ScmCanvasCard[]
+  timeline: ScmCanvasLane[]
+  procurement: ScmCanvasLane[]
+  logistics: ScmCanvasCard[]
+  inventory: ScmInventoryCard[]
+  metrics: ScmProcessMetrics
+}
+
+export type ScmStageResource = {
+  id: string
+  resourceId: string
+  kind: string
+  name: string
+  code?: string | null
+  unit?: string | null
+  stage: string
+  status: string
+  required: number
+  committed: number
+  inTransit: number
+  available: number
+  eta?: string | null
+  metadata: Record<string, unknown>
+}
+
+export type ScmStageNode = {
+  id: string
+  title: string
+  status: string
+  requiredTotal: number
+  committedTotal: number
+  inTransitTotal: number
+  availableTotal: number
+  resources: ScmStageResource[]
+}
+
+export type ScmProcessStageResponse = {
+  generatedAt: string
+  scope: ScmScopeInfo
+  stages: ScmStageNode[]
+}
+
+export type ScmInsightAction = {
+  label: string
+  href?: string | null
+  description?: string | null
+  intent?: string | null
+}
+
+export type ScmInsight = {
+  metric: string
+  headline: string
+  summary: string
+  severity: string
+  details: string[]
+  actions: ScmInsightAction[]
+}
+
+export type ScmDashboardKpi = {
+  title: string
+  value: number
+  unit?: string | null
+  trend?: number | null
+  status?: string | null
+}
+
+export type ScmDashboardResponse = {
+  generatedAt: string
+  scope: ScmScopeInfo
+  kpis: ScmDashboardKpi[]
+  totals: Record<string, number>
+  insights: ScmInsight[]
+}
+
+export type ScmEngageProcurementPayload = {
+  tenantId?: string | null
+  projectId?: string | null
+  contractId?: string | null
+  sowId?: string | null
+  processId?: string | null
+  purchaseOrders: Array<Record<string, unknown>>
+  note?: string | null
+}
+
+export type ScmActionResponse = {
+  status: string
+  alertId?: string | null
+  message: string
+}
+
+export async function fetchScmProcessCanvas(
+  params: {
+    tenantId?: string | null
+    projectId: string
+    contractId?: string | null
+    sowId?: string | null
+    processId: string
+  },
+  signal?: AbortSignal,
+): Promise<ScmProcessCanvasResponse> {
+  const query = new URLSearchParams({
+    tenantId: params.tenantId ?? DEFAULT_TENANT_ID,
+    projectId: params.projectId,
+    processId: params.processId,
+  })
+  if (params.contractId) query.set('contractId', params.contractId)
+  if (params.sowId) query.set('sowId', params.sowId)
+
+  const res = await fetch(`${API_URL}/api/v2/scm/process/canvas?${query.toString()}`, { signal })
+  return handleResponse<ScmProcessCanvasResponse>(res)
+}
+
+export async function fetchScmProcessStages(
+  params: {
+    tenantId?: string | null
+    projectId: string
+    contractId?: string | null
+    sowId?: string | null
+    processId: string
+  },
+  signal?: AbortSignal,
+): Promise<ScmProcessStageResponse> {
+  const query = new URLSearchParams({
+    tenantId: params.tenantId ?? DEFAULT_TENANT_ID,
+    projectId: params.projectId,
+    processId: params.processId,
+  })
+  if (params.contractId) query.set('contractId', params.contractId)
+  if (params.sowId) query.set('sowId', params.sowId)
+  const res = await fetch(`${API_URL}/api/v2/scm/process/stages?${query.toString()}`, {
+    signal,
+  })
+  return handleResponse<ScmProcessStageResponse>(res)
+}
+
+export async function updateScmStageTransition(payload: {
+  tenantId?: string | null
+  projectId?: string | null
+  contractId?: string | null
+  sowId?: string | null
+  processId?: string | null
+  resourceId: string
+  stage: string
+}): Promise<{ status: string; message: string }> {
+  const res = await fetch(`${API_URL}/api/v2/scm/process/stage-transition`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse<{ status: string; message: string }>(res)
+}
+
+export async function fetchScmDashboard(
+  params: {
+    scopeLevel?: 'process' | 'sow' | 'contract' | 'project' | 'portfolio'
+    tenantId?: string | null
+    projectId?: string | null
+    contractId?: string | null
+    sowId?: string | null
+    processId?: string | null
+  },
+  signal?: AbortSignal,
+): Promise<ScmDashboardResponse> {
+  const query = new URLSearchParams({
+    scopeLevel: params.scopeLevel ?? 'process',
+    tenantId: params.tenantId ?? DEFAULT_TENANT_ID,
+  })
+  if (params.projectId) query.set('projectId', params.projectId)
+  if (params.contractId) query.set('contractId', params.contractId)
+  if (params.sowId) query.set('sowId', params.sowId)
+  if (params.processId) query.set('processId', params.processId)
+
+  const res = await fetch(`${API_URL}/api/v2/scm/dashboard?${query.toString()}`, { signal })
+  return handleResponse<ScmDashboardResponse>(res)
+}
+
+export async function engageScmProcurementTeam(payload: ScmEngageProcurementPayload): Promise<ScmActionResponse> {
+  const res = await fetch(`${API_URL}/api/v2/scm/actions/engage-procurement`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse<ScmActionResponse>(res)
+}
+
 function buildContractScheduleFromTasks(contractId: string, tasks: GanttTask[]): ContractSchedule | null {
   if (!tasks.length) return null
   const contractTask = tasks.find((task) => task.id.startsWith('contract:'))
@@ -1977,6 +2419,36 @@ export type ChangeRequest = {
   created_by: string
   created_at: string
   alert_id?: string | null
+  approver?: string | null
+  approval_group?: string | null
+  decision_notes?: string | null
+  decided_at?: string | null
+  project_name?: string | null
+  contract_name?: string | null
+  sow_name?: string | null
+  process_name?: string | null
+  notes?: string | null
+  justification?: string | null
+}
+
+export type CollaborationMember = {
+  id: string
+  threadId: string
+  persona: string
+  name: string
+  role: string
+  historyAccess: 'full' | 'current'
+  createdBy?: string | null
+  createdAt: string
+}
+
+export type CollaborationMemberInput = {
+  threadId: string
+  persona: string
+  name: string
+  role: string
+  historyAccess: 'full' | 'current'
+  createdBy?: string | null
 }
 
 export async function createChangeRequest(payload: ChangeRequestPayload): Promise<ChangeRequest> {
@@ -2004,4 +2476,50 @@ export async function fetchChangeRequests(params: {
   if (params.processId) search.set('processId', params.processId)
   const res = await fetch(`${API_URL}/api/v2/change-requests?${search.toString()}`)
   return handleResponse<ChangeRequest[]>(res)
+}
+
+export async function decideChangeRequest(
+  changeId: string,
+  payload: { decision: 'approved' | 'rejected' | 'returned' | 'hold'; actorGroup: string; actorName: string; notes?: string },
+): Promise<ChangeRequest> {
+  const res = await fetch(`${API_URL}/api/v2/change-requests/${encodeURIComponent(changeId)}/decision`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse<ChangeRequest>(res)
+}
+
+const mapCollaborationMember = (record: any): CollaborationMember => ({
+  id: record.id,
+  threadId: record.thread_id,
+  persona: record.persona,
+  name: record.name,
+  role: record.role,
+  historyAccess: record.history_access,
+  createdBy: record.created_by ?? null,
+  createdAt: record.created_at,
+})
+
+export async function fetchCollaborationMembers(threadId: string): Promise<CollaborationMember[]> {
+  const res = await fetch(`${API_URL}/api/collaboration/members?threadId=${encodeURIComponent(threadId)}`)
+  const data = await handleResponse<any[]>(res)
+  return data.map(mapCollaborationMember)
+}
+
+export async function createCollaborationMember(payload: CollaborationMemberInput): Promise<CollaborationMember> {
+  const res = await fetch(`${API_URL}/api/collaboration/members`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      thread_id: payload.threadId,
+      persona: payload.persona,
+      name: payload.name,
+      role: payload.role,
+      history_access: payload.historyAccess,
+      created_by: payload.createdBy ?? null,
+    }),
+  })
+  const record = await handleResponse<any>(res)
+  return mapCollaborationMember(record)
 }

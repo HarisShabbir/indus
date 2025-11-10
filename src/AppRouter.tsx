@@ -13,8 +13,11 @@ import AtomCostPage from './pages/atom/AtomCostPage'
 import AtomDeploymentsPage from './pages/atom/AtomDeploymentsPage'
 import AtomDetailPage from './pages/atom/AtomDetailPage'
 import AtomDetailExperiencePage from './pages/atom/AtomDetailExperiencePage'
+import AtomScmPage from './pages/atom/AtomScmPage'
+import AtomScmVisualPage from './pages/atom/AtomScmVisualPage'
 import ChangeManagementPage from './pages/change/ChangeManagementPage'
 import AlarmCenterPage from './pages/alarms/AlarmCenterPage'
+import CollaborationWorkspacePage from './pages/collaboration/CollaborationWorkspacePage'
 
 export function AppRouter() {
   return (
@@ -30,12 +33,15 @@ export function AppRouter() {
         <Route path="/atoms" element={<AtomManagerPage />} />
         <Route path="/atoms/scheduling" element={<AtomSchedulingPage />} />
         <Route path="/atoms/cost" element={<AtomCostPage />} />
+        <Route path="/atoms/scm" element={<AtomScmPage />} />
+        <Route path="/atoms/scm/visual" element={<AtomScmVisualPage />} />
         <Route path="/contracts/:id/atoms" element={<AtomManagerPage />} />
         <Route path="/atoms/deployments" element={<AtomDeploymentsPage />} />
         <Route path="/atoms/catalog/:slug" element={<AtomDetailPage />} />
         <Route path="/atoms/catalog/:slug/experience" element={<AtomDetailExperiencePage />} />
         <Route path="/change-management" element={<ChangeManagementPage />} />
         <Route path="/alarms" element={<AlarmCenterPage />} />
+        <Route path="/collaboration" element={<CollaborationWorkspacePage />} />
       </Routes>
     </BrowserRouter>
   )

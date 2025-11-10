@@ -79,7 +79,7 @@ def create_change_request(
                 INSERT INTO dipgos.change_requests (
                     id, tenant_id, project_id, contract_id, sow_id, process_id,
                     atom_type, model, requested_units, est_cost, reason, status,
-                    created_by, created_at
+                    created_by, created_at, alert_id
                 )
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'pending_pm_approval',%s,%s)
                 RETURNING *
@@ -98,6 +98,7 @@ def create_change_request(
                     reason,
                     created_by or "contractor",
                     now,
+                    alert_id,
                 ),
             )
             row = cur.fetchone()
@@ -187,6 +188,75 @@ def create_change_request(
             created = dict(row)
             created["alert_id"] = alert_id
             return created
+
+
+def record_change_decision(
+    *,
+    change_request_id: str,
+    decision: str,
+    actor_group: str,
+    actor_name: str,
+    notes: Optional[str],
+) -> dict:
+    decision_key = decision.lower()
+    status_map = {
+        "approved": "approved",
+        "rejected": "rejected",
+        "returned": "returned_for_update",
+        "hold": "on_hold",
+    }
+    if decision_key not in status_map:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported decision")
+    new_status = status_map[decision_key]
+    change_uuid = _uuid(change_request_id)
+    now = datetime.now(timezone.utc)
+
+    with pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                UPDATE dipgos.change_requests
+                SET status = %s,
+                    approver = %s,
+                    approval_group = %s,
+                    decision_notes = %s,
+                    decided_at = %s
+                WHERE id = %s
+                RETURNING *
+                """,
+                (new_status, actor_name, actor_group, notes, now, change_uuid),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Change request not found")
+
+            cur.execute(
+                """
+                INSERT INTO dipgos.change_request_actions (change_request_id, decision, actor_group, actor_name, notes)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (change_uuid, decision_key, actor_group, actor_name, notes),
+            )
+
+            alert_id = row.get("alert_id")
+            if alert_id:
+                alert_status = "open" if decision_key in {"returned", "hold"} else "closed"
+                recommendation = f"Decision: {decision_key.title()} by {actor_name}"
+                if notes:
+                    recommendation = f"{recommendation}. {notes}"
+                cur.execute(
+                    """
+                    UPDATE dipgos.alerts
+                    SET status = %s,
+                        owner = %s,
+                        recommendation = %s
+                    WHERE id = %s
+                    """,
+                    (alert_status, actor_name, recommendation, alert_id),
+                )
+
+            conn.commit()
+            return dict(row)
 
 
 def list_change_requests(

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
-import { SidebarNav, sidebarItems, ACCS_NAV_INDEX, type ThemeMode } from '../../layout/navigation'
+import { SidebarNav, sidebarItems, ACCS_NAV_INDEX, CHANGE_NAV_INDEX, HOME_NAV_INDEX, type ThemeMode } from '../../layout/navigation'
 import TopBar from '../../layout/TopBar'
 import TopBarGlobalActions from '../../layout/TopBarActions'
 import { applyTheme, resolveInitialTheme, toggleThemeValue } from '../../utils/theme'
@@ -320,8 +320,19 @@ export default function AtomDetailExperiencePage(): JSX.Element {
   const handleThemeToggle = () => setTheme((prev) => toggleThemeValue(prev))
   const handleNavSelect = (index: number) => {
     setActiveNavIndex(index)
-    if (index === sidebarItems.findIndex((item) => item.label === 'Home')) {
+    if (index === HOME_NAV_INDEX) {
       navigate('/')
+      return
+    }
+    if (index === CHANGE_NAV_INDEX) {
+      navigate('/change-management', {
+        state: {
+          projectId: viewContext.projectId,
+          contractId: viewContext.contractId,
+          sowId: viewContext.sowId,
+          processId: viewContext.processId,
+        },
+      })
     }
   }
 

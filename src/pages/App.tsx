@@ -29,14 +29,24 @@ import {
   WeatherSummary,
 } from '../api'
 import ProjectProductivityPanel from '../panels/ProjectProductivityPanel'
+import ContractScmDashboard from '../components/scm/ContractScmDashboard'
 import HierarchyWipBoard from '../components/wip/HierarchyWipBoard'
-import { FEATURE_SCHEDULE_UI, FEATURE_CCC_V2, FEATURE_FINANCIAL_VIEW, FEATURE_ATOM_MANAGER } from '../config'
+import { FEATURE_SCHEDULE_UI, FEATURE_CCC_V2, FEATURE_FINANCIAL_VIEW, FEATURE_ATOM_MANAGER, FEATURE_SCM } from '../config'
 import 'leaflet/dist/leaflet.css'
 import Breadcrumbs from '../components/breadcrumbs/Breadcrumbs'
-import { SidebarNav, sidebarItems, HOME_NAV_INDEX, ACCS_NAV_INDEX, ThemeToggleButton, type ThemeMode } from '../layout/navigation'
+import {
+  SidebarNav,
+  sidebarItems,
+  HOME_NAV_INDEX,
+  ACCS_NAV_INDEX,
+  CHANGE_NAV_INDEX,
+  ThemeToggleButton,
+  type ThemeMode,
+} from '../layout/navigation'
 import { useScheduleStore } from '../state/scheduleStore'
 import { persistCredentials, readAuthToken, readSavedCredentials, setAuthToken } from '../utils/auth'
 import { applyTheme, resolveInitialTheme, toggleThemeValue } from '../utils/theme'
+import { generateClientId } from '../utils/id'
 
 type Theme = ThemeMode
 type View = 'landing' | 'login' | 'dashboard' | 'contract'
@@ -692,6 +702,13 @@ export default function App() {
 
   const handleSelectNav = useCallback(
     (index: number) => {
+      if (index === CHANGE_NAV_INDEX) {
+        setView('dashboard')
+        setActiveNav(CHANGE_NAV_INDEX)
+        routerNavigate('/change-management', { state: { projectId: contractProject?.id ?? null } })
+        return
+      }
+
       if (index === ACCS_NAV_INDEX) {
         if (!isAuthenticated) {
           setView('login')
@@ -719,7 +736,7 @@ export default function App() {
       setActiveNav(HOME_NAV_INDEX)
       setView(isAuthenticated ? 'dashboard' : 'login')
     },
-    [activeNav, contractProject, isAuthenticated, lastAccsProject, view],
+    [activeNav, contractProject, isAuthenticated, lastAccsProject, view, routerNavigate],
   )
 
   const handleOpenContract = useCallback(
@@ -1954,6 +1971,31 @@ type RouteState = {
   projectId?: string | null
 } | null
 
+const getSowId = (section: any): string | null => {
+  if (!section) return null
+  return section.id ?? section.code ?? section.sow_id ?? null
+}
+
+const getSowName = (section: any): string => section?.title ?? section?.name ?? section?.label ?? 'Scope of work'
+
+const getSectionProcesses = (section: any): any[] => {
+  if (!section) return []
+  if (Array.isArray(section.processes) && section.processes.length) {
+    return section.processes
+  }
+  if (Array.isArray(section.clauses) && section.clauses.length) {
+    return section.clauses
+  }
+  return []
+}
+
+const getProcessId = (process: any): string | null => {
+  if (!process) return null
+  return process.id ?? process.code ?? process.process_id ?? process.processId ?? null
+}
+
+const getProcessName = (process: any): string => process?.title ?? process?.name ?? process?.label ?? 'Process'
+
 function ContractControlCenterOverlay({
   project,
   payload,
@@ -1987,6 +2029,7 @@ function ContractControlCenterOverlay({
 }) {
   const [focusedContractId, setFocusedContractId] = useState<string | null>(initialFocusedContractId ?? null)
   const [focusedSowId, setFocusedSowId] = useState<string | null>(null)
+  const [focusedProcessId, setFocusedProcessId] = useState<string | null>(null)
   const [expandedContracts, setExpandedContracts] = useState<Record<string, boolean>>({})
   const [mapView, setMapView] = useState<MapView>('atlas')
   const [featureToggle, setFeatureToggle] = useState<MapFeatureToggle>({ geofences: false, intensity: false })
@@ -2002,7 +2045,7 @@ function ContractControlCenterOverlay({
   const [isResizingCenterMap, setIsResizingCenterMap] = useState(false)
   const [hoveredContract, setHoveredContract] = useState<ContractSite | null>(null)
   const mapStatsRef = useRef<HTMLDivElement | null>(null)
-  const navigate = useNavigate()
+  const routerNavigate = useNavigate()
   const [activeUtilityView, setActiveUtilityView] = useState<UtilityView | null>(initialUtilityView ?? null)
   const contractWeatherMap = useMemo(() => {
     const map = new Map<string, WeatherSummary['contracts'][number]>()
@@ -2140,6 +2183,7 @@ function ContractControlCenterOverlay({
   const visibleUtilityViews = utilityViews.filter((view) => {
     if (view.id === 'scheduling' && !FEATURE_SCHEDULE_UI) return false
     if (view.id === 'financial' && !FEATURE_FINANCIAL_VIEW) return false
+    if (view.id === 'procurement' && !FEATURE_SCM) return false
     if (view.id === 'atom' && !FEATURE_ATOM_MANAGER) return false
     return true
   })
@@ -2202,6 +2246,14 @@ function ContractControlCenterOverlay({
 
   const sowGroups = payload?.sow_tree ?? []
 
+  const sowByContract = useMemo(() => {
+    const map = new Map<string, typeof sowGroups[number]['sections']>()
+    sowGroups.forEach((group) => {
+      map.set(group.contract_id, group.sections)
+    })
+    return map
+  }, [sowGroups])
+
   const filteredContracts = useMemo(() => {
     if (contractFilter === 'ALL') return contracts
     return contracts.filter((contract) => contract.id === contractFilter)
@@ -2209,16 +2261,88 @@ function ContractControlCenterOverlay({
 
   const focusedContract = filteredContracts.find((contract) => contract.id === focusedContractId) ?? filteredContracts[0]
 
+  const focusedContractSections = useMemo(() => {
+    if (!focusedContract) {
+      return []
+    }
+    return sowByContract.get(focusedContract.id) ?? []
+  }, [focusedContract, sowByContract])
+
+  const focusedSow = useMemo(() => {
+    if (!focusedContractSections.length) return null
+    if (focusedSowId) {
+      const match = focusedContractSections.find((section) => getSowId(section) === focusedSowId)
+      if (match) return match
+    }
+    return focusedContractSections[0] ?? null
+  }, [focusedContractSections, focusedSowId])
+
+  const focusedSowProcesses = useMemo(() => getSectionProcesses(focusedSow), [focusedSow])
+
+  useEffect(() => {
+    if (!FEATURE_CCC_V2) {
+      if (focusedSowId !== null) {
+        setFocusedSowId(null)
+      }
+      return
+    }
+    if (!focusedContract) {
+      if (focusedSowId !== null) {
+        setFocusedSowId(null)
+      }
+      return
+    }
+    if (!focusedContractSections.length) {
+      if (focusedSowId !== null) {
+        setFocusedSowId(null)
+      }
+      return
+    }
+    const hasCurrent = focusedSowId ? focusedContractSections.some((section) => getSowId(section) === focusedSowId) : false
+    if (!hasCurrent) {
+      const firstSectionId = getSowId(focusedContractSections[0])
+      if (firstSectionId && firstSectionId !== focusedSowId) {
+        setFocusedSowId(firstSectionId)
+      }
+    }
+  }, [FEATURE_CCC_V2, focusedContract, focusedContractSections, focusedSowId])
+
+  useEffect(() => {
+    if (!focusedSowProcesses.length) {
+      if (focusedProcessId !== null) {
+        setFocusedProcessId(null)
+      }
+      return
+    }
+    const hasCurrent = focusedProcessId ? focusedSowProcesses.some((process) => getProcessId(process) === focusedProcessId) : false
+    if (!hasCurrent) {
+      const firstProcessId = getProcessId(focusedSowProcesses[0])
+      if (firstProcessId && firstProcessId !== focusedProcessId) {
+        setFocusedProcessId(firstProcessId)
+      } else if (!firstProcessId && focusedProcessId !== null) {
+        setFocusedProcessId(null)
+      }
+    }
+  }, [focusedProcessId, focusedSowProcesses])
+
+  const focusedProcess = useMemo(() => {
+    if (!focusedProcessId) return null
+    return focusedSowProcesses.find((process) => getProcessId(process) === focusedProcessId) ?? null
+  }, [focusedProcessId, focusedSowProcesses])
+
+  const focusedSowName = focusedSow ? getSowName(focusedSow) : null
+  const focusedProcessName = focusedProcess ? getProcessName(focusedProcess) : null
+
   const handleScheduleNavigate = useCallback(() => {
     if (!FEATURE_SCHEDULE_UI) {
       return
     }
     if (!isAuthenticated) {
-      navigate('/', { state: { openView: 'login' } })
+      routerNavigate('/', { state: { openView: 'login' } })
       return
     }
     if (focusedContract) {
-      navigate(`/contracts/${focusedContract.id}/schedule`, {
+      routerNavigate(`/contracts/${focusedContract.id}/schedule`, {
         state: {
           contractName: focusedContract.name,
           projectName: project?.name,
@@ -2231,22 +2355,22 @@ function ContractControlCenterOverlay({
       return
     }
     if (project?.id) {
-      navigate('/schedule', {
+      routerNavigate('/schedule', {
         state: { projectId: project.id, projectName: project.name },
       })
     }
-  }, [focusedContract, isAuthenticated, navigate, project])
+  }, [focusedContract, isAuthenticated, project, routerNavigate])
 
   const handleFinancialNavigate = useCallback(() => {
     if (!FEATURE_FINANCIAL_VIEW) {
       return
     }
     if (!isAuthenticated) {
-      navigate('/', { state: { openView: 'login' } })
+      routerNavigate('/', { state: { openView: 'login' } })
       return
     }
     if (focusedContract) {
-      navigate(`/contracts/${focusedContract.id}/financial`, {
+      routerNavigate(`/contracts/${focusedContract.id}/financial`, {
         state: {
           contractName: focusedContract.name,
           projectName: project?.name,
@@ -2259,18 +2383,51 @@ function ContractControlCenterOverlay({
       return
     }
     if (project?.id) {
-      navigate('/financial', {
+      routerNavigate('/financial', {
         state: { projectId: project.id, projectName: project.name, projectSnapshot: project ?? null },
       })
     }
-  }, [focusedContract, isAuthenticated, navigate, project])
+  }, [focusedContract, isAuthenticated, project, routerNavigate])
+
+  const handleScmNavigate = useCallback(() => {
+    if (!FEATURE_SCM) {
+      return
+    }
+    if (!isAuthenticated) {
+      routerNavigate('/', { state: { openView: 'login' } })
+      return
+    }
+    const statePayload = {
+      tenantId: 'default',
+      projectId: project?.id ?? null,
+      projectName: project?.name ?? null,
+      contractId: focusedContract?.id ?? null,
+      contractName: focusedContract?.name ?? null,
+      sowId: focusedSow ? getSowId(focusedSow) : null,
+      sowName: focusedSowName,
+      processId: focusedProcessId ?? null,
+      processName: focusedProcessName,
+      source: 'ccc',
+    }
+    routerNavigate('/atoms/scm', { state: statePayload })
+  }, [
+    FEATURE_SCM,
+    focusedContract,
+    focusedProcessId,
+    focusedProcessName,
+    focusedSow,
+    focusedSowName,
+    isAuthenticated,
+    project,
+    routerNavigate,
+  ])
 
   const handleAtomNavigate = useCallback(() => {
     if (!FEATURE_ATOM_MANAGER) {
       return
     }
     if (!isAuthenticated) {
-      navigate('/', { state: { openView: 'login' } })
+      routerNavigate('/', { state: { openView: 'login' } })
       return
     }
     const statePayload = {
@@ -2282,32 +2439,17 @@ function ContractControlCenterOverlay({
       role: 'contractor',
     }
     if (focusedContract) {
-      navigate(`/contracts/${focusedContract.id}/atoms`, {
+      routerNavigate(`/contracts/${focusedContract.id}/atoms`, {
         state: statePayload,
       })
       return
     }
     if (project?.id) {
-      navigate('/atoms', {
+      routerNavigate('/atoms', {
         state: statePayload,
       })
     }
-  }, [FEATURE_ATOM_MANAGER, focusedContract, focusedSowId, isAuthenticated, navigate, project])
-
-  const sowByContract = useMemo(() => {
-    const map = new Map<string, typeof sowGroups[number]['sections']>()
-    sowGroups.forEach((group) => {
-      map.set(group.contract_id, group.sections)
-    })
-    return map
-  }, [sowGroups])
-
-  const focusedContractSections = useMemo(() => {
-    if (!focusedContract) {
-      return []
-    }
-    return sowByContract.get(focusedContract.id) ?? []
-  }, [focusedContract, sowByContract])
+  }, [FEATURE_ATOM_MANAGER, focusedContract, focusedSowId, isAuthenticated, project, routerNavigate])
 
   const handleContractSelect = useCallback((contract: ContractSite) => {
     setFocusedContractId(contract.id)
@@ -2315,12 +2457,24 @@ function ContractControlCenterOverlay({
     if (FEATURE_CCC_V2) {
       const sections = sowByContract.get(contract.id) ?? []
       if (sections.length) {
-        setFocusedSowId(sections[0].id)
+        const firstSection = sections[0]
+        const firstSectionId = getSowId(firstSection)
+        if (firstSectionId && firstSectionId !== focusedSowId) {
+          setFocusedSowId(firstSectionId)
+        } else if (!firstSectionId) {
+          setFocusedSowId(null)
+        }
+        const processes = getSectionProcesses(firstSection)
+        const firstProcessId = processes.length ? getProcessId(processes[0]) : null
+        setFocusedProcessId(firstProcessId ?? null)
       } else {
         setFocusedSowId(null)
+        setFocusedProcessId(null)
       }
+    } else {
+      setFocusedProcessId(null)
     }
-  }, [FEATURE_CCC_V2, sowByContract])
+  }, [FEATURE_CCC_V2, focusedSowId, sowByContract])
 
   const toggleContractExpansion = useCallback(
     (contract: ContractSite) => {
@@ -2480,9 +2634,43 @@ function ContractControlCenterOverlay({
 
   const projectCrumbLabel = project.name ? project.name.replace(/\s+/g, '_') : 'Project'
 
+  const handleOpenCollaborationWorkspace = useCallback(() => {
+    const contextPayload = {
+      title: 'Construction Control Center',
+      path: location.pathname,
+      timestamp: new Date().toISOString(),
+      scope: {
+        project_id: project.id,
+        project_name: project.name,
+        contract_id: focusedContract?.id ?? null,
+        contract_name: focusedContract?.name ?? null,
+      },
+      filters: {
+        contractFilter,
+        focusedContractId,
+      },
+    }
+    routerNavigate('/collaboration', {
+      state: {
+        threadId: generateClientId(),
+        origin: {
+          path: location.pathname,
+          label: 'Construction Control Center',
+          chain: ['Projects', projectCrumbLabel],
+          state: location.state,
+        },
+        context: {
+          kind: 'page',
+          payload: contextPayload,
+        },
+      },
+    })
+  }, [contractFilter, focusedContract, focusedContractId, location.pathname, location.state, project.id, project.name, projectCrumbLabel, routerNavigate])
+
   return (
-    <div className="contract-page">
-      <header className="contract-topbar">
+    <>
+      <div className="contract-page">
+        <header className="contract-topbar">
         <Breadcrumbs
           items={[
             { label: 'Dashboard', onClick: onClose },
@@ -2516,7 +2704,7 @@ function ContractControlCenterOverlay({
             </svg>
             <span className="badge">{alertCount}</span>
           </button>
-          <button type="button" className="top-icon" aria-label="Collaborators" title="Collaborators">
+          <button type="button" className="top-icon" aria-label="Collaborators" title="Collaborators" onClick={handleOpenCollaborationWorkspace}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
               <circle cx="9" cy="9" r="3" />
               <circle cx="17" cy="10" r="2.5" />
@@ -2592,24 +2780,60 @@ function ContractControlCenterOverlay({
                           </div>
                           {sections.length > 0 && expanded && (
                             <div className="sow-list sow-list--scroll">
-                              {sections.map((section) => {
-                                const isSowActive = section.id === focusedSowId
-                                const processes = section.clauses ?? []
+                              {sections.map((section, sectionIndex) => {
+                                const sectionId = getSowId(section)
+                                const isSowActive = sectionId ? sectionId === focusedSowId : false
+                                const processes = getSectionProcesses(section)
                                 return (
-                                  <div key={section.id} className={`sow-item${isSowActive ? ' active' : ''}`}>
+                                  <div
+                                    key={sectionId ?? section.id ?? section.title ?? sectionIndex}
+                                    className={`sow-item${isSowActive ? ' active' : ''}`}
+                                  >
                                     <button
                                       type="button"
-                                      className="sow-item__header"
-                                      onClick={() => setFocusedSowId(section.id)}
+                                      className="sow-item__header sow-header"
+                                      onClick={() => {
+                                        setFocusedSowId(sectionId ?? null)
+                                        if (processes.length) {
+                                          const nextProcessId = getProcessId(processes[0])
+                                          setFocusedProcessId(nextProcessId ?? null)
+                                        } else {
+                                          setFocusedProcessId(null)
+                                        }
+                                      }}
                                     >
-                                      <span>{section.title}</span>
+                                      <span>{section.title ?? section.name ?? 'Scope section'}</span>
                                       <span>{Math.round(Number(section.progress ?? 0))}%</span>
                                     </button>
                                     {isSowActive && processes.length > 0 && (
-                                      <ul className="sow-item__processes">
-                                        {processes.map((clause) => (
-                                          <li key={clause.id}>{clause.title}</li>
-                                        ))}
+                                      <ul className="sow-item__processes sow-clauses">
+                                        {processes.map((process, processIndex) => {
+                                          const processId = getProcessId(process)
+                                          const isProcessActive = processId ? processId === focusedProcessId : false
+                                          const rawProgress =
+                                            typeof process.progress === 'number'
+                                              ? process.progress
+                                              : typeof process.percent === 'number'
+                                                ? process.percent
+                                                : null
+                                          const progressValue =
+                                            rawProgress !== null && rawProgress !== undefined
+                                              ? Math.round(Number(rawProgress))
+                                              : null
+                                          const processLabel = getProcessName(process)
+                                          return (
+                                            <li key={processId ?? processIndex} className={isProcessActive ? 'active' : undefined}>
+                                              <button
+                                                type="button"
+                                                className={`sow-item__process-button${isProcessActive ? ' active' : ''}`}
+                                                onClick={() => setFocusedProcessId(processId ?? null)}
+                                              >
+                                                <span>{processLabel}</span>
+                                                {progressValue !== null ? <span>{progressValue}%</span> : null}
+                                              </button>
+                                            </li>
+                                          )
+                                        })}
                                       </ul>
                                     )}
                                   </div>
@@ -2803,6 +3027,14 @@ function ContractControlCenterOverlay({
               <span />
             </div>
             <section className="ccc-wip-section">{wipPaneContent}</section>
+
+            <ContractScmDashboard
+              tenantId="default"
+              projectId={project?.id ?? null}
+              projectName={project?.name ?? null}
+              contractId={focusedContract?.id ?? null}
+              contractName={focusedContract?.name ?? null}
+            />
           </div>
 
             <ProjectProductivityPanel
@@ -2823,15 +3055,24 @@ function ContractControlCenterOverlay({
                 if (view.id === 'scheduling') {
                   setActiveUtilityView(view.id)
                   handleScheduleNavigate()
-                } else if (view.id === 'financial') {
+                  return
+                }
+                if (view.id === 'financial') {
                   setActiveUtilityView(view.id)
                   handleFinancialNavigate()
-                } else if (view.id === 'atom') {
+                  return
+                }
+                if (view.id === 'procurement') {
+                  setActiveUtilityView(view.id)
+                  handleScmNavigate()
+                  return
+                }
+                if (view.id === 'atom') {
                   setActiveUtilityView(view.id)
                   handleAtomNavigate()
-                } else {
-                  setActiveUtilityView(view.id)
+                  return
                 }
+                setActiveUtilityView(view.id)
               }}
               aria-pressed={active}
               title={view.label}
@@ -2842,7 +3083,8 @@ function ContractControlCenterOverlay({
           )
         })}
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 

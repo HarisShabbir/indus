@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     feature_ccc_v2: bool = False
     feature_atom_manager: bool = False
     feature_financial_view: bool = False
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4o-mini"
     feature_progress_v2: bool = False
 
     model_config = SettingsConfigDict(

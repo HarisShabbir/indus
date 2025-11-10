@@ -84,6 +84,14 @@ const RadarIcon = () => (
   </IconShell>
 )
 
+const ChatIcon = () => (
+  <IconShell>
+    <path d="M21 11.5a6.5 6.5 0 0 1-6.5 6.5H9l-4 3v-3.5A6.5 6.5 0 0 1 2 11.5 6.5 6.5 0 0 1 8.5 5h6A6.5 6.5 0 0 1 21 11.5Z" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M8 10h8" strokeLinecap="round" />
+    <path d="M8 13h5" strokeLinecap="round" />
+  </IconShell>
+)
+
 export const TopBarIcons = {
   Moon: MoonIcon,
   Calendar: CalendarIcon,
@@ -92,6 +100,7 @@ export const TopBarIcons = {
   Users: UsersIcon,
   ClipboardCheck: ClipboardCheckIcon,
   Radar: RadarIcon,
+  Chat: ChatIcon,
 }
 
 export default TopBar

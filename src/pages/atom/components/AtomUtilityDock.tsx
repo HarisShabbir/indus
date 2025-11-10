@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-import { FEATURE_ATOM_MANAGER } from '../../../config'
+import { FEATURE_ATOM_MANAGER, FEATURE_SCM } from '../../../config'
 
 export type AtomUtilityView = 'manager' | 'scheduling' | 'financial' | 'sustainability' | 'procurement' | 'forecasting'
 
@@ -74,8 +74,7 @@ const VIEWS: DockViewConfig[] = [
   {
     id: 'procurement',
     label: 'Procurement / SCM View',
-    path: '/',
-    state: { openView: 'dashboard', utilityView: 'procurement' },
+    path: '/atoms/scm',
     icon: (
       <svg viewBox="0 0 24 24" strokeWidth="1.6" stroke="currentColor" fill="none">
         <path d="M4 7h16" strokeLinecap="round" />
@@ -106,8 +105,8 @@ export function AtomUtilityDock({ activeView, scopeState }: AtomUtilityDockProps
 
   const views = useMemo(() => {
     if (!FEATURE_ATOM_MANAGER) return []
-    return VIEWS
-  }, [])
+    return VIEWS.filter((view) => (view.id === 'procurement' ? FEATURE_SCM : true))
+  }, [FEATURE_SCM])
 
   if (!views.length) {
     return null
@@ -137,7 +136,24 @@ export function AtomUtilityDock({ activeView, scopeState }: AtomUtilityDockProps
             key={view.id}
             type="button"
             className={`utility-dock-btn ${isActive ? 'active' : ''}`}
-            onClick={() => handleNavigate(view)}
+            onClick={() => {
+              if (view.id === 'procurement') {
+                if (!FEATURE_SCM) return
+                const record = { ...(scopeState ?? {}) } as Record<string, unknown>
+                const processId = typeof record.processId === 'string' && record.processId.trim() ? record.processId : null
+                const processName = typeof record.processName === 'string' && record.processName.trim() ? record.processName : null
+                navigate('/atoms/scm', {
+                  state: {
+                    ...record,
+                    processId,
+                    processName,
+                    source: 'atom',
+                  },
+                })
+                return
+              }
+              handleNavigate(view)
+            }}
             aria-pressed={isActive}
             title={view.label}
           >
