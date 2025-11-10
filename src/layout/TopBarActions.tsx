@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { type ThemeMode } from './navigation'
 import { TopBarIcons } from './TopBar'
 import { getAlarmTowerSummary, markAlarmOrigin, useAlarmTowerSummary } from '../state/alarmTowerStore'
 import { generateClientId } from '../utils/id'
+import { fetchChangeRequests } from '../api'
 
 type ScopeParams = {
   projectId?: string | null
@@ -24,15 +25,51 @@ type Props = {
   scope: ScopeParams
   alarmCount?: number
   alarmSeverity?: 'info' | 'warn' | 'critical' | null
+  changeCount?: number
 }
 
-export function TopBarGlobalActions({ theme, onToggleTheme, scope, alarmCount, alarmSeverity }: Props) {
+export function TopBarGlobalActions({ theme, onToggleTheme, scope, alarmCount, alarmSeverity, changeCount }: Props) {
   const navigate = useNavigate()
   const location = useLocation()
   const towerSummary = useAlarmTowerSummary()
 
   const derivedCount = alarmCount ?? towerSummary.count
   const derivedSeverity = alarmSeverity ?? towerSummary.severity ?? 'info'
+  const [derivedChangeCount, setDerivedChangeCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (typeof changeCount === 'number') {
+      setDerivedChangeCount(changeCount)
+      return
+    }
+    if (!scope.projectId) {
+      setDerivedChangeCount(null)
+      return
+    }
+    let cancelled = false
+    const fetchScopeChanges = async () => {
+      try {
+        const requests = await fetchChangeRequests({
+          tenantId: 'default',
+          projectId: scope.projectId!,
+          contractId: scope.contractId ?? undefined,
+          sowId: scope.sowId ?? undefined,
+          processId: scope.processId ?? undefined,
+        })
+        if (cancelled) return
+        const today = new Date().toDateString()
+        const todayCount = requests.filter((request) => new Date(request.created_at).toDateString() === today).length
+        setDerivedChangeCount(todayCount)
+      } catch (error) {
+        if (cancelled) return
+        setDerivedChangeCount(null)
+      }
+    }
+    fetchScopeChanges()
+    return () => {
+      cancelled = true
+    }
+  }, [changeCount, scope.contractId, scope.processId, scope.projectId, scope.sowId])
 
   const handleNavigate = (path: string) => () => {
     if (path === '/alarms') {
@@ -94,12 +131,30 @@ export function TopBarGlobalActions({ theme, onToggleTheme, scope, alarmCount, a
     })
   }
 
+  const handleOpenChangeManagement = () => {
+    const label = derivePageLabel()
+    navigate('/change-management', {
+      state: {
+        ...scope,
+        origin: {
+          path: location.pathname,
+          label,
+          chain: [label],
+          state: location.state,
+        },
+      },
+    })
+  }
+
   const badgeClass = useMemo(() => {
     if (!derivedCount) return null
     const severity = derivedSeverity ?? 'info'
     return `topbar-action-btn__badge topbar-action-btn__badge--${severity}`
   }, [derivedCount, derivedSeverity])
   const alarmLabel = derivedCount && derivedCount > 99 ? '99+' : String(derivedCount ?? '')
+  const effectiveChangeCount = typeof changeCount === 'number' ? changeCount : derivedChangeCount
+  const changeBadgeClass = effectiveChangeCount && effectiveChangeCount > 0 ? 'topbar-action-btn__badge topbar-action-btn__badge--warn' : null
+  const changeLabel = effectiveChangeCount && effectiveChangeCount > 99 ? '99+' : String(effectiveChangeCount ?? '')
 
   return (
     <>
@@ -129,9 +184,10 @@ export function TopBarGlobalActions({ theme, onToggleTheme, scope, alarmCount, a
         className="topbar-action-btn"
         aria-label="Open change management"
         title="Open change management"
-        onClick={handleNavigate('/change-management')}
+        onClick={handleOpenChangeManagement}
       >
         <TopBarIcons.ClipboardCheck />
+        {effectiveChangeCount && effectiveChangeCount > 0 ? <span className={changeBadgeClass ?? undefined}>{changeLabel}</span> : null}
       </button>
       <button
         type="button"

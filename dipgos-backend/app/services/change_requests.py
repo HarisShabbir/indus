@@ -81,7 +81,7 @@ def create_change_request(
                     atom_type, model, requested_units, est_cost, reason, status,
                     created_by, created_at, alert_id
                 )
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'pending_pm_approval',%s,%s)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'pending_pm_approval',%s,%s,%s)
                 RETURNING *
                 """,
                 (

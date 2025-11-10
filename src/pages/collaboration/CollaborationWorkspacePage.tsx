@@ -584,19 +584,19 @@ export default function CollaborationWorkspacePage() {
 
   const breadcrumbs: BreadcrumbItem[] = useMemo(() => {
     const chain = locationState?.origin?.chain ?? (incomingContext?.kind === 'alarm' ? ['Alarms', incomingContext.payload.alarmId] : ['Workspace'])
+    const originPath = locationState?.origin?.path
+    const originState = locationState?.origin?.state
     const items: BreadcrumbItem[] = chain.map((label, index) => {
       const isLast = index === chain.length - 1
-      const canNavigate = locationState?.origin?.path && isLast
+      const canNavigateBack = originPath && !isLast
       return {
         label,
-        onClick: canNavigate
-          ? () => navigate(locationState.origin?.path ?? '/', { state: locationState.origin?.state })
-          : undefined,
+        onClick: canNavigateBack ? () => navigate(originPath, { state: originState }) : undefined,
       }
     })
     items.push({ label: 'Collaboration', isCurrent: true })
     return items
-  }, [incomingContext, locationState, navigate])
+  }, [incomingContext, locationState?.origin?.chain, locationState?.origin?.path, locationState?.origin?.state, navigate])
 
   const addMessage = useCallback((message: ThreadMessage) => {
     const normalisedMessage: ThreadMessage = { ...message, audience: message.audience ?? 'team' }

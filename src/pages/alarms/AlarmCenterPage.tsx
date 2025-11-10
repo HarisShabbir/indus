@@ -641,6 +641,30 @@ export default function AlarmCenterPage(): JSX.Element {
     }))
   }, [])
 
+  const buildChangeNavigationState = useCallback(
+    (overrides: Record<string, unknown> = {}) => ({
+      projectId: scopeSelection.projectId ?? null,
+      contractId: scopeSelection.contractId ?? null,
+      sowId: scopeSelection.sowId ?? null,
+      processId: scopeSelection.processId ?? null,
+      projectName: scopeNames.projectName ?? null,
+      contractName: scopeNames.contractName ?? null,
+      sowName: scopeNames.sowName ?? null,
+      processName: scopeNames.processName ?? null,
+      ...overrides,
+      origin: {
+        path: '/alarms',
+        label: 'Alarms',
+        chain: ['Alarms'],
+        state: {
+          ...scopeSelection,
+          ...scopeNames,
+        },
+      },
+    }),
+    [scopeNames, scopeSelection],
+  )
+
   const launchCollaborationWorkspace = useCallback(
     (payload: WorkspaceAlarmPayload, breadcrumbLabel?: string | null) => {
       navigate('/collaboration', {
@@ -692,14 +716,14 @@ export default function AlarmCenterPage(): JSX.Element {
       } else {
         await logProcessHistorianEntry(alarm, action, { source: 'response-tower', notes: 'Change workspace opened' })
         navigate('/change-management', {
-          state: {
+          state: buildChangeNavigationState({
             alertId: alarm.id,
             projectId: scopeSelection.projectId ?? alarm.scope?.projectId ?? null,
             contractId: scopeSelection.contractId ?? alarm.scope?.contractId ?? null,
             sowId: scopeSelection.sowId ?? alarm.scope?.sowId ?? null,
             processId: scopeSelection.processId ?? alarm.scope?.processId ?? null,
             seedRecommendation: alarm.label,
-          },
+          }),
         })
         markActionComplete(alarm.id, action)
       }
@@ -1081,12 +1105,20 @@ const floodRatio = useMemo(() => {
 const categoryOption = useMemo(() => ({
   backgroundColor: 'transparent',
   tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-  legend: { orient: 'vertical', right: 0, top: 'center', textStyle: { color: '#cbd5f5' } },
+  legend: {
+    orient: 'horizontal',
+    bottom: 0,
+    left: 'center',
+    textStyle: { color: '#cbd5f5' },
+    itemGap: 16,
+    icon: 'circle',
+  },
   series: [
     {
       name: 'Categories',
       type: 'pie',
       radius: ['45%', '70%'],
+      center: ['50%', '42%'],
       avoidLabelOverlap: false,
       itemStyle: { borderWidth: 1, borderColor: '#0f172a' },
       label: { show: false },
@@ -1252,12 +1284,7 @@ const floodGaugeOption = useMemo(() => buildGaugeOption(floodRatio, '% time in f
           }
           if (index === CHANGE_NAV_INDEX) {
             navigate('/change-management', {
-              state: {
-                projectId: scopeSelection.projectId,
-                contractId: scopeSelection.contractId,
-                sowId: scopeSelection.sowId,
-                processId: scopeSelection.processId,
-              },
+              state: buildChangeNavigationState(),
             })
             return
           }
@@ -1519,12 +1546,7 @@ const floodGaugeOption = useMemo(() => buildGaugeOption(floodRatio, '% time in f
                 type="button"
                 onClick={() =>
                   navigate('/change-management', {
-                    state: {
-                      projectId: scopeSelection.projectId,
-                      contractId: scopeSelection.contractId,
-                      sowId: scopeSelection.sowId,
-                      processId: scopeSelection.processId,
-                    },
+                    state: buildChangeNavigationState(),
                   })
                 }
               >
@@ -1741,12 +1763,7 @@ const floodGaugeOption = useMemo(() => buildGaugeOption(floodRatio, '% time in f
                 type="button"
                 onClick={() =>
                   navigate('/change-management', {
-                    state: {
-                      projectId: scopeSelection.projectId,
-                      contractId: scopeSelection.contractId,
-                      sowId: scopeSelection.sowId,
-                      processId: scopeSelection.processId,
-                    },
+                    state: buildChangeNavigationState(),
                   })
                 }
               >
@@ -2108,14 +2125,14 @@ const floodGaugeOption = useMemo(() => buildGaugeOption(floodRatio, '% time in f
                       type="button"
                       onClick={() =>
                         navigate('/change-management', {
-                          state: {
+                          state: buildChangeNavigationState({
                             alertId: focusedAlert.id,
-                            projectId: scopeSelection.projectId,
-                            contractId: scopeSelection.contractId,
-                            sowId: scopeSelection.sowId,
-                            processId: scopeSelection.processId,
+                            projectId: scopeSelection.projectId ?? focusedAlert.metadata?.scope?.projectId ?? null,
+                            contractId: scopeSelection.contractId ?? focusedAlert.metadata?.scope?.contractId ?? null,
+                            sowId: scopeSelection.sowId ?? focusedAlert.metadata?.scope?.sowId ?? null,
+                            processId: scopeSelection.processId ?? focusedAlert.metadata?.scope?.processId ?? null,
                             seedRecommendation: focusedAlert.recommendation ?? focusedAlert.root_cause ?? '',
-                          },
+                          }),
                         })
                       }
                     >
@@ -2217,15 +2234,7 @@ const floodGaugeOption = useMemo(() => buildGaugeOption(floodRatio, '% time in f
                 label: 'Change Mgmt',
                 icon: <TopBarIcons.Users />,
                 helper: 'Launch CR workspace',
-                onClick: () =>
-                  navigate('/change-management', {
-                    state: {
-                      projectId: scopeSelection.projectId,
-                      contractId: scopeSelection.contractId,
-                      sowId: scopeSelection.sowId,
-                      processId: scopeSelection.processId,
-                    },
-                  }),
+                onClick: () => navigate('/change-management', { state: buildChangeNavigationState() }),
               },
             ].map((action) => (
               <button

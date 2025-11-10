@@ -2452,10 +2452,23 @@ export type CollaborationMemberInput = {
 }
 
 export async function createChangeRequest(payload: ChangeRequestPayload): Promise<ChangeRequest> {
+  const body = {
+    tenantId: payload.tenantId ?? DEFAULT_TENANT_ID,
+    projectId: payload.projectId,
+    contractId: payload.contractId ?? null,
+    sowId: payload.sowId ?? null,
+    processId: payload.processId ?? null,
+    atomType: payload.atomType,
+    model: payload.model,
+    requestedUnits: payload.requestedUnits,
+    estCost: payload.estCost ?? null,
+    reason: payload.reason ?? null,
+    createdBy: payload.createdBy ?? null,
+  }
   const res = await fetch(`${API_URL}/api/v2/change-requests`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   })
   return handleResponse<ChangeRequest>(res)
 }
