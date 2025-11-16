@@ -10,6 +10,7 @@ from .ccc import (
     PerformanceSnapshotCard,
     WorkInProgressCategory,
     WorkOutputItem,
+    QualitySummaryCard,
 )
 from .financial import (
     FinancialSummary,
@@ -109,6 +110,7 @@ __all__ = [
     "WorkInProgressCard",
     "WorkOutputCard",
     "PerformanceSnapshotCard",
+    "QualitySummaryCard",
     "WorkInProgressCategory",
     "WorkOutputItem",
     "FinancialSummary",

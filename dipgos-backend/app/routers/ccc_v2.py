@@ -35,6 +35,7 @@ def right_panel_kpis(
     tenant_id: str = Query(default="default", alias="tenantId"),
     project_id: str = Query(..., alias="projectId"),
     contract_id: str | None = Query(default=None, alias="contractId"),
+    sow_id: str | None = Query(default=None, alias="sowId"),
 ) -> RightPanelKpiPayload:
     """Return KPI cards for the right rail of the Construction Control Center."""
-    return get_right_panel_kpis(project_id=project_id, contract_id=contract_id, tenant_id=tenant_id)
+    return get_right_panel_kpis(project_id=project_id, contract_id=contract_id, sow_id=sow_id, tenant_id=tenant_id)

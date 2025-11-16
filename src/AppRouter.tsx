@@ -18,6 +18,8 @@ import AtomScmVisualPage from './pages/atom/AtomScmVisualPage'
 import ChangeManagementPage from './pages/change/ChangeManagementPage'
 import AlarmCenterPage from './pages/alarms/AlarmCenterPage'
 import CollaborationWorkspacePage from './pages/collaboration/CollaborationWorkspacePage'
+import SowControlCenterPage from './pages/ccc/SowControlCenterPage'
+import RccDamSowPage from './pages/ccc/RccDamSowPage'
 
 export function AppRouter() {
   return (
@@ -42,6 +44,8 @@ export function AppRouter() {
         <Route path="/change-management" element={<ChangeManagementPage />} />
         <Route path="/alarms" element={<AlarmCenterPage />} />
         <Route path="/collaboration" element={<CollaborationWorkspacePage />} />
+        <Route path="/projects/:projectId/contracts/:contractId/sow" element={<SowControlCenterPage />} />
+        <Route path="/projects/:projectId/contracts/:contractId/rcc-dam" element={<RccDamSowPage />} />
       </Routes>
     </BrowserRouter>
   )

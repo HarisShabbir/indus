@@ -22,6 +22,7 @@ from ..models import (
     WorkOutputCard,
     WorkOutputItem,
     PerformanceSnapshotCard,
+    QualitySummaryCard,
 )
 
 CACHE_TTL_SECONDS = 60.0
@@ -187,10 +188,12 @@ def _fetch_project_payload(selection: CCCSelection):
 
 
 def _gather_entities(project_id: str):
-    """Return contracts, sows, processes as dictionaries keyed by id."""
+    """Return contracts, sows, processes and supporting dictionaries keyed by id."""
     contracts: Dict[str, dict] = {}
     sows: Dict[str, dict] = {}
     processes: Dict[str, dict] = {}
+    sow_markers: Dict[str, Tuple[float, float]] = {}
+    sow_metrics: Dict[str, dict] = {}
 
     with pool.connection() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -232,7 +235,49 @@ def _gather_entities(project_id: str):
                 for row in cur.fetchall():
                     processes[row["id"]] = row
 
-    return contracts, sows, processes
+            if sows:
+                cur.execute(
+                    """
+                    SELECT sow_id, lat, lng
+                    FROM dipgos.contract_sow_markers
+                    WHERE sow_id = ANY(%s)
+                    """,
+                    (list(sows.keys()),),
+                )
+                for row in cur.fetchall():
+                    sow_markers[row["sow_id"]] = (float(row["lat"]), float(row["lng"]))
+
+                cur.execute(
+                    """
+                    SELECT sow_id,
+                           actual_progress,
+                           planned_progress,
+                           quality_score,
+                           spi,
+                           cpi,
+                           ncr_open,
+                           ncr_closed,
+                           qaor_open,
+                           qaor_closed,
+                           design_actual,
+                           design_planned,
+                           preparatory_actual,
+                           preparatory_planned,
+                           construction_actual,
+                           construction_planned,
+                           scope_weight,
+                           ev_value,
+                           pv_value,
+                           ac_value
+                    FROM dipgos.contract_sow_metrics
+                    WHERE sow_id = ANY(%s)
+                    """,
+                    (list(sows.keys()),),
+                )
+                for row in cur.fetchall():
+                    sow_metrics[row["sow_id"]] = row
+
+    return contracts, sows, processes, sow_markers, sow_metrics
 
 
 def _load_latest_metrics(project_id: str) -> Tuple[Dict[Tuple[str, str], _MetricsEntry], Optional[datetime]]:
@@ -356,7 +401,7 @@ def _build_contract_dials(contracts, metrics_lookup, focused_contract_id: Option
     return dials
 
 
-def _build_sow_dials(contract_id: Optional[str], sows: Dict[str, dict], metrics_lookup) -> List[WipDial]:
+def _build_sow_dials(contract_id: Optional[str], sows: Dict[str, dict], metrics_lookup, sow_metrics) -> List[WipDial]:
     if not contract_id:
         return []
     dials: List[WipDial] = []
@@ -364,12 +409,13 @@ def _build_sow_dials(contract_id: Optional[str], sows: Dict[str, dict], metrics_
         if row["contract_id"] != contract_id:
             continue
         entry = metrics_lookup.get(("sow", sow_id))
-        percent = _metric_percent(entry, _to_float(row.get("progress")))
+        static = sow_metrics.get(sow_id, {})
+        percent = _metric_percent(entry, _to_float(row.get("progress")) if entry else _to_float(static.get("actual_progress")))
         ev = entry.value("ev") if entry else None
         pv = entry.value("pv") if entry else None
         ac = entry.value("ac") if entry else None
-        spi_metric = entry.value("spi") if entry else None
-        cpi_metric = entry.value("cpi") if entry else None
+        spi_metric = entry.value("spi") if entry else _to_float(static.get("spi"))
+        cpi_metric = entry.value("cpi") if entry else _to_float(static.get("cpi"))
         dials.append(
             WipDial(
                 id=sow_id,
@@ -420,25 +466,23 @@ def _build_process_dials(sow_id: Optional[str], processes: Dict[str, dict], metr
     return dials
 
 
-def _build_markers(selection: CCCSelection, project_row, contracts, sows, processes, metrics_lookup) -> List[MapMarker]:
+def _build_markers(selection: CCCSelection, project_row, contracts, sows, processes, metrics_lookup, sow_markers) -> List[MapMarker]:
     items: List[MapMarker] = []
 
     if selection.process_id:
         parent_sow = processes.get(selection.process_id, {}).get("sow_id")
-        items.extend(
-            _markers_for_processes([selection.process_id], contracts, sows, processes, metrics_lookup)
-        )
+        items.extend(_markers_for_processes([selection.process_id], contracts, sows, processes, metrics_lookup))
         if parent_sow:
-            items.extend(_markers_for_sows([parent_sow], contracts, sows, metrics_lookup))
+            items.extend(_markers_for_sows([parent_sow], contracts, sows, metrics_lookup, sow_markers))
     elif selection.sow_id:
         process_ids = [pid for pid, proc in processes.items() if proc["sow_id"] == selection.sow_id]
         if process_ids:
             items.extend(_markers_for_processes(process_ids, contracts, sows, processes, metrics_lookup))
-        items.extend(_markers_for_sows([selection.sow_id], contracts, sows, metrics_lookup))
+        items.extend(_markers_for_sows([selection.sow_id], contracts, sows, metrics_lookup, sow_markers))
     elif selection.contract_id:
         sow_ids = [sid for sid, sow in sows.items() if sow["contract_id"] == selection.contract_id]
         if sow_ids:
-            items.extend(_markers_for_sows(sow_ids, contracts, sows, metrics_lookup))
+            items.extend(_markers_for_sows(sow_ids, contracts, sows, metrics_lookup, sow_markers))
         items.extend(_markers_for_contracts([selection.contract_id], contracts, metrics_lookup))
     else:
         items.extend(_markers_for_contracts(list(contracts.keys()), contracts, metrics_lookup))
@@ -490,7 +534,7 @@ def _markers_for_contracts(contract_ids: List[str], contracts, metrics_lookup) -
     return markers
 
 
-def _markers_for_sows(sow_ids: List[str], contracts, sows, metrics_lookup) -> List[MapMarker]:
+def _markers_for_sows(sow_ids: List[str], contracts, sows, metrics_lookup, sow_markers) -> List[MapMarker]:
     markers: List[MapMarker] = []
     for sow_id in sow_ids:
         sow = sows.get(sow_id)
@@ -502,13 +546,14 @@ def _markers_for_sows(sow_ids: List[str], contracts, sows, metrics_lookup) -> Li
         entry = metrics_lookup.get(("sow", sow_id))
         percent = _metric_percent(entry, _to_float(sow.get("progress")))
         planned = entry.value("prod_planned_pct") if entry else None
+        lat, lon = sow_markers.get(sow_id, (float(contract["lat"]), float(contract["lng"])))
         markers.append(
             MapMarker(
                 id=sow_id,
                 type="sow",
                 name=sow["title"],
-                lat=float(contract["lat"]),
-                lon=float(contract["lng"]),
+                lat=lat,
+                lon=lon,
                 status=_compute_status(percent, planned),
                 percent_complete=percent,
                 spi=entry.value("spi") if entry else _compute_ratio(entry.value("ev") if entry else None, entry.value("pv") if entry else None),
@@ -564,16 +609,16 @@ def get_ccc_summary(selection: CCCSelection) -> CccSummary:
         return cached  # type: ignore[return-value]
 
     project_row = _fetch_project_payload(selection)
-    contracts, sows, processes = _gather_entities(selection.project_id)
+    contracts, sows, processes, sow_markers, sow_metrics = _gather_entities(selection.project_id)
     metrics_lookup, metrics_as_of = _load_latest_metrics(selection.project_id)
 
     wip_dials: List[WipDial] = []
     wip_dials.append(_extract_project_dial(project_row, metrics_lookup))
     wip_dials.extend(_build_contract_dials(contracts, metrics_lookup, selection.contract_id))
-    wip_dials.extend(_build_sow_dials(selection.contract_id, sows, metrics_lookup))
+    wip_dials.extend(_build_sow_dials(selection.contract_id, sows, metrics_lookup, sow_metrics))
     wip_dials.extend(_build_process_dials(selection.sow_id, processes, metrics_lookup))
 
-    markers = _build_markers(selection, project_row, contracts, sows, processes, metrics_lookup)
+    markers = _build_markers(selection, project_row, contracts, sows, processes, metrics_lookup, sow_markers)
 
     as_of = metrics_as_of or datetime.now(timezone.utc)
 
@@ -588,13 +633,27 @@ def get_ccc_summary(selection: CCCSelection) -> CccSummary:
     return summary
 
 
-def _fetch_series(level: str, project_id: str, contract_id: Optional[str], metric: str, limit: int = 30) -> List[Tuple[datetime, Optional[float], Optional[float]]]:
+def _fetch_series(
+    level: str,
+    project_id: str,
+    contract_id: Optional[str],
+    sow_id: Optional[str],
+    metric: str,
+    limit: int = 30,
+) -> List[Tuple[datetime, Optional[float], Optional[float]]]:
     aggregate_fn = "SUM" if metric in ADDITIVE_METRICS else "AVG"
-    clauses = ["scope_level = 'process'", "project_id = %s", "metric_code = %s"]
+    clauses = ["project_id = %s", "metric_code = %s"]
     params: List = [project_id, metric]
     if level == "contract" and contract_id:
+        clauses.append("scope_level = 'process'")
         clauses.append("contract_id = %s")
         params.append(contract_id)
+    elif level == "sow" and sow_id:
+        clauses.append("scope_level = 'process'")
+        clauses.append("sow_id = %s")
+        params.append(sow_id)
+    else:
+        clauses.append("scope_level = 'process'")
 
     where_sql = " AND ".join(clauses)
     query = f"""
@@ -629,6 +688,79 @@ def _series_values(series: List[Tuple[datetime, Optional[float], Optional[float]
     return actual, planned
 
 
+def _weighted_average(rows: List[dict], key: str) -> Optional[float]:
+    total = 0.0
+    weight_sum = 0.0
+    for row in rows:
+        value = _to_float(row.get(key))
+        if value is None:
+            continue
+        weight = _to_float(row.get("scope_weight")) or 1.0
+        total += value * weight
+        weight_sum += weight
+    if not weight_sum:
+        return None
+    return total / weight_sum
+
+
+def _combine_static_metrics(rows: List[dict]) -> Optional[dict]:
+    if not rows:
+        return None
+    combined: dict = {}
+    combined["scope_weight"] = sum(_to_float(row.get("scope_weight")) or 1.0 for row in rows)
+    for key in (
+        "actual_progress",
+        "planned_progress",
+        "quality_score",
+        "design_actual",
+        "design_planned",
+        "preparatory_actual",
+        "preparatory_planned",
+        "construction_actual",
+        "construction_planned",
+        "spi",
+        "cpi",
+    ):
+        avg = _weighted_average(rows, key)
+        if avg is not None:
+            combined[key] = avg
+
+    for key in ("ncr_open", "ncr_closed", "qaor_open", "qaor_closed"):
+        combined[key] = sum(int(row.get(key) or 0) for row in rows)
+
+    for key in ("ev_value", "pv_value", "ac_value"):
+        combined[key] = sum(_to_float(row.get(key)) or 0.0 for row in rows)
+
+    return combined
+
+
+def _resolve_static_metrics(contract_id, sow_id, sows, sow_metrics) -> Optional[dict]:
+    if sow_id:
+        metrics = sow_metrics.get(sow_id)
+        return dict(metrics) if metrics else None
+    if contract_id:
+        rows = [
+            sow_metrics[sow_id]
+            for sow_id, sow in sows.items()
+            if sow["contract_id"] == contract_id and sow_id in sow_metrics
+        ]
+        combined = _combine_static_metrics(rows)
+        return combined
+    return None
+
+
+def _quality_summary_from_static(static_metrics: Optional[dict]) -> Optional[QualitySummaryCard]:
+    if not static_metrics:
+        return None
+    return QualitySummaryCard(
+        ncr_open=int(static_metrics.get("ncr_open") or 0),
+        ncr_closed=int(static_metrics.get("ncr_closed") or 0),
+        qaor_open=int(static_metrics.get("qaor_open") or 0),
+        qaor_closed=int(static_metrics.get("qaor_closed") or 0),
+        quality_conformance=_to_float(static_metrics.get("quality_score")),
+    )
+
+
 def _group_contract_categories(contracts, metrics_lookup) -> WorkInProgressCard:
     categories: Dict[str, List[Tuple[Optional[float], Optional[float]]]] = defaultdict(list)
     for contract_id, row in contracts.items():
@@ -661,16 +793,27 @@ def _group_contract_categories(contracts, metrics_lookup) -> WorkInProgressCard:
     return WorkInProgressCard(categories=items)
 
 
-def _work_output_items(metrics_entry: Optional[_MetricsEntry]) -> List[WorkOutputItem]:
+def _work_output_items(metrics_entry: Optional[_MetricsEntry], static_metrics: Optional[dict] = None) -> List[WorkOutputItem]:
     output_metrics = [
         ("Design", "design_output"),
         ("Preparatory", "prep_output"),
         ("Construction", "const_output"),
     ]
+    static_lookup = {
+        "design_output": ("design_actual", "design_planned"),
+        "prep_output": ("preparatory_actual", "preparatory_planned"),
+        "const_output": ("construction_actual", "construction_planned"),
+    }
     items: List[WorkOutputItem] = []
     for label, metric_code in output_metrics:
         actual = metrics_entry.value(metric_code) if metrics_entry else None
         planned = metrics_entry.value(metric_code, kind="planned") if metrics_entry else None
+        if actual is None and static_metrics:
+            source_key = static_lookup[metric_code][0]
+            actual = _to_float(static_metrics.get(source_key))
+        if planned is None and static_metrics:
+            planned_key = static_lookup[metric_code][1]
+            planned = _to_float(static_metrics.get(planned_key))
         variance = None
         if actual is not None and planned is not None:
             variance = actual - planned
@@ -744,30 +887,52 @@ def _performance_snapshot(
     )
 
 
-def get_right_panel_kpis(project_id: str, contract_id: Optional[str], tenant_id: str) -> RightPanelKpiPayload:
+def get_right_panel_kpis(project_id: str, contract_id: Optional[str], sow_id: Optional[str], tenant_id: str) -> RightPanelKpiPayload:
     _ensure_feature_enabled()
 
-    selection = CCCSelection(tenant_id=tenant_id, project_id=project_id, contract_id=contract_id)
-    cache_key = (_normalise_tenant(tenant_id), project_id, contract_id)
+    selection = CCCSelection(tenant_id=tenant_id, project_id=project_id, contract_id=contract_id, sow_id=sow_id)
+    cache_key = (_normalise_tenant(tenant_id), project_id, contract_id, sow_id)
     cached = _cache_get(_KPIS_CACHE, cache_key)
     if cached:
         return cached  # type: ignore[return-value]
 
     project_row = _fetch_project_payload(selection)
-    contracts, sows, processes = _gather_entities(project_id)
+    contracts, sows, processes, sow_markers, sow_metrics = _gather_entities(project_id)
     metrics_lookup, metrics_as_of = _load_latest_metrics(project_id)
 
-    level = "contract" if contract_id else "project"
-    target_entry = metrics_lookup.get((level, contract_id if contract_id else project_id))
+    if sow_id:
+        level = "sow"
+        target_key = sow_id
+    elif contract_id:
+        level = "contract"
+        target_key = contract_id
+    else:
+        level = "project"
+        target_key = project_id
+
+    target_entry = metrics_lookup.get((level, target_key))
     project_entry = metrics_lookup.get(("project", project_id))
 
-    physical_series = _fetch_series(level, project_id, contract_id, "prod_actual_pct")
-    planned_series = _fetch_series(level, project_id, contract_id, "prod_planned_pct")
+    physical_series = _fetch_series(level, project_id, contract_id, sow_id, "prod_actual_pct")
+    planned_series = _fetch_series(level, project_id, contract_id, sow_id, "prod_planned_pct")
     actual_trend, _ = _series_values(physical_series)
     planned_trend, _ = _series_values(planned_series)
 
-    actual_percent = target_entry.value("prod_actual_pct") if target_entry else None
-    planned_percent = target_entry.value("prod_planned_pct", kind="planned") if target_entry else None
+    static_metrics = _resolve_static_metrics(contract_id, sow_id, sows, sow_metrics)
+    actual_percent = (
+        target_entry.value("prod_actual_pct")
+        if target_entry
+        else _to_float(static_metrics.get("actual_progress"))
+        if static_metrics
+        else None
+    )
+    planned_percent = (
+        target_entry.value("prod_planned_pct", kind="planned")
+        if target_entry
+        else _to_float(static_metrics.get("planned_progress"))
+        if static_metrics
+        else None
+    )
     variance = None
     if actual_percent is not None and planned_percent is not None:
         variance = actual_percent - planned_percent
@@ -781,18 +946,43 @@ def get_right_panel_kpis(project_id: str, contract_id: Optional[str], tenant_id:
 
     work_in_progress = _group_contract_categories(contracts, metrics_lookup)
 
-    work_output_items = _work_output_items(target_entry or project_entry)
+    work_output_items = _work_output_items(target_entry or project_entry, static_metrics)
     work_output_card = WorkOutputCard(items=work_output_items)
 
-    spi_series_data = _fetch_series(level, project_id, contract_id, "spi", limit=20)
-    cpi_series_data = _fetch_series(level, project_id, contract_id, "cpi", limit=20)
-    ac_series = _fetch_series(level, project_id, contract_id, "ac", limit=20)
+    spi_series_data = _fetch_series(level, project_id, contract_id, sow_id, "spi", limit=20)
+    cpi_series_data = _fetch_series(level, project_id, contract_id, sow_id, "cpi", limit=20)
+    ac_series = _fetch_series(level, project_id, contract_id, sow_id, "ac", limit=20)
     spi_trend = [val for _, val, _ in spi_series_data if val is not None]
     cpi_trend = [val for _, val, _ in cpi_series_data if val is not None]
 
-    performance_card = _performance_snapshot(target_entry or project_entry, spi_trend, cpi_trend, ac_series)
+    fallback_entry = target_entry
+    if not fallback_entry and static_metrics:
+        fallback_entry = _MetricsEntry()
+        fallback_entry.metrics["prod_actual_pct"] = (_to_float(static_metrics.get("actual_progress")), None)
+        fallback_entry.metrics["prod_planned_pct"] = (_to_float(static_metrics.get("planned_progress")), None)
+        fallback_entry.metrics["spi"] = (_to_float(static_metrics.get("spi")), None)
+        fallback_entry.metrics["cpi"] = (_to_float(static_metrics.get("cpi")), None)
+        fallback_entry.metrics["quality_conf"] = (_to_float(static_metrics.get("quality_score")), None)
+        fallback_entry.metrics["design_output"] = (
+            _to_float(static_metrics.get("design_actual")),
+            _to_float(static_metrics.get("design_planned")),
+        )
+        fallback_entry.metrics["prep_output"] = (
+            _to_float(static_metrics.get("preparatory_actual")),
+            _to_float(static_metrics.get("preparatory_planned")),
+        )
+        fallback_entry.metrics["const_output"] = (
+            _to_float(static_metrics.get("construction_actual")),
+            _to_float(static_metrics.get("construction_planned")),
+        )
+        fallback_entry.metrics["ev"] = (_to_float(static_metrics.get("ev_value")), None)
+        fallback_entry.metrics["pv"] = (_to_float(static_metrics.get("pv_value")), None)
+        fallback_entry.metrics["ac"] = (_to_float(static_metrics.get("ac_value")), None)
+    performance_card = _performance_snapshot(fallback_entry or project_entry, spi_trend, cpi_trend, ac_series)
 
-    preparatory_card = WorkOutputCard(items=_work_output_items(target_entry or project_entry))
+    preparatory_card = WorkOutputCard(items=_work_output_items(target_entry or project_entry, static_metrics))
+
+    quality_summary = _quality_summary_from_static(static_metrics)
 
     payload = RightPanelKpiPayload(
         selection=selection,
@@ -802,6 +992,7 @@ def get_right_panel_kpis(project_id: str, contract_id: Optional[str], tenant_id:
         work_output=work_output_card,
         performance=performance_card,
         preparatory=preparatory_card,
+        quality_summary=quality_summary,
     )
 
     _cache_set(_KPIS_CACHE, cache_key, payload)

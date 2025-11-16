@@ -56,6 +56,102 @@
     "sequence": 7
   },
   {
+    "id": "sow-mw01-dam-pit",
+    "contract_id": "mw-01-main-dam",
+    "title": "Dam Pit",
+    "status": "Live",
+    "progress": 68,
+    "sequence": 8
+  },
+  {
+    "id": "sow-mw01-ds-coffer",
+    "contract_id": "mw-01-main-dam",
+    "title": "D/S Coffer Dam",
+    "status": "Live",
+    "progress": 64,
+    "sequence": 9
+  },
+  {
+    "id": "sow-mw01-lb-power-intake",
+    "contract_id": "mw-01-main-dam",
+    "title": "LB Power Intake",
+    "status": "Live",
+    "progress": 73,
+    "sequence": 10
+  },
+  {
+    "id": "sow-mw01-dam-right-abutment",
+    "contract_id": "mw-01-main-dam",
+    "title": "Dam Right Abutment",
+    "status": "Live",
+    "progress": 62,
+    "sequence": 11
+  },
+  {
+    "id": "sow-mw01-permanent-bridge",
+    "contract_id": "mw-01-main-dam",
+    "title": "Permanent Bridge",
+    "status": "Live",
+    "progress": 78,
+    "sequence": 12
+  },
+  {
+    "id": "sow-mw01-dam-left-abutment",
+    "contract_id": "mw-01-main-dam",
+    "title": "Dam Left Abutment",
+    "status": "Live",
+    "progress": 59,
+    "sequence": 13
+  },
+  {
+    "id": "sow-mw01-rb-power-intake",
+    "contract_id": "mw-01-main-dam",
+    "title": "RB Power Intake",
+    "status": "Live",
+    "progress": 71,
+    "sequence": 14
+  },
+  {
+    "id": "sow-mw01-diversion-tunnel-1",
+    "contract_id": "mw-01-main-dam",
+    "title": "Diversion Tunnel 1",
+    "status": "Live",
+    "progress": 67,
+    "sequence": 15
+  },
+  {
+    "id": "sow-mw01-diversion-tunnel-2",
+    "contract_id": "mw-01-main-dam",
+    "title": "Diversion Tunnel 2",
+    "status": "Live",
+    "progress": 65,
+    "sequence": 16
+  },
+  {
+    "id": "sow-mw01-diversion-canal",
+    "contract_id": "mw-01-main-dam",
+    "title": "Diversion Canal",
+    "status": "Live",
+    "progress": 69,
+    "sequence": 17
+  },
+  {
+    "id": "sow-mw01-guide-wall",
+    "contract_id": "mw-01-main-dam",
+    "title": "Guide Wall",
+    "status": "Live",
+    "progress": 75,
+    "sequence": 18
+  },
+  {
+    "id": "sow-mw01-us-coffer",
+    "contract_id": "mw-01-main-dam",
+    "title": "U/S Coffer Dam",
+    "status": "Live",
+    "progress": 61,
+    "sequence": 19
+  },
+  {
     "id": "sow-mw02-turbine",
     "contract_id": "mw-02-rb-powerhouse",
     "title": "Turbine hall excavation",

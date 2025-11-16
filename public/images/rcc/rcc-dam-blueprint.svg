@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600">
+  <defs>
+    <linearGradient id="grid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    <pattern id="mesh" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+    </pattern>
+  </defs>
+  <rect width="960" height="600" fill="url(#grid)" />
+  <rect width="960" height="600" fill="url(#mesh)" />
+  <g fill="none" stroke="#f97316" stroke-width="2">
+    <rect x="120" y="260" width="720" height="140" rx="12" ry="12" />
+    <path d="M140 320 L280 180 L680 180 L820 320" />
+    <path d="M200 400 L200 520" />
+    <path d="M760 400 L760 520" />
+    <circle cx="320" cy="320" r="42" />
+    <circle cx="640" cy="320" r="42" />
+  </g>
+  <g fill="#f8fafc" font-family="'Inter', 'Segoe UI', sans-serif" font-size="20" font-weight="600">
+    <text x="140" y="140">RCC Dam Construction Section</text>
+    <text x="140" y="180" font-size="14" font-weight="400" fill="rgba(248,250,252,0.8)">Schematic view showing galleries, powerhouse connection and upstream/downstream transitions.</text>
+  </g>
+  <g fill="rgba(248,250,252,0.9)" font-family="'Inter', 'Segoe UI', sans-serif" font-size="16">
+    <text x="180" y="450">Dental Concrete</text>
+    <text x="720" y="450" text-anchor="end">Dam Pit Excavation</text>
+    <text x="320" y="330" text-anchor="middle">Cooling Pipes</text>
+    <text x="640" y="330" text-anchor="middle">Placement Blocks</text>
+    <text x="480" y="250" text-anchor="middle">Spillway Crest</text>
+  </g>
+</svg>

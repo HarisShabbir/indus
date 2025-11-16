@@ -17,6 +17,7 @@ import { getAlertsFallback } from './data/alertsFallback'
 import { getProjectControlCenterFallback } from './data/controlCenterFallback'
 import { getProgressHierarchyFallback } from './data/progressHierarchyFallback'
 import type { GanttTask } from './types'
+import type { CccSummary, RightPanelKpiPayload } from './types/ccc'
 
 export type Project = {
   id: string
@@ -1359,6 +1360,37 @@ export async function fetchProjectControlCenter(projectId: string): Promise<Proj
     }
     throw error
   }
+}
+
+type CccSummaryParams = {
+  projectId: string
+  contractId?: string | null
+  sowId?: string | null
+  processId?: string | null
+  tenantId?: string
+}
+
+const buildCccQuery = ({ projectId, contractId, sowId, processId, tenantId }: CccSummaryParams) => {
+  const params = new URLSearchParams({
+    projectId,
+  })
+  if (tenantId) params.set('tenantId', tenantId)
+  if (contractId) params.set('contractId', contractId)
+  if (sowId) params.set('sowId', sowId)
+  if (processId) params.set('processId', processId)
+  return params.toString()
+}
+
+export async function fetchCccSummary(params: CccSummaryParams): Promise<CccSummary> {
+  const query = buildCccQuery(params)
+  const res = await fetch(`${API_URL}/api/v2/ccc/summary?${query}`)
+  return handleResponse<CccSummary>(res)
+}
+
+export async function fetchCccRightPanel(params: CccSummaryParams): Promise<RightPanelKpiPayload> {
+  const query = buildCccQuery(params)
+  const res = await fetch(`${API_URL}/api/v2/ccc/kpis/right-panel?${query}`)
+  return handleResponse<RightPanelKpiPayload>(res)
 }
 
 export async function fetchContractKpiLatestDetailed(contractId: string): Promise<ContractKpiLatestResponse> {

@@ -2451,6 +2451,16 @@ function ContractControlCenterOverlay({
     }
   }, [FEATURE_ATOM_MANAGER, focusedContract, focusedSowId, isAuthenticated, project, routerNavigate])
 
+  const handleOpenSowDrilldown = useCallback(
+    (contract: ContractSite) => {
+      if (!project?.id) {
+        return
+      }
+      routerNavigate(`/projects/${project.id}/contracts/${contract.id}/sow`)
+    },
+    [project?.id, routerNavigate],
+  )
+
   const handleContractSelect = useCallback((contract: ContractSite) => {
     setFocusedContractId(contract.id)
     useScheduleStore.setState({ currentContractId: contract.id })
@@ -2720,14 +2730,21 @@ function ContractControlCenterOverlay({
           <aside className="contract-list pp-leftRail">
             <div className="contract-filter">
               <span>Contracts</span>
-              <select value={contractFilter} onChange={(event) => setContractFilter(event.target.value)}>
-                <option value="ALL">All Contracts</option>
-                {contractIds.map((id) => (
-                  <option key={id} value={id}>
-                    {id}
-                  </option>
-                ))}
-              </select>
+              <div className="contract-filter__control">
+                <select value={contractFilter} onChange={(event) => setContractFilter(event.target.value)}>
+                  <option value="ALL">All Contracts</option>
+                  {contractIds.map((id) => (
+                    <option key={id} value={id}>
+                      {id}
+                    </option>
+                  ))}
+                </select>
+                <span className="contract-filter__chevron" aria-hidden="true">
+                  <svg viewBox="0 0 14 8" fill="none">
+                    <path d="M1 1.5 7 6.5 13 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              </div>
             </div>
             <div className="contract-list-scroll">
               {error && (
@@ -2991,6 +3008,7 @@ function ContractControlCenterOverlay({
                             icon={icon}
                             eventHandlers={{
                               click: () => handleContractSelect(contract),
+                              dblclick: () => handleOpenSowDrilldown(contract),
                               mouseover: () => setHoveredContract(contract),
                               mouseout: () => setHoveredContract((prev) => (prev?.id === contract.id ? null : prev)),
                             }}

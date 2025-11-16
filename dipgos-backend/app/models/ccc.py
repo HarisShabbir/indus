@@ -80,6 +80,14 @@ class WorkOutputCard(BaseModel):
     notes: List[str] = Field(default_factory=list)
 
 
+class QualitySummaryCard(BaseModel):
+    ncr_open: int = 0
+    ncr_closed: int = 0
+    qaor_open: int = 0
+    qaor_closed: int = 0
+    quality_conformance: Optional[float] = None
+
+
 class PerformanceSnapshotCard(BaseModel):
     spi: Optional[float] = None
     cpi: Optional[float] = None
@@ -102,3 +110,4 @@ class RightPanelKpiPayload(BaseModel):
     work_output: WorkOutputCard
     performance: PerformanceSnapshotCard
     preparatory: WorkOutputCard
+    quality_summary: Optional[QualitySummaryCard] = None

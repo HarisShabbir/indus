@@ -147,6 +147,50 @@ SCHEMA_STATEMENTS: Iterable[str] = (
     CREATE INDEX IF NOT EXISTS idx_sow_clauses_sow_id ON dipgos.contract_sow_clauses(sow_id)
     """,
     """
+    CREATE TABLE IF NOT EXISTS dipgos.contract_sow_markers (
+        sow_id TEXT PRIMARY KEY REFERENCES dipgos.contract_sows(id) ON DELETE CASCADE,
+        lat NUMERIC(9, 6) NOT NULL,
+        lng NUMERIC(9, 6) NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS dipgos.contract_sow_metrics (
+        sow_id TEXT PRIMARY KEY REFERENCES dipgos.contract_sows(id) ON DELETE CASCADE,
+        actual_progress NUMERIC(5, 2),
+        planned_progress NUMERIC(5, 2),
+        quality_score NUMERIC(5, 2),
+        spi NUMERIC(5, 2),
+        cpi NUMERIC(5, 2),
+        ncr_open INTEGER DEFAULT 0,
+        ncr_closed INTEGER DEFAULT 0,
+        qaor_open INTEGER DEFAULT 0,
+        qaor_closed INTEGER DEFAULT 0,
+        design_actual NUMERIC(6, 2),
+        design_planned NUMERIC(6, 2),
+        preparatory_actual NUMERIC(6, 2),
+        preparatory_planned NUMERIC(6, 2),
+        construction_actual NUMERIC(6, 2),
+        construction_planned NUMERIC(6, 2),
+        scope_weight NUMERIC(6, 3) DEFAULT 1.0,
+        ev_value NUMERIC(12, 2),
+        pv_value NUMERIC(12, 2),
+        ac_value NUMERIC(12, 2)
+    )
+    """,
+    """
+    ALTER TABLE dipgos.contract_sow_metrics
+        ADD COLUMN IF NOT EXISTS design_actual NUMERIC(6, 2),
+        ADD COLUMN IF NOT EXISTS design_planned NUMERIC(6, 2),
+        ADD COLUMN IF NOT EXISTS preparatory_actual NUMERIC(6, 2),
+        ADD COLUMN IF NOT EXISTS preparatory_planned NUMERIC(6, 2),
+        ADD COLUMN IF NOT EXISTS construction_actual NUMERIC(6, 2),
+        ADD COLUMN IF NOT EXISTS construction_planned NUMERIC(6, 2),
+        ADD COLUMN IF NOT EXISTS scope_weight NUMERIC(6, 3) DEFAULT 1.0,
+        ADD COLUMN IF NOT EXISTS ev_value NUMERIC(12, 2),
+        ADD COLUMN IF NOT EXISTS pv_value NUMERIC(12, 2),
+        ADD COLUMN IF NOT EXISTS ac_value NUMERIC(12, 2)
+    """,
+    """
     CREATE TABLE IF NOT EXISTS dipgos.project_insights (
         project_id TEXT PRIMARY KEY REFERENCES dipgos.projects(id) ON DELETE CASCADE,
         payload JSONB NOT NULL
@@ -459,6 +503,101 @@ def seed_database() -> None:
                             sequence = EXCLUDED.sequence
                         """,
                         clause,
+                    )
+            conn.commit()
+
+        sow_markers_path = FIXTURE_DIR / "contract_sow_markers.json"
+        if sow_markers_path.exists():
+            logger.info("Syncing dipgos.contract_sow_markers from %s", sow_markers_path)
+            markers = json.loads(sow_markers_path.read_text())
+            with conn.cursor() as cur:
+                for marker in markers:
+                    cur.execute(
+                        """
+                        INSERT INTO dipgos.contract_sow_markers (sow_id, lat, lng)
+                        VALUES (%(sow_id)s, %(lat)s, %(lng)s)
+                        ON CONFLICT (sow_id) DO UPDATE SET
+                            lat = EXCLUDED.lat,
+                            lng = EXCLUDED.lng
+                        """,
+                        marker,
+                    )
+            conn.commit()
+
+        sow_metrics_path = FIXTURE_DIR / "contract_sow_metrics.json"
+        if sow_metrics_path.exists():
+            logger.info("Syncing dipgos.contract_sow_metrics from %s", sow_metrics_path)
+            metrics = json.loads(sow_metrics_path.read_text())
+            with conn.cursor() as cur:
+                for row in metrics:
+                    cur.execute(
+                        """
+                        INSERT INTO dipgos.contract_sow_metrics (
+                            sow_id,
+                            actual_progress,
+                            planned_progress,
+                            quality_score,
+                            spi,
+                            cpi,
+                            ncr_open,
+                            ncr_closed,
+                            qaor_open,
+                            qaor_closed,
+                            design_actual,
+                            design_planned,
+                            preparatory_actual,
+                            preparatory_planned,
+                            construction_actual,
+                            construction_planned,
+                            scope_weight,
+                            ev_value,
+                            pv_value,
+                            ac_value
+                        )
+                        VALUES (
+                            %(sow_id)s,
+                            %(actual_progress)s,
+                            %(planned_progress)s,
+                            %(quality_score)s,
+                            %(spi)s,
+                            %(cpi)s,
+                            %(ncr_open)s,
+                            %(ncr_closed)s,
+                            %(qaor_open)s,
+                            %(qaor_closed)s,
+                            %(design_actual)s,
+                            %(design_planned)s,
+                            %(preparatory_actual)s,
+                            %(preparatory_planned)s,
+                            %(construction_actual)s,
+                            %(construction_planned)s,
+                            %(scope_weight)s,
+                            %(ev_value)s,
+                            %(pv_value)s,
+                            %(ac_value)s
+                        )
+                        ON CONFLICT (sow_id) DO UPDATE SET
+                            actual_progress = EXCLUDED.actual_progress,
+                            planned_progress = EXCLUDED.planned_progress,
+                            quality_score = EXCLUDED.quality_score,
+                            spi = EXCLUDED.spi,
+                            cpi = EXCLUDED.cpi,
+                            ncr_open = EXCLUDED.ncr_open,
+                            ncr_closed = EXCLUDED.ncr_closed,
+                            qaor_open = EXCLUDED.qaor_open,
+                            qaor_closed = EXCLUDED.qaor_closed,
+                            design_actual = EXCLUDED.design_actual,
+                            design_planned = EXCLUDED.design_planned,
+                            preparatory_actual = EXCLUDED.preparatory_actual,
+                            preparatory_planned = EXCLUDED.preparatory_planned,
+                            construction_actual = EXCLUDED.construction_actual,
+                            construction_planned = EXCLUDED.construction_planned,
+                            scope_weight = EXCLUDED.scope_weight,
+                            ev_value = EXCLUDED.ev_value,
+                            pv_value = EXCLUDED.pv_value,
+                            ac_value = EXCLUDED.ac_value
+                        """,
+                        row,
                     )
             conn.commit()
 
