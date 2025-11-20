@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional, List
+from typing import Literal, Optional, List, Dict, Any
 
 from pydantic import BaseModel, Field
 
@@ -24,6 +24,7 @@ class MapMarker(BaseModel):
     percent_complete: float = Field(ge=0.0, le=100.0)
     spi: Optional[float] = None
     cpi: Optional[float] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class WipDial(BaseModel):

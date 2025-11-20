@@ -1,0 +1,817 @@
+{
+  "sow_id": "sow-mw01-rcc",
+  "created_by": "system",
+  "stages": [
+    {
+      "id": "rcc-stage-production",
+      "name": "Production (Batching Plant)",
+      "sequence": 1,
+      "description": "Permit capture, climate readiness and batching telemetry prior to loading the conveyor system.",
+      "operations": [
+        {
+          "id": "rcc-op-permit-form",
+          "name": "Concrete Permit",
+          "type": "operation",
+          "sequence": 1,
+          "metadata": {
+            "fields": [
+              "Proposed start and finish",
+              "Placing location + reference drawing",
+              "Climate conditions",
+              "Mix composition and volume",
+              "Field foreman",
+              "Equipment availability",
+              "Curing and protection supplies"
+            ]
+          }
+        },
+        {
+          "id": "rcc-op-batching-equip",
+          "name": "Batching Plant Setup",
+          "type": "operation",
+          "sequence": 2,
+          "metadata": {
+            "equipment": [
+              "Batching Plant",
+              "Slump Meter",
+              "Digital Concrete Recorder",
+              "Moisture probes"
+            ],
+            "notes": "Equipment readiness and cleaning status"
+          }
+        },
+        {
+          "id": "rcc-op-batching-telemetry",
+          "name": "Batching Telemetry",
+          "type": "operation",
+          "sequence": 3,
+          "metadata": {
+            "purpose": "Live mix design verifications and batch certification"
+          },
+          "inputs": [
+            {
+              "id": "rcc-input-slump-meter",
+              "label": "Slump Meter",
+              "unit": "mm",
+              "source_type": "sensor",
+              "source_name": "slump_meter",
+              "thresholds": { "min": 40, "max": 60 },
+              "current_value": 48
+            },
+            {
+              "id": "rcc-input-mix-moisture",
+              "label": "Mix Moisture",
+              "unit": "%",
+              "source_type": "sensor",
+              "source_name": "mix_moisture",
+              "thresholds": { "min": 2, "max": 6 },
+              "current_value": 5.1
+            },
+            {
+              "id": "rcc-input-temp-in",
+              "label": "Temp In",
+              "unit": "°C",
+              "source_type": "sensor",
+              "source_name": "temp_in",
+              "thresholds": { "min": 8, "max": 16 },
+              "current_value": 14.2
+            },
+            {
+              "id": "rcc-input-concrete-temp",
+              "label": "Concrete Temp",
+              "unit": "°C",
+              "source_type": "sensor",
+              "source_name": "concrete_temp",
+              "thresholds": { "min": 6, "max": 18 },
+              "current_value": 16.5
+            },
+            {
+              "id": "rcc-input-watt-meter",
+              "label": "Watt Meter",
+              "unit": "kW",
+              "source_type": "sensor",
+              "source_name": "watt_meter",
+              "thresholds": { "max": 95 },
+              "current_value": 81.2
+            },
+            {
+              "id": "rcc-input-volume-out",
+              "label": "Volume Out",
+              "unit": "m3/h",
+              "source_type": "sensor",
+              "source_name": "volume_out",
+              "thresholds": { "min": 300, "max": 520 },
+              "current_value": 410
+            },
+            {
+              "id": "rcc-input-air-temp",
+              "label": "Air Temp",
+              "unit": "°C",
+              "source_type": "sensor",
+              "source_name": "air_temp",
+              "thresholds": { "min": -5, "max": 32 },
+              "current_value": 18
+            },
+            {
+              "id": "rcc-input-humidity",
+              "label": "Humidity",
+              "unit": "%",
+              "source_type": "sensor",
+              "source_name": "humidity_batch",
+              "thresholds": { "min": 30, "max": 85 },
+              "current_value": 52
+            },
+            {
+              "id": "rcc-input-temp-out",
+              "label": "Temperature Out",
+              "unit": "°C",
+              "source_type": "sensor",
+              "source_name": "temperature_out",
+              "thresholds": { "min": 6, "max": 16 },
+              "current_value": 12.1
+            },
+            {
+              "id": "rcc-input-slump-test",
+              "label": "Slump Test",
+              "unit": "mm",
+              "source_type": "test",
+              "source_name": "slump_test",
+              "thresholds": { "min": 40, "max": 60 },
+              "current_value": 57
+            },
+            {
+              "id": "rcc-input-air-content",
+              "label": "Air Content",
+              "unit": "%",
+              "source_type": "test",
+              "source_name": "air_content",
+              "thresholds": { "min": 3.5, "max": 5.5 },
+              "current_value": 4.4
+            },
+            {
+              "id": "rcc-input-batch-weight",
+              "label": "Batch Weight",
+              "unit": "kg",
+              "source_type": "sensor",
+              "source_name": "batch_weight",
+              "thresholds": { "min": 24000, "max": 24550 },
+              "current_value": 24310
+            },
+            {
+              "id": "rcc-input-water-volume",
+              "label": "Water + Admixtures",
+              "unit": "L",
+              "source_type": "sensor",
+              "source_name": "water_volume",
+              "thresholds": { "min": 3200, "max": 3600 },
+              "current_value": 3380
+            },
+            {
+              "id": "rcc-input-raw-material-weight",
+              "label": "Raw Material Weights",
+              "unit": "kg",
+              "source_type": "sensor",
+              "source_name": "raw_material_weight",
+              "thresholds": { "min": 9000, "max": 9900 },
+              "current_value": 9550
+            },
+            {
+              "id": "rcc-input-mixing-time",
+              "label": "Mixing Time",
+              "unit": "sec",
+              "source_type": "sensor",
+              "source_name": "mixing_time",
+              "thresholds": { "min": 40, "max": 60 },
+              "current_value": 54
+            },
+            {
+              "id": "rcc-input-moisture-fine",
+              "label": "Moisture - Fine Aggregate",
+              "unit": "%",
+              "source_type": "sensor",
+              "source_name": "moisture_fine_agg",
+              "thresholds": { "min": 1.5, "max": 5 },
+              "current_value": 2.7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rcc-stage-transportation",
+      "name": "Transportation",
+      "sequence": 2,
+      "description": "Conveyor, misting system and belt telemetry while the concrete travels to the placement tower.",
+      "operations": [
+        {
+          "id": "rcc-op-conveyor-system",
+          "name": "Conveyor System",
+          "type": "operation",
+          "sequence": 1,
+          "metadata": {
+            "machinery": ["Conveyor System", "Misting System"],
+            "notes": "Check belt covers + misting nozzles"
+          }
+        },
+        {
+          "id": "rcc-op-conveyor-speed",
+          "name": "Belt Speed",
+          "type": "alarm",
+          "sequence": 2,
+          "rule_id": "rcc-rule-conveyor-speed",
+          "metadata": {
+            "logic": "Keep 2-6 m/s"
+          },
+          "inputs": [
+            {
+              "id": "rcc-input-conveyor-speed",
+              "label": "Conveyor Speed",
+              "unit": "m/s",
+              "source_type": "sensor",
+              "source_name": "conveyor_speed",
+              "thresholds": { "min": 2, "max": 6 },
+              "current_value": 1.8
+            }
+          ]
+        },
+        {
+          "id": "rcc-op-transport-environment",
+          "name": "Transport Environment",
+          "type": "operation",
+          "sequence": 3,
+          "inputs": [
+            {
+              "id": "rcc-input-transport-moisture",
+              "label": "Moisture",
+              "unit": "%",
+              "source_type": "sensor",
+              "source_name": "transport_moisture",
+              "thresholds": { "min": 5, "max": 40 },
+              "current_value": 18
+            },
+            {
+              "id": "rcc-input-transport-temperature",
+              "label": "Belt Temperature",
+              "unit": "°C",
+              "source_type": "sensor",
+              "source_name": "transport_temperature",
+              "thresholds": { "min": 4, "max": 28 },
+              "current_value": 23
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rcc-stage-placement",
+      "name": "Placement & Compaction",
+      "sequence": 3,
+      "description": "Field approvals, pouring sequence, compaction, density tests and payment logic for each lift.",
+      "operations": [
+        {
+          "id": "rcc-op-approval",
+          "name": "RCC Block Inspection",
+          "type": "operation",
+          "sequence": 1
+        },
+        {
+          "id": "rcc-op-construction-prep",
+          "name": "Construction Preparation",
+          "type": "operation",
+          "sequence": 2
+        },
+        {
+          "id": "rcc-op-lift-joint",
+          "name": "Lift Joint Treatment",
+          "type": "operation",
+          "sequence": 3,
+          "metadata": {
+            "options": [
+              "Formwork",
+              "No treatment",
+              "Mortar placing",
+              "Cement grout",
+              "Concrete bedding"
+            ]
+          },
+          "children": [
+            {
+              "id": "rcc-op-formwork",
+              "name": "FORMWORK",
+              "type": "sub-operation",
+              "sequence": 1
+            },
+            {
+              "id": "rcc-op-no-treatment",
+              "name": "No treatment",
+              "type": "sub-operation",
+              "sequence": 2
+            },
+            {
+              "id": "rcc-op-mortar",
+              "name": "Mortar placing",
+              "type": "sub-operation",
+              "sequence": 3
+            },
+            {
+              "id": "rcc-op-grout",
+              "name": "Cement grout placing",
+              "type": "sub-operation",
+              "sequence": 4
+            },
+            {
+              "id": "rcc-op-bedding",
+              "name": "Concrete bedding",
+              "type": "sub-operation",
+              "sequence": 5
+            }
+          ]
+        },
+        {
+          "id": "rcc-op-rcc-placing",
+          "name": "RCC Placing",
+          "type": "operation",
+          "sequence": 4,
+          "metadata": {
+            "machinery": ["Tower Placer", "Compactor"],
+            "materials": ["Concrete (poured)"],
+            "notes": "Block / lift elevation"
+          }
+        },
+        {
+          "id": "rcc-op-rcc-spread",
+          "name": "RCC Spread",
+          "type": "operation",
+          "sequence": 5
+        },
+        {
+          "id": "rcc-op-rcc-compaction",
+          "name": "RCC Compaction",
+          "type": "operation",
+          "sequence": 6
+        },
+        {
+          "id": "rcc-op-density-test",
+          "name": "Density Test",
+          "type": "alarm",
+          "sequence": 7,
+          "rule_id": "rcc-rule-density",
+          "inputs": [
+            {
+              "id": "rcc-input-wet-density",
+              "label": "Wet Density",
+              "unit": "kg/m3",
+              "source_type": "test",
+              "source_name": "wet_density",
+              "thresholds": { "min": 2590 },
+              "current_value": 2582
+            }
+          ]
+        },
+        {
+          "id": "rcc-op-next-layer",
+          "name": "Next Layer",
+          "type": "operation",
+          "sequence": 8
+        },
+        {
+          "id": "rcc-op-temp-differential",
+          "name": "Temp Differential",
+          "type": "alarm",
+          "sequence": 9,
+          "rule_id": "rcc-rule-temp-differential",
+          "metadata": {
+            "logic": "Placement temp must trail batch temp by ≥3°C"
+          }
+        },
+        {
+          "id": "rcc-op-placement-telemetry",
+          "name": "Placement Telemetry",
+          "type": "operation",
+          "sequence": 10,
+          "inputs": [
+            {
+              "id": "rcc-input-line-grade",
+              "label": "Lines / Grade",
+              "unit": "mm",
+              "source_type": "drawing",
+              "source_name": "line_grade",
+              "thresholds": { "max": 10 },
+              "current_value": 6
+            },
+            {
+              "id": "rcc-input-temp-sensor",
+              "label": "Temperature Sensor",
+              "unit": "°C",
+              "source_type": "sensor",
+              "source_name": "pour_temperature",
+              "thresholds": { "min": 4, "max": 18 },
+              "current_value": 19.5
+            },
+            {
+              "id": "rcc-input-concrete-volume",
+              "label": "Concrete Volume",
+              "unit": "m3",
+              "source_type": "sensor",
+              "source_name": "concrete_volume",
+              "thresholds": { "min": 220, "max": 400 },
+              "current_value": 260
+            },
+            {
+              "id": "rcc-input-temp-rise",
+              "label": "Temp Rise",
+              "unit": "°C",
+              "source_type": "sensor",
+              "source_name": "temp_rise",
+              "thresholds": { "max": 18 },
+              "current_value": 12
+            },
+            {
+              "id": "rcc-input-placement-moisture",
+              "label": "Moisture",
+              "unit": "%",
+              "source_type": "sensor",
+              "source_name": "placement_moisture",
+              "thresholds": { "min": 4, "max": 12 },
+              "current_value": 7.3
+            },
+            {
+              "id": "rcc-input-lift-start",
+              "label": "Lift Start",
+              "unit": "timestamp",
+              "source_type": "event",
+              "source_name": "lift_start",
+              "thresholds": {},
+              "current_value": 0
+            },
+            {
+              "id": "rcc-input-lift-end",
+              "label": "Lift End",
+              "unit": "timestamp",
+              "source_type": "event",
+              "source_name": "lift_end",
+              "thresholds": {},
+              "current_value": 0
+            },
+            {
+              "id": "rcc-input-ambient-temp",
+              "label": "Air Temperature",
+              "unit": "°C",
+              "source_type": "sensor",
+              "source_name": "ambient_temperature",
+              "thresholds": { "min": -5, "max": 32 },
+              "current_value": 24
+            },
+            {
+              "id": "rcc-input-ambient-humidity",
+              "label": "Humidity",
+              "unit": "%",
+              "source_type": "sensor",
+              "source_name": "ambient_humidity",
+              "thresholds": { "min": 30, "max": 90 },
+              "current_value": 67
+            },
+            {
+              "id": "rcc-input-lift-depth",
+              "label": "Lift Depth",
+              "unit": "m",
+              "source_type": "sensor",
+              "source_name": "lift_depth",
+              "thresholds": { "max": 3 },
+              "current_value": 3.2
+            },
+            {
+              "id": "rcc-input-placement-speed",
+              "label": "Placement Speed",
+              "unit": "km/h",
+              "source_type": "sensor",
+              "source_name": "placement_speed",
+              "thresholds": { "max": 2.5 },
+              "current_value": 2.7
+            },
+            {
+              "id": "rcc-input-hours-last-lift",
+              "label": "Hours Since Last Lift",
+              "unit": "h",
+              "source_type": "kpi",
+              "source_name": "hours_since_last_lift",
+              "thresholds": { "min": 72 },
+              "current_value": 60
+            },
+            {
+              "id": "rcc-input-payment-progress",
+              "label": "Payment / Financials",
+              "unit": "kUSD",
+              "source_type": "workflow",
+              "source_name": "ipc_pending_amount",
+              "thresholds": { "max": 0 },
+              "current_value": 120
+            }
+          ]
+        },
+        {
+          "id": "rcc-op-temp-control",
+          "name": "Temp Control",
+          "type": "alarm",
+          "sequence": 11,
+          "rule_id": "rcc-rule-temp-control"
+        },
+        {
+          "id": "rcc-op-casting-sequence",
+          "name": "Casting Sequence",
+          "type": "alarm",
+          "sequence": 12,
+          "rule_id": "rcc-rule-casting-sequence"
+        },
+        {
+          "id": "rcc-op-placement-speed-alarm",
+          "name": "Placement Travel Speed",
+          "type": "alarm",
+          "sequence": 13,
+          "rule_id": "rcc-rule-placement-speed"
+        },
+        {
+          "id": "rcc-op-payment-workflow",
+          "name": "Payment Logic & Workflow",
+          "type": "alarm",
+          "sequence": 14,
+          "rule_id": "rcc-rule-payment"
+        }
+      ]
+    },
+    {
+      "id": "rcc-stage-curing",
+      "name": "Curing & Post placement",
+      "sequence": 4,
+      "description": "Curing cadence, target strength, temperature control and crack instrumentation after each pour.",
+      "operations": [
+        {
+          "id": "rcc-op-curing",
+          "name": "Curing Window",
+          "type": "alarm",
+          "sequence": 1,
+          "rule_id": "rcc-rule-curing-duration",
+          "inputs": [
+            {
+              "id": "rcc-input-curing-days",
+              "label": "Curing Days Completed",
+              "unit": "days",
+              "source_type": "kpi",
+              "source_name": "curing_days_completed",
+              "thresholds": { "min": 14 },
+              "current_value": 12
+            }
+          ]
+        },
+        {
+          "id": "rcc-op-target-strength",
+          "name": "Target Average Strength",
+          "type": "alarm",
+          "sequence": 2,
+          "rule_id": "rcc-rule-target-strength",
+          "inputs": [
+            {
+              "id": "rcc-input-compressive-strength",
+              "label": "Compressive Strength",
+              "unit": "MPa",
+              "source_type": "test",
+              "source_name": "compressive_strength",
+              "thresholds": { "min": 35 },
+              "current_value": 33.8
+            },
+            {
+              "id": "rcc-input-target-strength",
+              "label": "Target Strength",
+              "unit": "MPa",
+              "source_type": "spec",
+              "source_name": "target_strength_spec",
+              "thresholds": {},
+              "current_value": 35
+            }
+          ]
+        },
+        {
+          "id": "rcc-op-temp-post",
+          "name": "Temp Control (Post placement)",
+          "type": "alarm",
+          "sequence": 3,
+          "rule_id": "rcc-rule-curing-temp",
+          "inputs": [
+            {
+              "id": "rcc-input-curing-temp",
+              "label": "Curing Temperature",
+              "unit": "°C",
+              "source_type": "sensor",
+              "source_name": "curing_temp",
+              "thresholds": { "min": 10, "max": 27 },
+              "current_value": 28
+            },
+            {
+              "id": "rcc-input-curing-moisture",
+              "label": "Moisture",
+              "unit": "%",
+              "source_type": "sensor",
+              "source_name": "curing_moisture",
+              "thresholds": { "min": 70, "max": 98 },
+              "current_value": 85
+            }
+          ]
+        },
+        {
+          "id": "rcc-op-slump-retest",
+          "name": "Slump Retest",
+          "type": "operation",
+          "sequence": 4,
+          "inputs": [
+            {
+              "id": "rcc-input-slump-retest",
+              "label": "Slump Test",
+              "unit": "mm",
+              "source_type": "test",
+              "source_name": "slump_retest",
+              "thresholds": { "min": 35, "max": 55 },
+              "current_value": 46
+            }
+          ]
+        },
+        {
+          "id": "rcc-op-crack-monitoring",
+          "name": "Cracks / Extensometer",
+          "type": "operation",
+          "sequence": 5,
+          "inputs": [
+            {
+              "id": "rcc-input-crack-extension",
+              "label": "Crack Extension",
+              "unit": "mm",
+              "source_type": "sensor",
+              "source_name": "crack_extension",
+              "thresholds": { "max": 0.6 },
+              "current_value": 0.3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "rcc-rule-temp-differential",
+      "category": "Temperature",
+      "condition": "(temp_in - temperature_out) >= 3",
+      "severity": "high",
+      "action": "Increase chilling loop before placing.",
+      "message": "Placement temperature must trail batching by ≥3°C.",
+      "enabled": true,
+      "created_by": "system",
+      "metadata": {
+        "required_inputs": ["temp_in", "temperature_out"],
+        "context": {}
+      },
+      "operation_id": "rcc-op-temp-differential"
+    },
+    {
+      "id": "rcc-rule-conveyor-speed",
+      "category": "Transportation",
+      "condition": "conveyor_speed >= min_speed and conveyor_speed <= max_speed",
+      "severity": "medium",
+      "action": "Adjust conveyor drive or stage material.",
+      "message": "Keep conveyor speed within 2-6 m/s.",
+      "enabled": true,
+      "created_by": "system",
+      "metadata": {
+        "required_inputs": ["conveyor_speed"],
+        "context": { "min_speed": 2, "max_speed": 6 }
+      },
+      "operation_id": "rcc-op-conveyor-speed"
+    },
+    {
+      "id": "rcc-rule-temp-control",
+      "category": "Temperature",
+      "condition": "pour_temperature >= min_pour_temp and pour_temperature <= max_pour_temp",
+      "severity": "high",
+      "action": "Throttle pour or shift to night placement.",
+      "message": "Pour temperature must follow seasonal limits.",
+      "enabled": true,
+      "created_by": "system",
+      "metadata": {
+        "required_inputs": ["pour_temperature"],
+        "context": { "min_pour_temp": 4 },
+        "max_by_month": {
+          "may": 19,
+          "jun": 16,
+          "jul": 15,
+          "aug": 15,
+          "sep": 18
+        },
+        "default_max": 18
+      },
+      "operation_id": "rcc-op-temp-control"
+    },
+    {
+      "id": "rcc-rule-casting-sequence",
+      "category": "Placement",
+      "condition": "lift_depth <= max_lift_depth and hours_since_last_lift >= min_lift_interval",
+      "severity": "medium",
+      "action": "Delay lift or trim placement depth.",
+      "message": "Max 3 m lift, ≥72 h between lifts.",
+      "enabled": true,
+      "created_by": "system",
+      "metadata": {
+        "required_inputs": ["lift_depth", "hours_since_last_lift"],
+        "context": { "max_lift_depth": 3, "min_lift_interval": 72 }
+      },
+      "operation_id": "rcc-op-casting-sequence"
+    },
+    {
+      "id": "rcc-rule-placement-speed",
+      "category": "Placement",
+      "condition": "placement_speed <= max_transport_speed",
+      "severity": "medium",
+      "action": "Throttle transporters to < 2.5 km/h.",
+      "message": "Placement travel speed cannot exceed 2.5 km/h.",
+      "enabled": true,
+      "created_by": "system",
+      "metadata": {
+        "required_inputs": ["placement_speed"],
+        "context": { "max_transport_speed": 2.5 }
+      },
+      "operation_id": "rcc-op-placement-speed-alarm"
+    },
+    {
+      "id": "rcc-rule-payment",
+      "category": "Commercial",
+      "condition": "ipc_pending_amount <= 0",
+      "severity": "low",
+      "action": "Trigger IPC workflow and approvals.",
+      "message": "Monthly IPC must be cleared once pour completes.",
+      "enabled": true,
+      "created_by": "system",
+      "metadata": {
+        "required_inputs": ["ipc_pending_amount"]
+      },
+      "operation_id": "rcc-op-payment-workflow"
+    },
+    {
+      "id": "rcc-rule-curing-duration",
+      "category": "Curing",
+      "condition": "curing_days_completed >= required_curing_days",
+      "severity": "medium",
+      "action": "Extend curing blankets / misting.",
+      "message": "Curing requires 14 days Nov-Apr, 21 days May-Oct.",
+      "enabled": true,
+      "created_by": "system",
+      "metadata": {
+        "required_inputs": ["curing_days_completed"],
+        "seasonal_durations": { "cold": 14, "warm": 21 },
+        "warm_months": ["may", "jun", "jul", "aug", "sep", "oct"]
+      },
+      "operation_id": "rcc-op-curing"
+    },
+    {
+      "id": "rcc-rule-target-strength",
+      "category": "Quality",
+      "condition": "compressive_strength >= target_strength",
+      "severity": "high",
+      "action": "Escalate to lab and retest batches.",
+      "message": "Average strength must beat design target.",
+      "enabled": true,
+      "created_by": "system",
+      "metadata": {
+        "required_inputs": ["compressive_strength"],
+        "context": { "target_strength": 35 }
+      },
+      "operation_id": "rcc-op-target-strength"
+    },
+    {
+      "id": "rcc-rule-curing-temp",
+      "category": "Curing",
+      "condition": "curing_temp >= curing_temp_min and curing_temp <= curing_temp_max",
+      "severity": "medium",
+      "action": "Adjust dryer / blower and water system.",
+      "message": "Maintain curing temp between 10-27 °C.",
+      "enabled": true,
+      "created_by": "system",
+      "metadata": {
+        "required_inputs": ["curing_temp"],
+        "context": { "curing_temp_min": 10, "curing_temp_max": 27 }
+      },
+      "operation_id": "rcc-op-temp-post"
+    },
+    {
+      "id": "rcc-rule-density",
+      "category": "Quality",
+      "condition": "wet_density >= min_density",
+      "severity": "high",
+      "action": "Repeat compaction or adjust mix.",
+      "message": "Wet density must be ≥2590 kg/m3.",
+      "enabled": true,
+      "created_by": "system",
+      "metadata": {
+        "required_inputs": ["wet_density"],
+        "context": { "min_density": 2590 }
+      },
+      "operation_id": "rcc-op-density-test"
+    }
+  ]
+}

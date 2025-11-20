@@ -18,6 +18,9 @@ import { getProjectControlCenterFallback } from './data/controlCenterFallback'
 import { getProgressHierarchyFallback } from './data/progressHierarchyFallback'
 import type { GanttTask } from './types'
 import type { CccSummary, RightPanelKpiPayload } from './types/ccc'
+import type { RccProcessTree, RccRuleList, RccAlarmRule, RccBlockProgress, RccEnvironmentMetric } from './types/rcc'
+import { RCC_BLOCK_PROGRESS_FALLBACK } from './data/rccBlockProgressFallback'
+import { RCC_ENVIRONMENT_METRICS_FALLBACK } from './data/rccMetricsFallback'
 
 export type Project = {
   id: string
@@ -1391,6 +1394,99 @@ export async function fetchCccRightPanel(params: CccSummaryParams): Promise<Righ
   const query = buildCccQuery(params)
   const res = await fetch(`${API_URL}/api/v2/ccc/kpis/right-panel?${query}`)
   return handleResponse<RightPanelKpiPayload>(res)
+}
+
+export async function fetchRccProcess(sowId: string): Promise<RccProcessTree> {
+  const res = await fetch(`${API_URL}/api/rcc/process/${encodeURIComponent(sowId)}`)
+  return handleResponse<RccProcessTree>(res)
+}
+
+export type RccRulePayload = {
+  id?: string
+  category: string
+  condition: string
+  severity: string
+  action?: string
+  message?: string
+  enabled?: boolean
+  metadata?: Record<string, unknown>
+  created_by?: string
+  operation_id?: string | null
+}
+
+export async function fetchRccRules(sowId?: string): Promise<RccRuleList> {
+  const query = sowId ? `?sowId=${encodeURIComponent(sowId)}` : ''
+  const res = await fetch(`${API_URL}/api/rcc/rules${query}`)
+  return handleResponse<RccRuleList>(res)
+}
+
+export async function saveRccRule(payload: RccRulePayload): Promise<RccAlarmRule> {
+  const res = await fetch(`${API_URL}/api/rcc/rules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse<RccAlarmRule>(res)
+}
+
+export async function fetchRccBlockProgress(sowId: string): Promise<RccBlockProgress[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/rcc/progress/${encodeURIComponent(sowId)}`)
+    return await handleResponse<RccBlockProgress[]>(res)
+  } catch (error) {
+    console.warn(`Using fallback RCC block progress for ${sowId}:`, error)
+    return RCC_BLOCK_PROGRESS_FALLBACK
+  }
+}
+
+export async function fetchRccMetrics(sowId: string): Promise<RccEnvironmentMetric[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/rcc/metrics/${encodeURIComponent(sowId)}`)
+    return await handleResponse<RccEnvironmentMetric[]>(res)
+  } catch (error) {
+    console.warn(`Using fallback RCC metrics for ${sowId}:`, error)
+    return RCC_ENVIRONMENT_METRICS_FALLBACK
+  }
+}
+
+export type SyncRccDamMetricsResponse = {
+  damId: string
+  sowId: string
+  contractId?: string
+  simulated: boolean
+  blocksUpdated: number
+  liftsUpdated: number
+  statusCounts: Record<string, number>
+  updates?: Array<{
+    blockId: string
+    blockNo: number
+    lift: number
+    status: string
+    percentComplete: number
+    temperature?: number | null
+    riskReason?: string | null
+    lagMinutes?: number | null
+    actualRate?: number | null
+    ruleViolated?: boolean
+  }>
+  environmentMetricsUpdated?: number
+  environmentMetricStatus?: Record<
+    string,
+    {
+      label?: string
+      unit?: string | null
+      valueNumeric?: number | null
+      valueText?: string | null
+      status: string
+    }
+  >
+}
+
+export async function syncRccDamMetrics(damId: string): Promise<SyncRccDamMetricsResponse> {
+  const res = await fetch(`${API_URL}/api/rcc-dam/${encodeURIComponent(damId)}/sync-metrics-demo`, {
+    method: 'POST',
+  })
+  return handleResponse<SyncRccDamMetricsResponse>(res)
 }
 
 export async function fetchContractKpiLatestDetailed(contractId: string): Promise<ContractKpiLatestResponse> {

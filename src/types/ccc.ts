@@ -16,6 +16,7 @@ export type MapMarker = {
   percent_complete: number
   spi?: number | null
   cpi?: number | null
+  metadata?: Record<string, unknown>
 }
 
 export type WipDial = {

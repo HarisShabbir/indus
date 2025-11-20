@@ -1,10 +1,12 @@
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
 from psycopg.errors import DatabaseError
 from psycopg_pool import ConnectionPool
+from psycopg.types.json import Json
 
 from .config import settings
 
@@ -242,6 +244,22 @@ SCHEMA_STATEMENTS: Iterable[str] = (
     """
     CREATE INDEX IF NOT EXISTS idx_process_historian_record_type ON dipgos.process_historian(record_type)
     """,
+    """
+    CREATE TABLE IF NOT EXISTS dipgos.rcc_block_metrics (
+        id SERIAL PRIMARY KEY,
+        dam_id TEXT NOT NULL,
+        block_id TEXT NOT NULL,
+        lift INTEGER NOT NULL,
+        percent_complete NUMERIC(5, 2),
+        actual_rate NUMERIC(8, 2),
+        temperature NUMERIC(5, 2),
+        lag_minutes NUMERIC(6, 2),
+        status TEXT NOT NULL,
+        rule_violated BOOLEAN NOT NULL DEFAULT FALSE,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (dam_id, block_id, lift)
+    )
+    """,
 )
 
 
@@ -293,6 +311,252 @@ def apply_migrations() -> None:
             with conn.cursor() as cur:
                 cur.execute(sql)
         conn.commit()
+
+
+def _seed_rcc_process(conn, payload: dict) -> None:
+    sow_id = payload.get("sow_id")
+    stages = payload.get("stages") or []
+    rules = payload.get("rules") or []
+    created_by = payload.get("created_by")
+    if not sow_id or not stages:
+        return
+
+    now = datetime.now(timezone.utc)
+    operations: list[dict[str, Any]] = []
+    inputs: list[dict[str, Any]] = []
+
+    def _visit(stage_id: str, op_def: dict, parent_id: str | None = None) -> None:
+        op_entry = {
+            "id": op_def["id"],
+            "stage_id": stage_id,
+            "parent_id": parent_id,
+            "name": op_def["name"],
+            "type": op_def.get("type", "operation"),
+            "metadata": op_def.get("metadata") or {},
+            "rule_id": op_def.get("rule_id"),
+            "sequence": op_def.get("sequence") or 0,
+        }
+        operations.append(op_entry)
+        for input_def in op_def.get("inputs") or []:
+            inputs.append(
+                {
+                    "id": input_def["id"],
+                    "operation_id": op_entry["id"],
+                    "label": input_def["label"],
+                    "unit": input_def.get("unit"),
+                    "source_type": input_def.get("source_type"),
+                    "source_name": input_def.get("source_name"),
+                    "thresholds": input_def.get("thresholds") or {},
+                    "current_value": input_def.get("current_value"),
+                    "metadata": input_def.get("metadata") or {},
+                }
+            )
+        for child in op_def.get("children") or []:
+            _visit(stage_id, child, op_entry["id"])
+
+    with conn.cursor() as cur:
+        for stage in stages:
+            cur.execute(
+                """
+                INSERT INTO dipgos.process_stages (id, sow_id, name, description, sequence, created_by)
+                VALUES (%(id)s, %(sow_id)s, %(name)s, %(description)s, %(sequence)s, %(created_by)s)
+                ON CONFLICT (id) DO UPDATE SET
+                    sow_id = EXCLUDED.sow_id,
+                    name = EXCLUDED.name,
+                    description = EXCLUDED.description,
+                    sequence = EXCLUDED.sequence,
+                    created_by = EXCLUDED.created_by,
+                    updated_at = NOW()
+                """,
+                {
+                    "id": stage["id"],
+                    "sow_id": sow_id,
+                    "name": stage["name"],
+                    "description": stage.get("description"),
+                    "sequence": stage.get("sequence") or 0,
+                    "created_by": created_by,
+                },
+            )
+            for op in stage.get("operations") or []:
+                _visit(stage["id"], op)
+
+        for rule in rules:
+            cur.execute(
+                """
+                INSERT INTO dipgos.alarm_rules (
+                    id, category, condition, severity, action, message,
+                    enabled, created_by, metadata, updated_at
+                )
+                VALUES (
+                    %(id)s, %(category)s, %(condition)s, %(severity)s, %(action)s, %(message)s,
+                    %(enabled)s, %(created_by)s, %(metadata)s, NOW()
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                    category = EXCLUDED.category,
+                    condition = EXCLUDED.condition,
+                    severity = EXCLUDED.severity,
+                    action = EXCLUDED.action,
+                    message = EXCLUDED.message,
+                    enabled = EXCLUDED.enabled,
+                    created_by = COALESCE(EXCLUDED.created_by, dipgos.alarm_rules.created_by),
+                    metadata = EXCLUDED.metadata,
+                    updated_at = NOW()
+                """,
+                {
+                    "id": rule["id"],
+                    "category": rule["category"],
+                    "condition": rule["condition"],
+                    "severity": rule["severity"],
+                    "action": rule.get("action"),
+                    "message": rule.get("message"),
+                    "enabled": rule.get("enabled", True),
+                    "created_by": rule.get("created_by") or created_by,
+                    "metadata": Json(rule.get("metadata") or {}),
+                },
+            )
+
+        for op in operations:
+            cur.execute(
+                """
+                INSERT INTO dipgos.process_operations (
+                    id, stage_id, parent_id, name, type, metadata, rule_id, sequence
+                )
+                VALUES (
+                    %(id)s, %(stage_id)s, %(parent_id)s, %(name)s, %(type)s,
+                    %(metadata)s, %(rule_id)s, %(sequence)s
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                    stage_id = EXCLUDED.stage_id,
+                    parent_id = EXCLUDED.parent_id,
+                    name = EXCLUDED.name,
+                    type = EXCLUDED.type,
+                    metadata = EXCLUDED.metadata,
+                    rule_id = EXCLUDED.rule_id,
+                    sequence = EXCLUDED.sequence
+                """,
+                {
+                    "id": op["id"],
+                    "stage_id": op["stage_id"],
+                    "parent_id": op["parent_id"],
+                    "name": op["name"],
+                    "type": op["type"],
+                    "metadata": Json(op["metadata"]),
+                    "rule_id": op["rule_id"],
+                    "sequence": op["sequence"],
+                },
+            )
+
+        for input_meta in inputs:
+            cur.execute(
+                """
+                INSERT INTO dipgos.process_inputs (
+                    id, operation_id, label, unit, source_type, source_name,
+                    thresholds, current_value, last_observed, metadata
+                )
+                VALUES (
+                    %(id)s, %(operation_id)s, %(label)s, %(unit)s, %(source_type)s, %(source_name)s,
+                    %(thresholds)s, %(current_value)s, %(last_observed)s, %(metadata)s
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                    operation_id = EXCLUDED.operation_id,
+                    label = EXCLUDED.label,
+                    unit = EXCLUDED.unit,
+                    source_type = EXCLUDED.source_type,
+                    source_name = EXCLUDED.source_name,
+                    thresholds = EXCLUDED.thresholds,
+                    current_value = EXCLUDED.current_value,
+                    last_observed = EXCLUDED.last_observed,
+                    metadata = EXCLUDED.metadata
+                """,
+                {
+                    "id": input_meta["id"],
+                    "operation_id": input_meta["operation_id"],
+                    "label": input_meta["label"],
+                    "unit": input_meta["unit"],
+                    "source_type": input_meta["source_type"],
+                    "source_name": input_meta["source_name"],
+                    "thresholds": Json(input_meta["thresholds"]),
+                    "current_value": input_meta["current_value"],
+                    "last_observed": now,
+                    "metadata": Json(input_meta["metadata"]),
+                },
+            )
+
+
+def _seed_rcc_block_progress(conn) -> None:
+    progress_path = FIXTURE_DIR / "rcc_block_progress.json"
+    if not progress_path.exists():
+        return
+    rows = json.loads(progress_path.read_text())
+    if not isinstance(rows, list):
+        return
+    with conn.cursor() as cur:
+        for row in rows:
+            cur.execute(
+                """
+                INSERT INTO dipgos.rcc_block_progress (
+                    id,
+                    sow_id,
+                    block_no,
+                    lift_no,
+                    status,
+                    percent_complete,
+                    temperature,
+                    density,
+                    batch_id,
+                    vendor,
+                    ipc_value,
+                    metadata,
+                    observed_at,
+                    updated_at
+                )
+                VALUES (
+                    %(id)s,
+                    %(sow_id)s,
+                    %(block_no)s,
+                    %(lift_no)s,
+                    %(status)s,
+                    %(percent_complete)s,
+                    %(temperature)s,
+                    %(density)s,
+                    %(batch_id)s,
+                    %(vendor)s,
+                    %(ipc_value)s,
+                    %(metadata)s,
+                    NOW(),
+                    NOW()
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                    sow_id = EXCLUDED.sow_id,
+                    block_no = EXCLUDED.block_no,
+                    lift_no = EXCLUDED.lift_no,
+                    status = EXCLUDED.status,
+                    percent_complete = EXCLUDED.percent_complete,
+                    temperature = EXCLUDED.temperature,
+                    density = EXCLUDED.density,
+                    batch_id = EXCLUDED.batch_id,
+                    vendor = EXCLUDED.vendor,
+                    ipc_value = EXCLUDED.ipc_value,
+                    metadata = EXCLUDED.metadata,
+                    observed_at = NOW(),
+                    updated_at = NOW()
+                """,
+                {
+                    "id": row["id"],
+                    "sow_id": row["sow_id"],
+                    "block_no": row["block_no"],
+                    "lift_no": row["lift_no"],
+                    "status": row.get("status", "planned"),
+                    "percent_complete": row.get("percent_complete", 0),
+                    "temperature": row.get("temperature"),
+                    "density": row.get("density"),
+                    "batch_id": row.get("batch_id"),
+                    "vendor": row.get("vendor"),
+                    "ipc_value": row.get("ipc_value"),
+                    "metadata": Json(row.get("metadata") or {}),
+                },
+            )
+    conn.commit()
 
 
 def seed_database() -> None:
@@ -421,6 +685,14 @@ def seed_database() -> None:
                                 ),
                             )
                 conn.commit()
+
+        rcc_process_path = FIXTURE_DIR / "rcc_process.json"
+        if rcc_process_path.exists():
+            logger.info("Syncing RCC process definitions from %s", rcc_process_path)
+            payload = json.loads(rcc_process_path.read_text())
+            _seed_rcc_process(conn, payload)
+            conn.commit()
+        _seed_rcc_block_progress(conn)
 
 
         contracts_path = FIXTURE_DIR / "contracts.json"

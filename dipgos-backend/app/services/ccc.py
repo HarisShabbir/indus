@@ -51,6 +51,46 @@ ADDITIVE_METRICS = {
     "qaor_closed",
 }
 
+RCC_PROCESS_SOWS = {"sow-mw01-rcc"}
+
+
+def _load_rcc_rollups(project_id: str) -> Dict[str, dict]:
+    if not RCC_PROCESS_SOWS:
+        return {}
+    with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT
+                rbp.sow_id,
+                AVG(rbp.percent_complete) AS percent_complete,
+                COUNT(*) AS block_count,
+                SUM(rbp.ipc_value) AS total_ipc,
+                SUM(CASE WHEN rbp.status = 'complete' THEN 1 ELSE 0 END) AS complete_blocks,
+                SUM(CASE WHEN rbp.status = 'in-progress' THEN 1 ELSE 0 END) AS in_progress_blocks,
+                SUM(CASE WHEN rbp.status = 'at-risk' THEN 1 ELSE 0 END) AS at_risk_blocks,
+                MAX(rbp.observed_at) AS observed_at
+            FROM dipgos.rcc_block_progress rbp
+            JOIN dipgos.contract_sows cs ON cs.id = rbp.sow_id
+            JOIN dipgos.contracts c ON c.id = cs.contract_id
+            WHERE c.project_id = %s AND rbp.sow_id = ANY(%s)
+            GROUP BY rbp.sow_id
+            """,
+            (project_id, list(RCC_PROCESS_SOWS)),
+        )
+        rows = cur.fetchall()
+    rollups: Dict[str, dict] = {}
+    for row in rows:
+        rollups[row["sow_id"]] = {
+            "percent_complete": float(row["percent_complete"]) if row["percent_complete"] is not None else None,
+            "block_count": int(row["block_count"] or 0),
+            "total_ipc": float(row["total_ipc"]) if row["total_ipc"] is not None else None,
+            "complete_blocks": int(row["complete_blocks"] or 0),
+            "in_progress_blocks": int(row["in_progress_blocks"] or 0),
+            "at_risk_blocks": int(row["at_risk_blocks"] or 0),
+            "observed_at": row["observed_at"],
+        }
+    return rollups
+
 
 def _cache_get(cache: Dict[Tuple, Tuple[float, object]], key: Tuple) -> Optional[object]:
     entry = cache.get(key)
@@ -401,7 +441,13 @@ def _build_contract_dials(contracts, metrics_lookup, focused_contract_id: Option
     return dials
 
 
-def _build_sow_dials(contract_id: Optional[str], sows: Dict[str, dict], metrics_lookup, sow_metrics) -> List[WipDial]:
+def _build_sow_dials(
+    contract_id: Optional[str],
+    sows: Dict[str, dict],
+    metrics_lookup,
+    sow_metrics,
+    rcc_rollups: Dict[str, dict],
+) -> List[WipDial]:
     if not contract_id:
         return []
     dials: List[WipDial] = []
@@ -410,7 +456,10 @@ def _build_sow_dials(contract_id: Optional[str], sows: Dict[str, dict], metrics_
             continue
         entry = metrics_lookup.get(("sow", sow_id))
         static = sow_metrics.get(sow_id, {})
-        percent = _metric_percent(entry, _to_float(row.get("progress")) if entry else _to_float(static.get("actual_progress")))
+        rollup = rcc_rollups.get(sow_id)
+        percent_override = rollup.get("percent_complete") if rollup else None
+        base_percent = _to_float(row.get("progress")) if entry else _to_float(static.get("actual_progress"))
+        percent = percent_override if percent_override is not None else _metric_percent(entry, base_percent)
         ev = entry.value("ev") if entry else None
         pv = entry.value("pv") if entry else None
         ac = entry.value("ac") if entry else None
@@ -466,23 +515,32 @@ def _build_process_dials(sow_id: Optional[str], processes: Dict[str, dict], metr
     return dials
 
 
-def _build_markers(selection: CCCSelection, project_row, contracts, sows, processes, metrics_lookup, sow_markers) -> List[MapMarker]:
+def _build_markers(
+    selection: CCCSelection,
+    project_row,
+    contracts,
+    sows,
+    processes,
+    metrics_lookup,
+    sow_markers,
+    rcc_rollups: Dict[str, dict],
+) -> List[MapMarker]:
     items: List[MapMarker] = []
 
     if selection.process_id:
         parent_sow = processes.get(selection.process_id, {}).get("sow_id")
         items.extend(_markers_for_processes([selection.process_id], contracts, sows, processes, metrics_lookup))
         if parent_sow:
-            items.extend(_markers_for_sows([parent_sow], contracts, sows, metrics_lookup, sow_markers))
+            items.extend(_markers_for_sows([parent_sow], contracts, sows, metrics_lookup, sow_markers, rcc_rollups))
     elif selection.sow_id:
         process_ids = [pid for pid, proc in processes.items() if proc["sow_id"] == selection.sow_id]
         if process_ids:
             items.extend(_markers_for_processes(process_ids, contracts, sows, processes, metrics_lookup))
-        items.extend(_markers_for_sows([selection.sow_id], contracts, sows, metrics_lookup, sow_markers))
+        items.extend(_markers_for_sows([selection.sow_id], contracts, sows, metrics_lookup, sow_markers, rcc_rollups))
     elif selection.contract_id:
         sow_ids = [sid for sid, sow in sows.items() if sow["contract_id"] == selection.contract_id]
         if sow_ids:
-            items.extend(_markers_for_sows(sow_ids, contracts, sows, metrics_lookup, sow_markers))
+            items.extend(_markers_for_sows(sow_ids, contracts, sows, metrics_lookup, sow_markers, rcc_rollups))
         items.extend(_markers_for_contracts([selection.contract_id], contracts, metrics_lookup))
     else:
         items.extend(_markers_for_contracts(list(contracts.keys()), contracts, metrics_lookup))
@@ -534,7 +592,14 @@ def _markers_for_contracts(contract_ids: List[str], contracts, metrics_lookup) -
     return markers
 
 
-def _markers_for_sows(sow_ids: List[str], contracts, sows, metrics_lookup, sow_markers) -> List[MapMarker]:
+def _markers_for_sows(
+    sow_ids: List[str],
+    contracts,
+    sows,
+    metrics_lookup,
+    sow_markers,
+    rcc_rollups: Dict[str, dict],
+) -> List[MapMarker]:
     markers: List[MapMarker] = []
     for sow_id in sow_ids:
         sow = sows.get(sow_id)
@@ -544,9 +609,23 @@ def _markers_for_sows(sow_ids: List[str], contracts, sows, metrics_lookup, sow_m
         if not contract:
             continue
         entry = metrics_lookup.get(("sow", sow_id))
-        percent = _metric_percent(entry, _to_float(sow.get("progress")))
+        rollup = rcc_rollups.get(sow_id)
+        percent_override = rollup.get("percent_complete") if rollup else None
+        percent = percent_override if percent_override is not None else _metric_percent(entry, _to_float(sow.get("progress")))
         planned = entry.value("prod_planned_pct") if entry else None
         lat, lon = sow_markers.get(sow_id, (float(contract["lat"]), float(contract["lng"])))
+        metadata = {}
+        if sow_id in RCC_PROCESS_SOWS:
+            metadata["process_view"] = "rcc-dam"
+        if rollup:
+            metadata["rcc"] = {
+                "percent_complete": rollup.get("percent_complete"),
+                "block_count": rollup.get("block_count"),
+                "complete_blocks": rollup.get("complete_blocks"),
+                "in_progress_blocks": rollup.get("in_progress_blocks"),
+                "at_risk_blocks": rollup.get("at_risk_blocks"),
+                "observed_at": rollup.get("observed_at").isoformat() if rollup.get("observed_at") else None,
+            }
         markers.append(
             MapMarker(
                 id=sow_id,
@@ -558,6 +637,7 @@ def _markers_for_sows(sow_ids: List[str], contracts, sows, metrics_lookup, sow_m
                 percent_complete=percent,
                 spi=entry.value("spi") if entry else _compute_ratio(entry.value("ev") if entry else None, entry.value("pv") if entry else None),
                 cpi=entry.value("cpi") if entry else _compute_ratio(entry.value("ev") if entry else None, entry.value("ac") if entry else None),
+                metadata=metadata,
             )
         )
     return markers
@@ -611,14 +691,15 @@ def get_ccc_summary(selection: CCCSelection) -> CccSummary:
     project_row = _fetch_project_payload(selection)
     contracts, sows, processes, sow_markers, sow_metrics = _gather_entities(selection.project_id)
     metrics_lookup, metrics_as_of = _load_latest_metrics(selection.project_id)
+    rcc_rollups = _load_rcc_rollups(selection.project_id)
 
     wip_dials: List[WipDial] = []
     wip_dials.append(_extract_project_dial(project_row, metrics_lookup))
     wip_dials.extend(_build_contract_dials(contracts, metrics_lookup, selection.contract_id))
-    wip_dials.extend(_build_sow_dials(selection.contract_id, sows, metrics_lookup, sow_metrics))
+    wip_dials.extend(_build_sow_dials(selection.contract_id, sows, metrics_lookup, sow_metrics, rcc_rollups))
     wip_dials.extend(_build_process_dials(selection.sow_id, processes, metrics_lookup))
 
-    markers = _build_markers(selection, project_row, contracts, sows, processes, metrics_lookup, sow_markers)
+    markers = _build_markers(selection, project_row, contracts, sows, processes, metrics_lookup, sow_markers, rcc_rollups)
 
     as_of = metrics_as_of or datetime.now(timezone.utc)
 
@@ -899,6 +980,7 @@ def get_right_panel_kpis(project_id: str, contract_id: Optional[str], sow_id: Op
     project_row = _fetch_project_payload(selection)
     contracts, sows, processes, sow_markers, sow_metrics = _gather_entities(project_id)
     metrics_lookup, metrics_as_of = _load_latest_metrics(project_id)
+    rcc_rollups = _load_rcc_rollups(project_id)
 
     if sow_id:
         level = "sow"
@@ -926,6 +1008,10 @@ def get_right_panel_kpis(project_id: str, contract_id: Optional[str], sow_id: Op
         if static_metrics
         else None
     )
+    if sow_id and sow_id in rcc_rollups:
+        rollup_percent = rcc_rollups[sow_id].get("percent_complete")
+        if rollup_percent is not None:
+            actual_percent = rollup_percent
     planned_percent = (
         target_entry.value("prod_planned_pct", kind="planned")
         if target_entry

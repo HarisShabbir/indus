@@ -70,4 +70,44 @@ The app fetches:
 - `GET /api/projects?phase=Construction`
 - `GET /api/projects?phase=O&M`
 - `GET /api/alerts?project_id=...`
+
+## RCC Dam process + rule engine
+
+The RCC scope now renders live workflow data sourced from PostgreSQL (`process_stages`, `process_operations`, `process_inputs`, and `alarm_rules`). A FastAPI background task evaluates all enabled rules every five minutes, writes new events to `process_historian`, and emits an `alarm_triggered` WebSocket event on `/api/rcc/ws/alarms`.
+
+### Editing the workflow
+
+1. Seed data for stages, operations, inputs, and rules lives in `dipgos-backend/app/fixtures/rcc_process.json`. Update it to reflect new spreadsheet rows (IDs remain stable) and restart the backend to upsert changes, or craft a dedicated SQL migration if you need complete control.
+2. Each `process_inputs` entry should define a unique `source_name`, thresholds (`min`, `max`, and optional `warn_*` values), plus the current telemetry value. The rule engine exposes every `source_name` as a variable inside `alarm_rules.condition`.
+3. For derived logic (monthly limits, seasonal durations, etc.) supply extra numbers under `alarm_rules.metadata.context`. Those keys are also injected into the expression namespace.
+
+### Managing rules
+
+- In the UI, switch to the RCC Dam scope, open the **Process** tab, and click **Manage rules**. The modal lets you toggle `enabled`, edit category/condition/severity/message/action, and save directly to `/api/rcc/rules`.
+- Rules can also be scripted through the API:
+
+```bash
+curl -X POST http://localhost:8000/api/rcc/rules \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "id": "rcc-rule-temp-control",
+        "category": "Temperature",
+        "condition": "pour_temperature >= min_pour_temp and pour_temperature <= max_pour_temp",
+        "severity": "high",
+        "message": "Pour temperature must follow seasonal limits.",
+        "enabled": true,
+        "metadata": {
+          "context": { "min_pour_temp": 4 },
+          "max_by_month": { "may": 19, "jun": 16 }
+        }
+      }'
+```
+
+Saving a rule triggers an immediate evaluation pass, so the Process view reflects the new logic without waiting for the 5‑minute poller.
+
+### Telemetry feeds
+
+- `process_inputs.current_value` + `last_observed` store the latest sensor reading. Update them via your ingestion pipeline and the rule engine will pick up the changes on the next evaluation.
+- Alarms are written to `process_historian` with payloads that include the evaluated context so downstream dashboards can replay the exact values that caused a trigger.
+- Subscribe to `/api/rcc/ws/alarms` if you need near-real-time notifications when a rule transitions into the `alarm` state.
 # indus

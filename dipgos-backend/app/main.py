@@ -1,8 +1,9 @@
+import asyncio
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from .routers import (
     projects,
@@ -27,8 +28,11 @@ from .routers import (
     scm,
     process_historian,
     collaboration,
+    rcc,
+    rcc_dam,
 )
 from .db import open_pool, close_pool, pool, initialize_database
+from .services.rcc_rules import alarm_rule_monitor, evaluate_alarm_rules
 
 
 logger = logging.getLogger(__name__)
@@ -37,8 +41,11 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     open_pool()  # open DB pool at startup
     database_available = True
+    alarm_task = None
     try:
         initialize_database()
+        await asyncio.to_thread(evaluate_alarm_rules)
+        alarm_task = asyncio.create_task(alarm_rule_monitor())
     except Exception as exc:  # pragma: no cover - defensive fallback for local dev
         database_available = False
         logger.warning("Database initialization failed; continuing with fixture data: %s", exc)
@@ -46,6 +53,10 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        if alarm_task:
+            alarm_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await alarm_task
         close_pool()  # close pool at shutdown
 
 app = FastAPI(
@@ -99,6 +110,8 @@ app.include_router(financial_v2.router)
 app.include_router(scm.router)
 app.include_router(process_historian.router, prefix="/api/process-historian", tags=["process historian"])
 app.include_router(collaboration.router, prefix="/api/collaboration", tags=["collaboration"])
+app.include_router(rcc.router)
+app.include_router(rcc_dam.router)
 
 @app.get("/api/health")
 def health():

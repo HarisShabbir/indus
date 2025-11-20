@@ -28,6 +28,9 @@ import { readAuthToken } from '../../utils/auth'
 import { useProgressSummary } from '../../hooks/useProgress'
 import { applyTheme, resolveInitialTheme, toggleThemeValue } from '../../utils/theme'
 
+const DEFAULT_PROJECT_ID = 'diamer-basha'
+const DEFAULT_PROJECT_NAME = 'MW-01 – Main Dam'
+
 const formatCompactCurrency = (value: number | null | undefined) => {
   if (value === null || value === undefined) return '--'
   const abs = Math.abs(value)
@@ -68,7 +71,9 @@ export default function FinancialViewPage(): JSX.Element {
   const initialProjectId =
     locationState?.projectId ?? searchParams.get('projectId') ?? locationState?.projectSnapshot?.id ?? null
   const initialProjectName =
-    locationState?.projectName ?? searchParams.get('projectName') ?? locationState?.projectSnapshot?.name ?? 'Project'
+    locationState?.projectName ?? searchParams.get('projectName') ?? locationState?.projectSnapshot?.name ?? null
+  const resolvedProjectId = initialProjectId ?? DEFAULT_PROJECT_ID
+  const resolvedProjectName = initialProjectName ?? DEFAULT_PROJECT_NAME
 
   const initialContractId = useMemo(
     () => routeContractId ?? locationState?.contractId ?? scheduleStore.currentContractId ?? null,
@@ -90,7 +95,7 @@ export default function FinancialViewPage(): JSX.Element {
   const [expandedContracts, setExpandedContracts] = useState<Record<string, boolean>>({})
   const [activeTab, setActiveTab] = useState<'owner' | 'engineer'>('owner')
 
-  const progressEnabled = FEATURE_FINANCIAL_VIEW && FEATURE_PROGRESS_V2 && Boolean(initialProjectId)
+  const progressEnabled = FEATURE_FINANCIAL_VIEW && FEATURE_PROGRESS_V2 && Boolean(resolvedProjectId)
   const {
     data: progressSummary,
     lastFetched: progressLastFetched,
@@ -100,7 +105,7 @@ export default function FinancialViewPage(): JSX.Element {
     loading: progressLoading,
   } = useProgressSummary(
     {
-      projectId: initialProjectId ?? '',
+      projectId: resolvedProjectId,
       contractId: selectedContractId,
       tenantId: 'default',
     },
@@ -130,12 +135,12 @@ export default function FinancialViewPage(): JSX.Element {
   }, [isAuthenticated, navigate])
 
   useEffect(() => {
-    if (!initialProjectId || !FEATURE_FINANCIAL_VIEW) return
+    if (!resolvedProjectId || !FEATURE_FINANCIAL_VIEW) return
     let cancelled = false
 
     async function loadProjectShell() {
       try {
-        const payload = await fetchProjectControlCenter(initialProjectId)
+        const payload = await fetchProjectControlCenter(resolvedProjectId)
         if (cancelled) return
         setProject(payload.project)
         setContracts(payload.contracts ?? [])
@@ -157,10 +162,10 @@ export default function FinancialViewPage(): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [initialProjectId])
+  }, [resolvedProjectId])
 
   useEffect(() => {
-    if (!FEATURE_FINANCIAL_VIEW || !initialProjectId || !isAuthenticated) {
+    if (!FEATURE_FINANCIAL_VIEW || !resolvedProjectId || !isAuthenticated) {
       return
     }
     let cancelled = false
@@ -170,12 +175,12 @@ export default function FinancialViewPage(): JSX.Element {
     async function loadFinancialData() {
       try {
         const [summaryRes, allocationRes, expensesRes, flowRes, incomingRes, outgoingRes] = await Promise.all([
-          fetchFinancialSummary(initialProjectId, selectedContractId ?? undefined),
-          fetchFinancialAllocation(initialProjectId),
-          fetchFinancialExpenses(initialProjectId, selectedContractId ?? undefined),
-          fetchFinancialFundFlow(initialProjectId, selectedContractId ?? undefined),
-          fetchFinancialIncoming(initialProjectId),
-          fetchFinancialOutgoing(initialProjectId, selectedContractId ?? undefined),
+          fetchFinancialSummary(resolvedProjectId, selectedContractId ?? undefined),
+          fetchFinancialAllocation(resolvedProjectId),
+          fetchFinancialExpenses(resolvedProjectId, selectedContractId ?? undefined),
+          fetchFinancialFundFlow(resolvedProjectId, selectedContractId ?? undefined),
+          fetchFinancialIncoming(resolvedProjectId),
+          fetchFinancialOutgoing(resolvedProjectId, selectedContractId ?? undefined),
         ])
         if (cancelled) return
         setSummary(summaryRes)
@@ -200,10 +205,10 @@ export default function FinancialViewPage(): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [initialProjectId, selectedContractId, isAuthenticated, progressLastFetched, progressEnabled])
+  }, [resolvedProjectId, selectedContractId, isAuthenticated, progressLastFetched, progressEnabled])
 
-  const projectId = initialProjectId
-  const projectName = project?.name ?? initialProjectName
+  const projectId = resolvedProjectId
+  const projectName = project?.name ?? resolvedProjectName
 
   const handleThemeToggle = () => setTheme((prev) => toggleThemeValue(prev))
 
@@ -254,8 +259,8 @@ export default function FinancialViewPage(): JSX.Element {
       theme={theme}
       onToggleTheme={handleThemeToggle}
       scope={{
-        projectId: initialProjectId,
-        projectName: initialProjectName ?? null,
+        projectId: resolvedProjectId,
+        projectName: resolvedProjectName ?? null,
         contractId: selectedContractId,
         contractName: contracts.find((c) => c.id === selectedContractId)?.name ?? null,
       }}

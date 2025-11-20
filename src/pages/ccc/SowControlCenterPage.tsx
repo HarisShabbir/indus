@@ -7,8 +7,13 @@ import Breadcrumbs from '../../components/breadcrumbs/Breadcrumbs'
 import { SidebarNav, ACCS_NAV_INDEX } from '../../layout/navigation'
 import TopBarGlobalActions from '../../layout/TopBarActions'
 import HierarchyWipBoard from '../../components/wip/HierarchyWipBoard'
-import { fetchCccRightPanel, fetchCccSummary } from '../../api'
+import RccProcessView from '../../components/rcc/RccProcessView'
+import RccRuleAdminModal from '../../components/rcc/RccRuleAdminModal'
+import RccVisualization from '../../components/rcc/RccVisualization'
+import { fetchCccRightPanel, fetchCccSummary, fetchRccProcess, fetchRccRules, saveRccRule } from '../../api'
+import type { RccRulePayload } from '../../api'
 import type { CccSummary, MapMarker, RightPanelKpiPayload } from '../../types/ccc'
+import type { RccAlarmRule, RccProcessTree } from '../../types/rcc'
 import { RCC_FACILITIES, RCC_MAP_MARKERS, RCC_PROCESSES } from '../../data/rccDamSow'
 
 import 'leaflet/dist/leaflet.css'
@@ -153,7 +158,6 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
     if (typeof window === 'undefined') return 960
     return Math.max(RCC_MAP_MIN_HEIGHT, Math.min(1100, window.innerHeight - 80))
   })
-  const [mapTab, setMapTab] = useState<'map' | 'process'>('map')
   const [showRccProcesses, setShowRccProcesses] = useState(isRccVariant)
   const [mapStatsCollapsed, setMapStatsCollapsed] = useState(false)
   const [isResizingMap, setIsResizingMap] = useState(false)
@@ -177,11 +181,39 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
     })
     return initial
   })
+  const [rccProcessTree, setRccProcessTree] = useState<RccProcessTree | null>(null)
+  const [rccProcessLoading, setRccProcessLoading] = useState(false)
+  const [rccProcessError, setRccProcessError] = useState<string | null>(null)
+  const [ruleAdminOpen, setRuleAdminOpen] = useState(false)
+  const [rccRules, setRccRules] = useState<RccAlarmRule[]>([])
+  const [ruleAdminLoading, setRuleAdminLoading] = useState(false)
+  const [ruleAdminError, setRuleAdminError] = useState<string | null>(null)
+  const [processPanelOpen, setProcessPanelOpen] = useState(false)
+  const [processPanelTab, setProcessPanelTab] = useState<'process' | 'visualization'>('process')
   const isRccProcessView = showRccProcesses
+  useEffect(() => {
+    const className = 'rcc-panel-open'
+    if (processPanelOpen) {
+      document.body.classList.add(className)
+    } else {
+      document.body.classList.remove(className)
+    }
+    return () => document.body.classList.remove(className)
+  }, [processPanelOpen])
+  const loadRccProcess = useCallback(() => {
+    setRccProcessLoading(true)
+    setRccProcessError(null)
+    fetchRccProcess('sow-mw01-rcc')
+      .then((payload) => setRccProcessTree(payload))
+      .catch(() => setRccProcessError('Unable to load RCC workflow data.'))
+      .finally(() => setRccProcessLoading(false))
+  }, [])
   useEffect(() => {
     if (isRccVariant) {
       setSelectedSowId('sow-mw01-rcc')
       setShowRccProcesses(true)
+      setProcessPanelTab('process')
+      setProcessPanelOpen(true)
     }
   }, [isRccVariant])
 
@@ -192,10 +224,19 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
   }, [showRccProcesses, selectedSowId])
 
   useEffect(() => {
-    if (!showRccProcesses) {
-      setMapTab('map')
-    }
-  }, [showRccProcesses])
+    if (!isRccProcessView) return
+    if (rccProcessTree || rccProcessLoading || rccProcessError) return
+    loadRccProcess()
+  }, [isRccProcessView, rccProcessTree, rccProcessLoading, rccProcessError, loadRccProcess])
+  useEffect(() => {
+    if (!ruleAdminOpen) return
+    setRuleAdminLoading(true)
+    setRuleAdminError(null)
+    fetchRccRules('sow-mw01-rcc')
+      .then((payload) => setRccRules(payload.rules))
+      .catch(() => setRuleAdminError('Unable to load alarm rules.'))
+      .finally(() => setRuleAdminLoading(false))
+  }, [ruleAdminOpen])
   const utilityViews: Array<{ id: 'schedule' | 'financial' | 'supply' | 'alerts'; label: string; icon: React.ReactNode }> = useMemo(
     () => [
       {
@@ -429,8 +470,6 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
   }, [selectedSowId, sowMarkers])
 
   const mapStyle = SOW_MAP_STYLES[mapView]
-  const showProcessTabs = isRccProcessView
-  const processImageSrc = '/images/jpg_output/process.png'
 
   const fallbackAverage = useMemo(() => {
     if (!sowMarkers.length) return null
@@ -590,10 +629,8 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
     setSelectedSowId(id)
     if (id === 'sow-mw01-rcc') {
       setShowRccProcesses(true)
-      setMapTab('process')
     } else {
       setShowRccProcesses(false)
-      setMapTab('map')
     }
   }
 
@@ -603,13 +640,15 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
 
   const handleRccProcessSelect = (processId: string, markerId?: string) => {
     setSelectedSowId(markerId ?? processId)
-    setMapTab('process')
+    setShowRccProcesses(true)
+    setProcessPanelTab('process')
+    setProcessPanelOpen(true)
   }
 
   const handleExitRccProcesses = () => {
     setShowRccProcesses(false)
     setSelectedSowId('sow-mw01-rcc')
-    setMapTab('map')
+    setProcessPanelOpen(false)
   }
 
   const handleNavigateBack = () => {
@@ -627,12 +666,16 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
 
   const handleMarkerClick = (marker: MapMarker) => {
     setSelectedSowId(marker.id)
-    if (marker.id === 'sow-mw01-rcc' || marker.name.toLowerCase().includes('rcc dam')) {
+    const metadata = (marker.metadata ?? {}) as Record<string, unknown>
+    const metaProcess = (metadata['process_view'] ?? metadata['processView']) as unknown
+    const processView = typeof metaProcess === 'string' ? metaProcess : null
+    if (marker.id === 'sow-mw01-rcc' || processView === 'rcc-dam' || marker.name.toLowerCase().includes('rcc dam')) {
       setShowRccProcesses(true)
-      setMapTab('process')
+      setProcessPanelTab('process')
+      setProcessPanelOpen(true)
     } else if (marker.type === 'sow') {
       setShowRccProcesses(false)
-      setMapTab('map')
+      setProcessPanelOpen(false)
     }
   }
 
@@ -663,6 +706,15 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
       },
     })
   }
+  const handleRuleSave = useCallback(
+    async (payload: RccRulePayload) => {
+      await saveRccRule(payload)
+      const refreshed = await fetchRccRules('sow-mw01-rcc')
+      setRccRules(refreshed.rules)
+      loadRccProcess()
+    },
+    [loadRccProcess],
+  )
 
   const productivityItems = useMemo(() => {
     if (!kpis) return []
@@ -690,18 +742,19 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
   } as React.CSSProperties
 
   return (
-    <div className="app-shell view-contract" data-theme={theme}>
-      <SidebarNav activeIndex={activeNavIndex} onSelect={setActiveNavIndex} theme={theme} onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))} />
-      <div className="content-shell">
-        <div className="contract-page sow-control-center" data-theme={theme}>
-          <header className="contract-topbar">
-          <Breadcrumbs items={breadcrumbs} />
-          <div className="contract-top-actions">
-            <TopBarGlobalActions theme={theme} onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))} scope={{ projectId, contractId }} />
-          </div>
-        </header>
+    <>
+      <div className="app-shell view-contract" data-theme={theme}>
+        <SidebarNav activeIndex={activeNavIndex} onSelect={setActiveNavIndex} theme={theme} onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))} />
+        <div className="content-shell">
+          <div className="contract-page sow-control-center" data-theme={theme}>
+            <header className="contract-topbar">
+              <Breadcrumbs items={breadcrumbs} />
+              <div className="contract-top-actions">
+                <TopBarGlobalActions theme={theme} onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))} scope={{ projectId, contractId }} />
+              </div>
+            </header>
 
-        <div className="pp-layout sow-layout">
+            <div className="pp-layout sow-layout">
           <aside className="contract-list sow-list-panel">
             <div className="contract-filter">
               <span>{isRccVariant ? 'RCC Dam Scope' : 'Scope of Work'}</span>
@@ -851,27 +904,22 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
                   </div>
                 </div>
 
-                {showProcessTabs && (
-                  <div className="sow-map-tabs" role="tablist" aria-label="RCC Dam view mode">
+                {isRccProcessView && (
+                  <div className="rcc-panel-launcher">
                     <button
                       type="button"
-                      className={mapTab === 'map' ? 'active' : ''}
+                      title="Open RCC process & visualization"
                       onClick={() => {
-                        setMapTab('map')
-                        setShowRccProcesses(true)
+                        setProcessPanelTab('process')
+                        setProcessPanelOpen(true)
                       }}
                     >
-                      RCC Map
-                    </button>
-                    <button
-                      type="button"
-                      className={mapTab === 'process' ? 'active' : ''}
-                      onClick={() => {
-                        setShowRccProcesses(true)
-                        setMapTab('process')
-                      }}
-                    >
-                      Process
+                      <svg viewBox="0 0 24 24" strokeWidth="1.6" stroke="currentColor" fill="none">
+                        <rect x="3" y="3" width="18" height="18" rx="4" />
+                        <path d="M8 3v18" />
+                        <path d="M3 9h18" />
+                      </svg>
+                      <span>RCC Process</span>
                     </button>
                   </div>
                 )}
@@ -903,11 +951,7 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
                   )}
                 </div>
 
-                {showProcessTabs && mapTab === 'process' ? (
-                  <div className="sow-process-panel" role="img" aria-label="RCC Dam process overview">
-                    <img src={processImageSrc} alt="RCC Dam process overview" loading="lazy" decoding="async" />
-                  </div>
-                ) : error ? (
+                {error ? (
                   <div className="contract-loading">{error}</div>
                 ) : loading ? (
                   <div className="contract-loading">Preparing SOW map…</div>
@@ -1309,7 +1353,6 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
             )}
           </aside>
         </div>
-        </div>
         <div className="contract-utility-floating sow-utility-dock" aria-label="Scope shortcuts">
           {utilityViews.map((view) => {
             const active = activeUtilityView === view.id
@@ -1330,6 +1373,49 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
         </div>
       </div>
     </div>
+  </div>
+  {processPanelOpen ? (
+    <div className="rcc-panel-overlay" role="dialog" aria-modal="true">
+      <div className="rcc-panel-shell">
+        <header>
+          <div>
+            <strong>RCC Dam Controls</strong>
+            <span>{processPanelTab === 'process' ? 'Process workflow' : '3D visualization'}</span>
+          </div>
+          <div className="rcc-panel-tabs">
+            <button
+              type="button"
+              className={processPanelTab === 'process' ? 'active' : ''}
+              onClick={() => setProcessPanelTab('process')}
+            >
+              Process
+            </button>
+            <button
+              type="button"
+              className={processPanelTab === 'visualization' ? 'active' : ''}
+              onClick={() => setProcessPanelTab('visualization')}
+            >
+              3D Visualization
+            </button>
+            <button type="button" className="close" onClick={() => setProcessPanelOpen(false)}>
+              ×
+            </button>
+          </div>
+        </header>
+        <div className="rcc-panel-body">
+          {processPanelTab === 'process' ? (
+            <RccProcessView data={rccProcessTree} loading={rccProcessLoading} error={rccProcessError} onRefresh={loadRccProcess} onOpenRuleAdmin={() => setRuleAdminOpen(true)} />
+          ) : (
+            <RccVisualization sowId="sow-mw01-rcc" />
+          )}
+        </div>
+      </div>
+    </div>
+  ) : null}
+  {ruleAdminOpen ? (
+    <RccRuleAdminModal rules={rccRules} loading={ruleAdminLoading} error={ruleAdminError} onClose={() => setRuleAdminOpen(false)} onSaveRule={handleRuleSave} />
+  ) : null}
+</>
   )
 }
 
