@@ -62,6 +62,10 @@ class ProcessStageModel(BaseModel):
     sequence: int
     operations: List[ProcessOperationModel] = Field(default_factory=list)
     alarm_count: int = 0
+    rule_alarm_count: int = 0
+    status: str = "unknown"
+    worst_severity: Optional[str] = None
+    last_updated: Optional[datetime] = None
 
 
 class RccProcessTree(BaseModel):
@@ -73,6 +77,10 @@ class RccProcessTree(BaseModel):
 
 class AlarmRuleList(BaseModel):
     rules: List[AlarmRuleModel] = Field(default_factory=list)
+
+class ProcessWorkflowSimulateRequest(BaseModel):
+    sow_id: str
+    reason: Optional[str] = None
 
 
 class RccBlockProgress(BaseModel):

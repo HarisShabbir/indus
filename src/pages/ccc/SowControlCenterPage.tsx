@@ -9,8 +9,8 @@ import TopBarGlobalActions from '../../layout/TopBarActions'
 import HierarchyWipBoard from '../../components/wip/HierarchyWipBoard'
 import RccProcessView from '../../components/rcc/RccProcessView'
 import RccRuleAdminModal from '../../components/rcc/RccRuleAdminModal'
-import RccVisualization from '../../components/rcc/RccVisualization'
-import { fetchCccRightPanel, fetchCccSummary, fetchRccProcess, fetchRccRules, saveRccRule } from '../../api'
+import RccDam2DFinal from '../../components/rcc/RccDam2DFinal'
+import { fetchCccRightPanel, fetchCccSummary, fetchRccProcess, fetchRccRules, saveRccRule, simulateRccProcessWorkflow } from '../../api'
 import type { RccRulePayload } from '../../api'
 import type { CccSummary, MapMarker, RightPanelKpiPayload } from '../../types/ccc'
 import type { RccAlarmRule, RccProcessTree } from '../../types/rcc'
@@ -189,7 +189,7 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
   const [ruleAdminLoading, setRuleAdminLoading] = useState(false)
   const [ruleAdminError, setRuleAdminError] = useState<string | null>(null)
   const [processPanelOpen, setProcessPanelOpen] = useState(false)
-  const [processPanelTab, setProcessPanelTab] = useState<'process' | 'visualization'>('process')
+  const [processPanelTab, setProcessPanelTab] = useState<'process' | 'dam2d'>('process')
   const isRccProcessView = showRccProcesses
   useEffect(() => {
     const className = 'rcc-panel-open'
@@ -706,15 +706,12 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
       },
     })
   }
-  const handleRuleSave = useCallback(
-    async (payload: RccRulePayload) => {
-      await saveRccRule(payload)
-      const refreshed = await fetchRccRules('sow-mw01-rcc')
-      setRccRules(refreshed.rules)
-      loadRccProcess()
-    },
-    [loadRccProcess],
-  )
+  const handleRuleSave = useCallback(async (payload: RccRulePayload) => {
+    await saveRccRule(payload)
+    const [rulesResponse, workflow] = await Promise.all([fetchRccRules('sow-mw01-rcc'), simulateRccProcessWorkflow('sow-mw01-rcc', 'rule-change')])
+    setRccRules(rulesResponse.rules)
+    setRccProcessTree(workflow)
+  }, [])
 
   const productivityItems = useMemo(() => {
     if (!kpis) return []
@@ -908,7 +905,7 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
                   <div className="rcc-panel-launcher">
                     <button
                       type="button"
-                      title="Open RCC process & visualization"
+                      title="Open RCC process & 2D visualization"
                       onClick={() => {
                         setProcessPanelTab('process')
                         setProcessPanelOpen(true)
@@ -1380,7 +1377,7 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
         <header>
           <div>
             <strong>RCC Dam Controls</strong>
-            <span>{processPanelTab === 'process' ? 'Process workflow' : '3D visualization'}</span>
+            <span>{processPanelTab === 'process' ? 'Process workflow' : '2D visualization'}</span>
           </div>
           <div className="rcc-panel-tabs">
             <button
@@ -1392,10 +1389,10 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
             </button>
             <button
               type="button"
-              className={processPanelTab === 'visualization' ? 'active' : ''}
-              onClick={() => setProcessPanelTab('visualization')}
+              className={processPanelTab === 'dam2d' ? 'active' : ''}
+              onClick={() => setProcessPanelTab('dam2d')}
             >
-              3D Visualization
+              2D Visualization
             </button>
             <button type="button" className="close" onClick={() => setProcessPanelOpen(false)}>
               ×
@@ -1404,9 +1401,16 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
         </header>
         <div className="rcc-panel-body">
           {processPanelTab === 'process' ? (
-            <RccProcessView data={rccProcessTree} loading={rccProcessLoading} error={rccProcessError} onRefresh={loadRccProcess} onOpenRuleAdmin={() => setRuleAdminOpen(true)} />
+            <RccProcessView
+              sowId="sow-mw01-rcc"
+              data={rccProcessTree}
+              loading={rccProcessLoading}
+              error={rccProcessError}
+              onRefresh={loadRccProcess}
+              onOpenRuleAdmin={() => setRuleAdminOpen(true)}
+            />
           ) : (
-            <RccVisualization sowId="sow-mw01-rcc" />
+            <RccDam2DFinal />
           )}
         </div>
       </div>

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -21,6 +22,30 @@ from ..models.rcc import (
     RccEnvironmentMetric,
 )
 from .rcc_rules import _normalise_json, compute_rule_state, evaluate_alarm_rules, safe_evaluator
+
+SEVERITY_RANK = {
+    "critical": 4,
+    "high": 3,
+    "medium": 2,
+    "low": 1,
+}
+
+_PROCESS_SAMPLE_TABLE_READY = False
+
+
+def _severity_rank(value: Optional[str]) -> int:
+    if not value:
+        return 0
+    return SEVERITY_RANK.get(value.lower(), 0)
+
+
+def _severity_from_rank(rank: int) -> Optional[str]:
+    if rank <= 0:
+        return None
+    for label, value in SEVERITY_RANK.items():
+        if value == rank:
+            return label
+    return None
 
 
 def _to_number(value: Any) -> Optional[float]:
@@ -212,17 +237,28 @@ def get_process_tree(sow_id: str) -> RccProcessTree:
         else:
             stage_children[node["stage_id"]].append(node)
 
-    def build_operation(node: Dict[str, Any]) -> Tuple[ProcessOperationModel, int]:
+    def build_operation(node: Dict[str, Any]) -> Tuple[ProcessOperationModel, int, Optional[datetime], int, int]:
         child_models: List[ProcessOperationModel] = []
         child_alarm_total = 0
+        last_updated: Optional[datetime] = None
+        rule_alarm_count = 0
+        worst_severity_rank = 0
         for child in sorted(node["children"], key=lambda item: item["sequence"]):
-            child_model, child_alarm_count = build_operation(child)
+            child_model, child_alarm_count, child_updated_at, child_rule_alarm, child_severity_rank = build_operation(child)
             child_models.append(child_model)
             child_alarm_total += child_alarm_count
+            rule_alarm_count += child_rule_alarm
+            if child_updated_at and (not last_updated or child_updated_at > last_updated):
+                last_updated = child_updated_at
+            if child_severity_rank > worst_severity_rank:
+                worst_severity_rank = child_severity_rank
 
         inputs = inputs_by_operation.get(node["id"], [])
         input_alarm_msgs = [inp.status_message for inp in inputs if inp.status == "alarm" and inp.status_message]
         input_warning_msgs = [inp.status_message for inp in inputs if inp.status == "warning" and inp.status_message]
+        for inp in inputs:
+            if inp.last_observed and (not last_updated or inp.last_observed > last_updated):
+                last_updated = inp.last_observed
 
         status = "ok"
         status_message: Optional[str] = None
@@ -266,6 +302,11 @@ def get_process_tree(sow_id: str) -> RccProcessTree:
                 if rule_status in ("alarm", "error"):
                     status = "alarm" if rule_status == "alarm" else "error"
                     status_message = rule_detail or rule_row.get("message")
+                if rule_status == "alarm":
+                    rule_alarm_count += 1
+                    rule_severity_rank = _severity_rank(rule_row.get("severity"))
+                    if rule_severity_rank > worst_severity_rank:
+                        worst_severity_rank = rule_severity_rank
 
         if child_models:
             if any(child.status == "alarm" for child in child_models):
@@ -289,17 +330,34 @@ def get_process_tree(sow_id: str) -> RccProcessTree:
         )
 
         alarm_total = child_alarm_total + (1 if status in ("alarm", "error") else 0)
-        return operation_model, alarm_total
+        return operation_model, alarm_total, last_updated, rule_alarm_count, worst_severity_rank
 
     stage_models: List[ProcessStageModel] = []
     for stage in stages:
         operations_nodes = stage_children.get(stage["id"], [])
         operation_models: List[ProcessOperationModel] = []
         alarm_count = 0
+        rule_alarm_total = 0
+        stage_status = "unknown"
+        stage_updated_at: Optional[datetime] = None
+        stage_severity_rank = 0
         for op_node in sorted(operations_nodes, key=lambda item: item["sequence"]):
-            op_model, op_alarm_count = build_operation(op_node)
+            op_model, op_alarm_count, op_updated_at, op_rule_alarm_count, op_severity_rank = build_operation(op_node)
             operation_models.append(op_model)
             alarm_count += op_alarm_count
+            rule_alarm_total += op_rule_alarm_count
+            if op_updated_at and (not stage_updated_at or op_updated_at > stage_updated_at):
+                stage_updated_at = op_updated_at
+            if op_severity_rank > stage_severity_rank:
+                stage_severity_rank = op_severity_rank
+            if op_model.status in ("alarm", "error"):
+                stage_status = "alarm"
+            elif stage_status not in ("alarm",) and op_model.status == "warning":
+                stage_status = "warning"
+            elif stage_status == "unknown":
+                stage_status = "ok"
+        if not operations_nodes:
+            stage_status = "unknown"
         stage_models.append(
             ProcessStageModel(
                 id=stage["id"],
@@ -308,6 +366,10 @@ def get_process_tree(sow_id: str) -> RccProcessTree:
                 sequence=stage.get("sequence") or 0,
                 operations=operation_models,
                 alarm_count=alarm_count,
+                rule_alarm_count=rule_alarm_total,
+                status=stage_status,
+                worst_severity=_severity_from_rank(stage_severity_rank),
+                last_updated=stage_updated_at,
             )
         )
 
@@ -317,6 +379,166 @@ def get_process_tree(sow_id: str) -> RccProcessTree:
         as_of=as_of or datetime.now(timezone.utc),
         stages=stage_models,
     )
+
+
+def _resolve_simulation_center(previous: Optional[float], min_val: Optional[float], max_val: Optional[float]) -> float:
+    if previous is not None:
+        return previous
+    if min_val is not None and max_val is not None:
+        return (min_val + max_val) / 2
+    if max_val is not None:
+        return max_val * 0.75
+    if min_val is not None:
+        return min_val * 1.25
+    return 1.0
+
+
+def _simulate_input_value(previous: Optional[float], thresholds: Dict[str, Any]) -> float:
+    min_val = _to_number(thresholds.get("min"))
+    max_val = _to_number(thresholds.get("max"))
+    warn_min = _to_number(thresholds.get("warn_min") or thresholds.get("warning_min"))
+    warn_max = _to_number(thresholds.get("warn_max") or thresholds.get("warning_max"))
+
+    if warn_min is None and min_val is not None and max_val is not None:
+        warn_min = min_val + (max_val - min_val) * 0.15
+    if warn_max is None and min_val is not None and max_val is not None:
+        warn_max = max_val - (max_val - min_val) * 0.15
+
+    center = _resolve_simulation_center(previous, min_val, max_val)
+    spread = max(
+        (max_val - min_val) * 0.22 if min_val is not None and max_val is not None else abs(center) * 0.18,
+        0.5,
+    )
+    margin = max(spread, abs(center) * 0.12, 1.0)
+    candidate = random.gauss(center, spread * 0.55)
+    roll = random.random()
+    if roll < 0.07 and min_val is not None:
+        candidate = min_val - random.uniform(0.08, 0.3) * margin
+    elif roll > 0.93 and max_val is not None:
+        candidate = max_val + random.uniform(0.08, 0.3) * margin
+    elif roll < 0.24:
+        if warn_min is not None and random.random() < 0.5:
+            candidate = warn_min - random.uniform(0.02, 0.12) * margin
+        elif warn_max is not None:
+            candidate = warn_max + random.uniform(0.02, 0.12) * margin
+
+    if min_val is not None:
+        candidate = max(candidate, min_val - margin * 1.2)
+    if max_val is not None:
+        candidate = min(candidate, max_val + margin * 1.2)
+
+    if abs(candidate) < 10:
+        return round(candidate, 2)
+    if abs(candidate) < 100:
+        return round(candidate, 1)
+    return round(candidate, 0)
+
+
+def simulate_process_workflow(sow_id: str, reason: Optional[str] = None) -> RccProcessTree:
+    with pool.connection() as conn:
+        _ensure_process_sample_table(conn)
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT
+                    pi.id,
+                    pi.operation_id,
+                    pi.label,
+                    pi.thresholds,
+                    pi.current_value,
+                    pi.source_name,
+                    po.stage_id,
+                    ps.sow_id
+                FROM dipgos.process_inputs pi
+                JOIN dipgos.process_operations po ON pi.operation_id = po.id
+                JOIN dipgos.process_stages ps ON po.stage_id = ps.id
+                WHERE ps.sow_id = %s
+                """,
+                (sow_id,),
+            )
+            input_rows = cur.fetchall()
+        if not input_rows:
+            return get_process_tree(sow_id)
+
+        now = datetime.now(timezone.utc)
+        samples: List[Dict[str, Any]] = []
+        update_payloads: List[Tuple[float, datetime, str]] = []
+
+        for row in input_rows:
+            thresholds = _normalise_json(row.get("thresholds"))
+            previous_value = _to_number(row.get("current_value"))
+            value = _simulate_input_value(previous_value, thresholds)
+            status, status_message = _input_status(value, thresholds)
+            sample_id = str(uuid.uuid4())
+            update_payloads.append((value, now, row["id"]))
+            samples.append(
+                {
+                    "id": sample_id,
+                    "sow_id": row["sow_id"],
+                    "stage_id": row["stage_id"],
+                    "operation_id": row["operation_id"],
+                    "input_id": row["id"],
+                    "source_name": row.get("source_name"),
+                    "status": status,
+                    "status_message": status_message,
+                    "value_numeric": value,
+                    "metadata": Json(
+                        {
+                            "label": row.get("label"),
+                            "reason": reason or "auto",
+                            "previous": previous_value,
+                            "thresholds": thresholds,
+                        }
+                    ),
+                    "created_at": now,
+                }
+            )
+
+        with conn.cursor() as cur:
+            cur.executemany(
+                """
+                UPDATE dipgos.process_inputs
+                SET current_value = %s,
+                    last_observed = %s
+                WHERE id = %s
+                """,
+                update_payloads,
+            )
+            cur.executemany(
+                """
+                INSERT INTO dipgos.process_input_samples (
+                    id,
+                    sow_id,
+                    stage_id,
+                    operation_id,
+                    input_id,
+                    source_name,
+                    status,
+                    status_message,
+                    value_numeric,
+                    metadata,
+                    created_at
+                )
+                VALUES (
+                    %(id)s,
+                    %(sow_id)s,
+                    %(stage_id)s,
+                    %(operation_id)s,
+                    %(input_id)s,
+                    %(source_name)s,
+                    %(status)s,
+                    %(status_message)s,
+                    %(value_numeric)s,
+                    %(metadata)s,
+                    %(created_at)s
+                )
+                """,
+                samples,
+            )
+        conn.commit()
+
+    evaluate_alarm_rules()
+    return get_process_tree(sow_id)
 
 
 def list_block_progress(sow_id: str) -> List[RccBlockProgress]:
@@ -614,3 +836,29 @@ def upsert_alarm_rule(rule_data: Dict[str, Any]) -> AlarmRuleModel:
     evaluate_alarm_rules()
     fetched = _fetch_rules([rule_id]).get(rule_id) or row
     return _row_to_rule_model(fetched)
+def _ensure_process_sample_table(conn) -> None:
+    global _PROCESS_SAMPLE_TABLE_READY
+    if _PROCESS_SAMPLE_TABLE_READY:
+        return
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS dipgos.process_input_samples (
+                id UUID PRIMARY KEY,
+                sow_id TEXT NOT NULL,
+                stage_id TEXT NOT NULL,
+                operation_id TEXT NOT NULL,
+                input_id TEXT NOT NULL,
+                source_name TEXT,
+                status TEXT NOT NULL,
+                status_message TEXT,
+                value_numeric DOUBLE PRECISION,
+                metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """
+        )
+        cur.execute("""CREATE INDEX IF NOT EXISTS idx_process_input_samples_input ON dipgos.process_input_samples (input_id, created_at DESC)""")
+        cur.execute("""CREATE INDEX IF NOT EXISTS idx_process_input_samples_sow ON dipgos.process_input_samples (sow_id, created_at DESC)""")
+    conn.commit()
+    _PROCESS_SAMPLE_TABLE_READY = True

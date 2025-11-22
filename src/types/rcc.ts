@@ -54,6 +54,10 @@ export type RccProcessStage = {
   sequence: number
   operations: RccProcessOperation[]
   alarm_count: number
+  rule_alarm_count: number
+  status: 'ok' | 'warning' | 'alarm' | 'unknown' | 'error'
+  worst_severity?: string | null
+  last_updated?: string | null
 }
 
 export type RccProcessTree = {

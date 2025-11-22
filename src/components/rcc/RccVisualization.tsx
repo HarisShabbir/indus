@@ -1,7 +1,7 @@
-import React, { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Canvas, type ThreeEvent } from '@react-three/fiber'
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Canvas } from '@react-three/fiber'
 import { Edges, Html, OrbitControls, Text } from '@react-three/drei'
-import { Mesh, Vector3, type Camera } from 'three'
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 
 import { syncRccDamMetrics, type SyncRccDamMetricsResponse } from '../../api'
 import { useRccConfig } from '../../hooks/useRccConfig'
@@ -44,21 +44,6 @@ type RiskHighlight = {
   riskReason?: string | null
 }
 
-type HoverMetrics = {
-  riskReason: string | null
-  lagMinutes: number | null
-  actualRate: number | null
-  progressDate: string | null
-  totalVolume: number
-  volumeToday: number
-  volumeComplete: number
-  volumeRemaining: number
-  percentComplete: number
-  remainingPercent: number
-  pourAlarm: boolean
-  volumeBefore: number
-}
-
 const statusColorMap: Record<CellStatus, string> = {
   complete: '#2ECC71',
   'in-progress': '#F1C40F',
@@ -68,7 +53,6 @@ const statusColorMap: Record<CellStatus, string> = {
 }
 const STATUS_FALLBACK_COLOR = '#4B4F5C'
 const STATUS_ORDER: CellStatus[] = ['complete', 'in-progress', 'at-risk', 'not-started', 'rule-violated']
-const DAILY_POUR_LIMIT = 3
 const MIN_CANVAS_HEIGHT = 320
 const MAX_CANVAS_HEIGHT = 960
 const clampCanvasHeight = (value: number) => Math.max(MIN_CANVAS_HEIGHT, Math.min(MAX_CANVAS_HEIGHT, value))
@@ -218,93 +202,71 @@ const buildSyntheticCells = (blockAxis: string[]): BlockLiftStatus[] => {
   })
 }
 
-const buildHoverDetails = (cell: BlockLiftStatus | null): HoverMetrics | null => {
-  if (!cell) return null
-  const riskReason = typeof cell.metadata?.risk_reason === 'string' ? cell.metadata.risk_reason : null
-  const lagMinutes =
-    typeof cell.metadata?.lag_minutes === 'number'
-      ? Math.round(Number(cell.metadata.lag_minutes))
-      : typeof cell.metadata?.lag_minutes === 'string'
-        ? Number(cell.metadata.lag_minutes)
-        : null
-  const actualRate =
-    typeof cell.metadata?.actual_rate === 'number'
-      ? Math.round(Number(cell.metadata.actual_rate))
-      : typeof cell.metadata?.actual_rate === 'string'
-        ? Number(cell.metadata.actual_rate)
-        : null
-  const progressDateRaw = typeof cell.metadata?.progress_date === 'string' ? cell.metadata.progress_date : null
-  const progressDate = progressDateRaw ? new Date(progressDateRaw).toLocaleDateString() : null
-  const totalVolumeMeta =
-    typeof cell.metadata?.volume_total === 'number'
-      ? cell.metadata.volume_total
-      : typeof cell.metadata?.volume_total === 'string'
-        ? Number(cell.metadata.volume_total)
-        : cell.concreteVolume
-  const volumeToday =
-    typeof cell.metadata?.volume_poured_today === 'number'
-      ? cell.metadata.volume_poured_today
-      : typeof cell.metadata?.volume_poured_today === 'string'
-        ? Number(cell.metadata.volume_poured_today)
-        : Math.round((cell.percentComplete / 100) * cell.concreteVolume)
-  const volumeComplete =
-    typeof cell.metadata?.volume_cumulative === 'number'
-      ? cell.metadata.volume_cumulative
-      : Math.round((cell.percentComplete / 100) * cell.concreteVolume)
-  const rawVolumeRemaining =
-    typeof cell.metadata?.volume_remaining === 'number'
-      ? cell.metadata.volume_remaining
-      : Math.max(0, totalVolumeMeta - volumeComplete)
-  const percentComplete = totalVolumeMeta ? (volumeComplete / totalVolumeMeta) * 100 : cell.percentComplete
-  const remainingPercent = Math.max(0, 100 - percentComplete)
-  return {
-    riskReason,
-    lagMinutes,
-    actualRate,
-    progressDate,
-    totalVolume: totalVolumeMeta,
-    volumeToday,
-    volumeComplete,
-    volumeRemaining: Math.max(0, rawVolumeRemaining),
-    percentComplete,
-    remainingPercent,
-    pourAlarm: volumeToday > DAILY_POUR_LIMIT,
-    volumeBefore: Math.max(0, volumeComplete - volumeToday),
-  }
-}
-
 type DamCellProps = {
   cell: BlockLiftStatus
-  dims: {
+  dimensions: {
     blockSpacing: number
     depth: number
     heightScale: number
-    baseY: number
+    baseElevation: number
     centerX: number
-    centerZ: number
+    centerY: number
   }
-  dimmed: boolean
+  isHovered: boolean
+  onHover: (cell: BlockLiftStatus | null) => void
 }
 
-const DamCell = ({ cell, dims, dimmed }: DamCellProps) => {
-  const { blockSpacing, depth, heightScale, baseY, centerX, centerZ } = dims
+const DamCell = ({ cell, dimensions, isHovered, onHover }: DamCellProps) => {
+  const { blockSpacing, depth, heightScale, baseElevation, centerX, centerY } = dimensions
   const height = (cell.elevationTop - cell.elevationBottom) * heightScale
-  const y = (cell.elevationBottom - baseY) * heightScale + height / 2
+  const y = (cell.elevationBottom - baseElevation) * heightScale + height / 2
   const x = (cell.xIndex - centerX) * blockSpacing
-  const z = (cell.yIndex - centerZ) * depth
-  const color = statusColorMap[cell.status] || STATUS_FALLBACK_COLOR
-  const isDimmed = dimmed
-  const displayColor = isDimmed ? '#1f2937' : color
+  const z = (cell.yIndex - centerY) * depth
+  const color = statusColorMap[cell.status] ?? STATUS_FALLBACK_COLOR
+
   return (
-    <group position={[x, y, z]}>
-      <mesh castShadow receiveShadow userData={{ cell }}>
-        <boxGeometry args={[blockSpacing * 0.96, height, depth * 0.96]} />
-        <meshStandardMaterial color={displayColor} roughness={0.55} metalness={0.05} transparent={isDimmed} opacity={isDimmed ? 0.22 : 1} />
-        <Edges color={isDimmed ? '#1f2533' : '#334155'} threshold={20} />
+    <group
+      position={[x, y, z]}
+      onPointerOver={(e) => (e.stopPropagation(), onHover(cell))}
+      onPointerOut={(e) => (e.stopPropagation(), onHover(null))}
+    >
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={[blockSpacing * 0.95, height, depth * 0.95]} />
+        <meshStandardMaterial color={color} roughness={0.4} metalness={0.12} emissive={color} emissiveIntensity={0.22} />
+        <Edges scale={1.02} color="#1e293b" threshold={15} />
       </mesh>
+
+      {isHovered && (
+        <Html position={[0, height / 2 + 1.9, 0]} center distanceFactor={9.5} zIndexRange={[200, 100]} occlude={false} style={{ pointerEvents: 'none' }}>
+          <div className="rcc-tooltip-3d-permanent">
+            <strong>Block 23 · Lift 2</strong>
+            <span>In progress · 1050–1120 m</span>
+            <dl>
+              <div>
+                <dt>Volume (total)</dt>
+                <dd>500 m³</dd>
+              </div>
+              <div>
+                <dt>Volume (poured)</dt>
+                <dd>3 m³</dd>
+              </div>
+              <div>
+                <dt>Volume (current)</dt>
+                <dd>203 m³</dd>
+              </div>
+              <div>
+                <dt>Volume (remaining)</dt>
+                <dd>297 m³</dd>
+              </div>
+            </dl>
+          </div>
+        </Html>
+      )}
     </group>
   )
 }
+
+
 
 export default function RccVisualization({ sowId }: { sowId: string }): JSX.Element {
   const { data: config, isLoading: configLoading, error: configError } = useRccConfig()
@@ -317,7 +279,6 @@ export default function RccVisualization({ sowId }: { sowId: string }): JSX.Elem
   const [canvasHeight, setCanvasHeight] = useState(() => clampCanvasHeight(640))
   const resizeDragRef = useRef<{ startY: number; startHeight: number } | null>(null)
   const [tooltipCell, setTooltipCell] = useState<BlockLiftStatus | null>(null)
-  const [pointerInfo, setPointerInfo] = useState<{ x: number; y: number } | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncNotice, setSyncNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [lastSyncSummary, setLastSyncSummary] = useState<SyncSummary | null>(null)
@@ -326,12 +287,9 @@ export default function RccVisualization({ sowId }: { sowId: string }): JSX.Elem
   const [resizing, setResizing] = useState(false)
   const [activeStatuses, setActiveStatuses] = useState<CellStatus[]>(STATUS_ORDER)
   const [metricOverrides, setMetricOverrides] = useState<SyncRccDamMetricsResponse['environmentMetricStatus'] | null>(null)
-  const tooltipDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const tooltipSizeRef = useRef<{ width: number; height: number }>({ width: 280, height: 220 })
-  const tooltipCardRef = useRef<HTMLDivElement | null>(null)
-  const projectionVec = useMemo(() => new Vector3(), [])
+  const orbitControlsRef = useRef<OrbitControlsImpl | null>(null)
   const scrollMetricsIntoView = () => {
     if (metricsPanelRef.current) {
       metricsPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -389,82 +347,19 @@ export default function RccVisualization({ sowId }: { sowId: string }): JSX.Elem
 
   const resetStatusFilters = () => setActiveStatuses(STATUS_ORDER)
 
-  const toScreenPosition = useCallback(
-    (point: Vector3, camera: Camera) => {
-      const projected = projectionVec.copy(point).project(camera)
-      return {
-        x: ((projected.x + 1) / 2) * window.innerWidth,
-        y: ((-projected.y + 1) / 2) * window.innerHeight,
+  const handleZoomControl = useCallback(
+    (direction: 'in' | 'out') => {
+      const controls = orbitControlsRef.current
+      if (!controls) return
+      if (direction === 'in') {
+        controls.dollyIn(0.9)
+      } else {
+        controls.dollyOut(0.9)
       }
+      controls.update()
     },
-    [projectionVec],
+    [],
   )
-
-  const clearTooltip = useCallback(() => {
-    if (tooltipDelayRef.current) {
-      clearTimeout(tooltipDelayRef.current)
-      tooltipDelayRef.current = null
-    }
-    setTooltipCell(null)
-    setPointerInfo(null)
-  }, [])
-
-  const handleBlocksPointerMove = useCallback(
-    (event: ThreeEvent<PointerEvent>) => {
-      event.stopPropagation()
-      const cell = (event.object as Mesh).userData?.cell as BlockLiftStatus | undefined
-      if (!cell) {
-        clearTooltip()
-        return
-      }
-      if (tooltipDelayRef.current) {
-        clearTimeout(tooltipDelayRef.current)
-        tooltipDelayRef.current = null
-      }
-      tooltipDelayRef.current = window.setTimeout(() => {
-        setTooltipCell(cell)
-        tooltipDelayRef.current = null
-      }, 60)
-      setPointerInfo(toScreenPosition(event.point.clone(), event.camera as Camera))
-    },
-    [clearTooltip, toScreenPosition],
-  )
-
-  const handleBlocksPointerLeave = useCallback(() => {
-    clearTooltip()
-  }, [clearTooltip])
-
-  const tooltipDetails = useMemo(() => buildHoverDetails(tooltipCell), [tooltipCell])
-  const tooltipPosition = useMemo(() => {
-    if (!pointerInfo || !tooltipCell) return null
-    const { x, y } = pointerInfo
-    const tooltipWidth = tooltipSizeRef.current.width || 260
-    const tooltipHeight = tooltipSizeRef.current.height || 220
-    const offset = 20
-    let left = x + offset
-    if (left + tooltipWidth > window.innerWidth - 20) {
-      left = x - tooltipWidth - offset
-    }
-    left = Math.max(16, Math.min(left, window.innerWidth - tooltipWidth - 16))
-    let top = y + offset
-    let placement: 'above' | 'below' = 'below'
-    if (top + tooltipHeight > window.innerHeight - 16) {
-      top = y - tooltipHeight - offset
-      placement = 'above'
-    }
-    if (top < 16) {
-      top = 16
-      placement = 'below'
-    }
-    return { left, top, placement }
-  }, [pointerInfo, tooltipCell])
-
-  useLayoutEffect(() => {
-    if (tooltipCardRef.current) {
-      const rect = tooltipCardRef.current.getBoundingClientRect()
-      tooltipSizeRef.current = { width: rect.width, height: rect.height }
-    }
-  }, [tooltipCell, tooltipDetails])
 
   useEffect(() => {
     return () => {
@@ -473,9 +368,6 @@ export default function RccVisualization({ sowId }: { sowId: string }): JSX.Elem
       }
       if (pulseTimer.current) {
         clearTimeout(pulseTimer.current)
-      }
-      if (tooltipDelayRef.current) {
-        clearTimeout(tooltipDelayRef.current)
       }
     }
   }, [])
@@ -616,15 +508,6 @@ export default function RccVisualization({ sowId }: { sowId: string }): JSX.Elem
     value: layer.top,
   }))
   const yFromElevation = (value: number) => (value - baseY) * heightScale
-  const columnLabelPositions = useMemo(
-    () =>
-      blockLabels.map((label, xIndex) => ({
-        label,
-        x: (xIndex - centerX) * blockSpacing,
-      })),
-    [blockLabels, centerX, blockSpacing],
-  )
-
   if (configLoading || progressLoading) {
     return (
       <div className="rcc-visualization-panel">
@@ -692,29 +575,52 @@ export default function RccVisualization({ sowId }: { sowId: string }): JSX.Elem
       ) : null}
       {/* Risk callouts intentionally hidden to keep focus on metrics after sync */}
       <div className={`rcc-visualization-canvas ${syncPulse ? 'is-syncing' : ''}`} style={{ height: canvasHeight }} ref={canvasScrollRef}>
-        <Canvas shadows dpr={[1, 2]} camera={{ position: [26, 32, 30], fov: 42 }}>
+        <Canvas shadows dpr={[1, 2]} gl={{ antialias: true }} camera={{ position: [26, 32, 30], fov: 42, near: 0.01, far: 320 }}>
           <color attach="background" args={['#0f172a']} />
           <fog attach="fog" args={['#0f172a', 50, 150]} />
           <ambientLight intensity={0.18} />
           <directionalLight castShadow position={[15, 30, 20]} intensity={1.1} color="#ffd4a3" shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
           <hemisphereLight args={['#1e3a8a', '#0f172a', 0.4]} />
           <Suspense fallback={null}>
-            <group onPointerMove={handleBlocksPointerMove} onPointerLeave={handleBlocksPointerLeave}>
-              {cells.map((cell) => (
-                <DamCell key={cell.id} cell={cell} dims={{ blockSpacing, depth, heightScale, baseY, centerX, centerZ }} dimmed={statusFilterActive && !activeStatusSet.has(cell.status)} />
-              ))}
-            </group>
+            {cells.map((cell) => (
+              <DamCell
+                key={cell.id}
+                cell={cell}
+                dimensions={{ blockSpacing, depth, heightScale, baseElevation: baseY, centerX, centerY: centerZ }}
+                isHovered={tooltipCell?.id === cell.id}
+                onHover={setTooltipCell}
+              />
+            ))}
             <Text position={[labelRails.bankX, (crestY - baseY) * heightScale + 2.2, 0]} fontSize={1.2} color="#bae6fd">
               Left bank
             </Text>
             <Text position={[maxX * 0.6, (crestY - baseY) * heightScale + 3, 0]} fontSize={1.2} color="#bae6fd">
               Right bank
             </Text>
-            {columnLabelPositions.map((column) => (
-              <Html key={column.label} position={[column.x, (crestY - baseY) * heightScale + 1.2, 0]}>
-                <div className="rcc-column-label">{column.label}</div>
-              </Html>
-            ))}
+            {blockLabels.map((blockId, index) => {
+              const x = (index - centerX) * blockSpacing
+              const y = (crestY - baseY) * heightScale + 1.8
+              return (
+                <Html key={blockId} position={[x, y, 0]} center zIndexRange={[200, 100]}>
+                  <div
+                    style={{
+                      background: 'rgba(15, 23, 42, 0.8)',
+                      color: '#e0f2fe',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      pointerEvents: 'none',
+                      backdropFilter: 'blur(4px)',
+                      border: '1px solid rgba(100, 150, 255, 0.2)',
+                    }}
+                  >
+                    {blockId}
+                  </div>
+                </Html>
+              )
+            })}
             {ELEVATION_LAYERS.map((layer, idx) => {
               const mid = (layer.bottom + layer.top) / 2
               return (
@@ -736,69 +642,17 @@ export default function RccVisualization({ sowId }: { sowId: string }): JSX.Elem
               <meshStandardMaterial color="#e5e7eb" />
             </mesh>
           </Suspense>
-          <OrbitControls enablePan enableZoom minPolarAngle={Math.PI / 6} maxPolarAngle={Math.PI / 2.05} target={[0, (crestY - baseY) * heightScale * 0.5 + 1.5, 0]} />
+          <OrbitControls ref={orbitControlsRef} enablePan enableZoom minPolarAngle={Math.PI / 6} maxPolarAngle={Math.PI / 2.05} target={[0, (crestY - baseY) * heightScale * 0.5 + 1.5, 0]} />
           <gridHelper args={[maxX * 3.6, blockAxis.length * 2, '#94a3b8', '#cbd5f5']} position={[0, -0.1, 0]} />
         </Canvas>
-        {tooltipCell && tooltipDetails && tooltipPosition ? (
-          <div
-            className={`dam-tooltip${tooltipPosition.placement === 'above' ? ' dam-tooltip--above' : ''}`}
-            ref={tooltipCardRef}
-            style={{ left: tooltipPosition.left, top: tooltipPosition.top }}
-          >
-            <header>
-              <strong>Block {tooltipCell.blockId}</strong>
-              <span>
-                Lift {tooltipCell.lift} · {tooltipCell.bank} bank
-              </span>
-            </header>
-            <dl>
-              <div>
-                <dt>Status</dt>
-                <dd>{tooltipCell.status.replace('-', ' ')}</dd>
-              </div>
-              <div>
-                <dt>Elevation</dt>
-                <dd>
-                  {tooltipCell.elevationBottom.toFixed(1)}–{tooltipCell.elevationTop.toFixed(1)} m
-                </dd>
-              </div>
-              <div>
-                <dt>Total volume</dt>
-                <dd>{formatVolume(tooltipDetails.totalVolume)}</dd>
-              </div>
-              <div>
-                <dt>Volume today</dt>
-                <dd className={tooltipDetails.pourAlarm ? 'is-alarm' : undefined}>
-                  {formatVolume(tooltipDetails.volumeToday)}
-                  <small>Limit {DAILY_POUR_LIMIT} m³</small>
-                </dd>
-              </div>
-              <div>
-                <dt>Cumulative</dt>
-                <dd>
-                  {formatVolume(tooltipDetails.volumeComplete)}
-                  <small>{Math.round(tooltipDetails.percentComplete)}% done</small>
-                </dd>
-              </div>
-              <div>
-                <dt>Remaining</dt>
-                <dd>
-                  {formatVolume(tooltipDetails.volumeRemaining)}
-                  <small>{Math.round(tooltipDetails.remainingPercent)}% to green</small>
-                </dd>
-              </div>
-              {tooltipDetails.riskReason ? (
-                <div>
-                  <dt>{tooltipCell.status === 'rule-violated' ? 'Rule violation' : 'Risk reason'}</dt>
-                  <dd>{tooltipDetails.riskReason}</dd>
-                </div>
-              ) : null}
-            </dl>
-            <footer className={tooltipDetails.pourAlarm ? 'is-alarm' : undefined}>
-              {tooltipDetails.pourAlarm ? 'Exceeds daily threshold' : 'Within daily threshold'}
-            </footer>
-          </div>
-        ) : null}
+        <div className="rcc-zoom-controls">
+          <button type="button" onClick={() => handleZoomControl('in')}>
+            +
+          </button>
+          <button type="button" onClick={() => handleZoomControl('out')}>
+            −
+          </button>
+        </div>
         <div className="rcc-tooltip-spacer" aria-hidden="true" />
       </div>
       <div

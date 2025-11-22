@@ -1401,6 +1401,20 @@ export async function fetchRccProcess(sowId: string): Promise<RccProcessTree> {
   return handleResponse<RccProcessTree>(res)
 }
 
+export async function fetchRccProcessState(sowId: string): Promise<RccProcessTree> {
+  const res = await fetch(`${API_URL}/api/rcc/process-workflow/state/${encodeURIComponent(sowId)}`)
+  return handleResponse<RccProcessTree>(res)
+}
+
+export async function simulateRccProcessWorkflow(sowId: string, reason?: string): Promise<RccProcessTree> {
+  const res = await fetch(`${API_URL}/api/rcc/process-workflow/simulate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sow_id: sowId, reason }),
+  })
+  return handleResponse<RccProcessTree>(res)
+}
+
 export type RccRulePayload = {
   id?: string
   category: string

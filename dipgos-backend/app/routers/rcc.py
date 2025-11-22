@@ -5,7 +5,14 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
-from ..models.rcc import AlarmRuleList, AlarmRuleModel, RccBlockProgress, RccEnvironmentMetric, RccProcessTree
+from ..models.rcc import (
+    AlarmRuleList,
+    AlarmRuleModel,
+    ProcessWorkflowSimulateRequest,
+    RccBlockProgress,
+    RccEnvironmentMetric,
+    RccProcessTree,
+)
 from ..services import rcc as rcc_service
 from ..services.rcc_rules import alarm_ws_manager
 
@@ -42,6 +49,14 @@ class BlockProgressPayload(BaseModel):
 @router.get("/process/{sow_id}", response_model=RccProcessTree)
 def rcc_process_view(sow_id: str) -> RccProcessTree:
     return rcc_service.get_process_tree(sow_id)
+
+@router.get("/process-workflow/state/{sow_id}", response_model=RccProcessTree)
+def rcc_process_state(sow_id: str) -> RccProcessTree:
+    return rcc_service.get_process_tree(sow_id)
+
+@router.post("/process-workflow/simulate", response_model=RccProcessTree)
+def rcc_process_simulate(payload: ProcessWorkflowSimulateRequest) -> RccProcessTree:
+    return rcc_service.simulate_process_workflow(payload.sow_id, payload.reason)
 
 
 @router.get("/rules", response_model=AlarmRuleList)
