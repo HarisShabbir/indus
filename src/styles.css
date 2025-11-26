@@ -4129,6 +4129,11 @@ button.refresh-cta,
   border-color: rgba(59, 130, 246, 0.85);
 }
 
+.rcc-panel-tabs button.rule-engine-btn {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
 .rcc-panel-tabs button.close {
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.35);

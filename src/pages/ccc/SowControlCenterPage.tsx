@@ -7,7 +7,7 @@ import Breadcrumbs from '../../components/breadcrumbs/Breadcrumbs'
 import { SidebarNav, ACCS_NAV_INDEX } from '../../layout/navigation'
 import TopBarGlobalActions from '../../layout/TopBarActions'
 import HierarchyWipBoard from '../../components/wip/HierarchyWipBoard'
-import RccProcessView from '../../components/rcc/RccProcessView'
+import ProcessControlCenter from '../rcc/ProcessControlCenter'
 import RccRuleAdminModal from '../../components/rcc/RccRuleAdminModal'
 import RccDam2DFinal from '../../components/rcc/RccDam2DFinal'
 import { fetchCccRightPanel, fetchCccSummary, fetchRccProcess, fetchRccRules, saveRccRule, simulateRccProcessWorkflow } from '../../api'
@@ -1394,24 +1394,16 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
             >
               2D Visualization
             </button>
+            <button type="button" className="rule-engine-btn" onClick={() => setRuleAdminOpen(true)}>
+              Rule Engine
+            </button>
             <button type="button" className="close" onClick={() => setProcessPanelOpen(false)}>
               ×
             </button>
           </div>
         </header>
         <div className="rcc-panel-body">
-          {processPanelTab === 'process' ? (
-            <RccProcessView
-              sowId="sow-mw01-rcc"
-              data={rccProcessTree}
-              loading={rccProcessLoading}
-              error={rccProcessError}
-              onRefresh={loadRccProcess}
-              onOpenRuleAdmin={() => setRuleAdminOpen(true)}
-            />
-          ) : (
-            <RccDam2DFinal />
-          )}
+          {processPanelTab === 'process' ? <ProcessControlCenter /> : <RccDam2DFinal />}
         </div>
       </div>
     </div>

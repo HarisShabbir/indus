@@ -20,6 +20,11 @@ import AlarmCenterPage from './pages/alarms/AlarmCenterPage'
 import CollaborationWorkspacePage from './pages/collaboration/CollaborationWorkspacePage'
 import SowControlCenterPage from './pages/ccc/SowControlCenterPage'
 import RccDamSowPage from './pages/ccc/RccDamSowPage'
+import ProcessSimulator from './pages/rcc/ProcessSimulator'
+import ProcessControlCenter from './pages/rcc/ProcessControlCenter'
+import RCCSchedulePage from './pages/rcc/Schedule'
+import RCCFinancialsPage from './pages/rcc/Financials'
+import RCCScmPage from './pages/rcc/SCM'
 
 export function AppRouter() {
   return (
@@ -46,6 +51,11 @@ export function AppRouter() {
         <Route path="/collaboration" element={<CollaborationWorkspacePage />} />
         <Route path="/projects/:projectId/contracts/:contractId/sow" element={<SowControlCenterPage />} />
         <Route path="/projects/:projectId/contracts/:contractId/rcc-dam" element={<RccDamSowPage />} />
+        <Route path="/rcc/process" element={<ProcessControlCenter />} />
+        <Route path="/rcc/process/legacy" element={<ProcessSimulator />} />
+        <Route path="/rcc/schedule" element={<RCCSchedulePage />} />
+        <Route path="/rcc/financials" element={<RCCFinancialsPage />} />
+        <Route path="/rcc/scm" element={<RCCScmPage />} />
       </Routes>
     </BrowserRouter>
   )

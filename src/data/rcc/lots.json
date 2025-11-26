@@ -1,0 +1,66 @@
+[
+  {
+    "id": "C-2025-089",
+    "vendor_id": "lafarge",
+    "material": "Cement",
+    "spec": "RCC Type IV",
+    "delivered_at": "2025-02-18T03:40:00Z",
+    "tests": {
+      "fineness": 360,
+      "moisture_pct": 1.4
+    }
+  },
+  {
+    "id": "A-2025-144",
+    "vendor_id": "local-quarry",
+    "material": "Aggregate",
+    "spec": "Crushed 75 mm",
+    "delivered_at": "2025-02-17T02:10:00Z",
+    "tests": {
+      "moisture_pct": 5.1,
+      "variation_pct": 0.2
+    }
+  },
+  {
+    "id": "A-2025-145",
+    "vendor_id": "local-quarry",
+    "material": "Aggregate",
+    "spec": "Crushed 38 mm",
+    "delivered_at": "2025-02-18T06:10:00Z",
+    "tests": {
+      "moisture_pct": 5.6,
+      "variation_pct": 0.3
+    }
+  },
+  {
+    "id": "W-2025-033",
+    "vendor_id": "punjab-water",
+    "material": "Water",
+    "spec": "Canal source",
+    "delivered_at": "2025-02-17T08:00:00Z",
+    "tests": {
+      "ph": 7.2,
+      "ppm": 420
+    }
+  },
+  {
+    "id": "ADM-2025-011",
+    "vendor_id": "sika",
+    "material": "Admixture",
+    "spec": "Cold weather",
+    "delivered_at": "2025-02-16T11:20:00Z",
+    "tests": {
+      "dosage_ml": 360
+    }
+  },
+  {
+    "id": "POZ-2025-004",
+    "vendor_id": "admixture-lab",
+    "material": "Pozzolanic",
+    "spec": "Fly ash",
+    "delivered_at": "2025-02-15T09:40:00Z",
+    "tests": {
+      "loss_on_ignition": 2.2
+    }
+  }
+]
