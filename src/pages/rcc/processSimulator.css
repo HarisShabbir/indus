@@ -437,6 +437,19 @@
   gap: 12px;
 }
 
+.block-helper-toggle {
+  margin-top: -8px;
+  font-size: 12px;
+  color: rgba(231, 246, 255, 0.85);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.block-helper-toggle input {
+  accent-color: #ffc400;
+}
+
 .block-panel header button {
   background: rgba(0, 255, 255, 0.1);
   border: 1px solid rgba(0, 255, 255, 0.4);
@@ -521,6 +534,22 @@
 
 .block-cell.highlighted {
   box-shadow: 0 0 12px rgba(255, 255, 0, 0.9);
+}
+
+.block-cell.helper {
+  border: 1px solid rgba(255, 196, 0, 0.8);
+  box-shadow: 0 0 12px rgba(255, 196, 0, 0.4);
+  position: relative;
+}
+
+.block-cell.helper::after {
+  content: 'RCC';
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 9px;
+  color: #ffc400;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
 }
 
 .sim-alarm-tower {

@@ -18,4 +18,12 @@ export const FEATURE_PROGRESS_V2 = FEATURE_PROGRESS_V2_RAW === 'true'
 export const FEATURE_SCM = FEATURE_SCM_RAW === 'true'
 export const FEATURE_SCM_VISUAL = FEATURE_SCM_VISUAL_RAW === 'true'
 
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Prefer relative API paths in local dev (uses Vite proxy) to avoid CORS.
+const rawApiUrl = import.meta.env.VITE_API_URL || ''
+const isLocalDev =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+  window.location.port === '5173'
+
+// In local dev, force relative paths so Vite proxy handles /api (avoid CORS entirely)
+export const API_URL = isLocalDev ? '' : rawApiUrl

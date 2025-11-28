@@ -16,8 +16,9 @@ import { BlockGrid } from '../../components/simulator/BlockGrid'
 import { SliderPanel } from '../../components/simulator/SliderPanel'
 import { ImpactPanel } from '../../components/simulator/ImpactPanel'
 import { AIAgentPanel } from '../../components/collaborator/AIAgentPanel'
-import { useSimulatorStore } from '../../store/simulatorStore'
+import { useSimulatorStore, highlightedBlocks } from '../../store/simulatorStore'
 import { playFeedbackTone } from '../../lib/audio'
+import { API_URL } from '../../config'
 import type { AlarmAction, AlarmEvent, CellStatus, ImpactType, SimulatorSliderKey } from '../../types/simulator'
 import { getLiftElevationRange, RCC_BASE_ELEVATION_M, RCC_CREST_ELEVATION_M, RCC_CELL_VOLUME_M3 } from '../../lib/rccMetrics'
 import './processSimulator.css'
@@ -50,7 +51,7 @@ const impactTabs: Array<{ type: ImpactType; label: string }> = [
 ]
 
 const controls = [
-  { key: 'schedule', label: 'Schedule', icon: <CalendarClock size={16} />, route: '/rcc/schedule' },
+  { key: 'schedule', label: 'Process Schedule', icon: <CalendarClock size={16} />, route: '/rcc/schedule' },
   { key: 'financial', label: 'Financial', icon: <DollarSign size={16} />, route: '/rcc/financials' },
   { key: 'scm', label: 'SCM', icon: <PackageSearch size={16} />, route: '/rcc/scm' },
   { key: 'collab', label: 'Collaborate', icon: <Users size={16} />, action: 'collaborate' as const },
@@ -107,6 +108,8 @@ const parseBlockId = (label: string) => {
   if (!match) return null
   return `B${match[1]}-L${match[2]}`
 }
+
+type BlockSummaryMap = Record<number, { planned_volume_m3: number; actual_volume_m3: number; percent_complete: number; status: string }>
 
 const FlowBanner = ({ state }: { state: 'IDLE' | 'MONITORING' | 'ACCEPTED' | 'REJECTED' | 'ALERT' }) => {
   let message = 'Initializing'
@@ -172,6 +175,7 @@ export default function ProcessControlCenter() {
   const navigate = useNavigate()
   const [highlightedCell, setHighlightedCell] = useState<string | null>(null)
   const highlightTimer = useRef<number | null>(null)
+  const [showBlockHelper, setShowBlockHelper] = useState(false)
   const simMainRef = useRef<HTMLDivElement | null>(null)
   const [flowHeight, setFlowHeight] = useState(360)
   const [flowFocus, setFlowFocus] = useState<string | null>(null)
@@ -269,11 +273,40 @@ export default function ProcessControlCenter() {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance | null>(null)
   const [viewportSettled, setViewportSettled] = useState(false)
+  const [blockSummaries, setBlockSummaries] = useState<BlockSummaryMap>({})
   const hasFailure = useMemo(() => ruleResults.some((result) => !result.passed), [ruleResults])
 
   useEffect(() => {
     init().catch(() => null)
   }, [init])
+
+  const refreshBlockSummaries = useCallback(() => {
+    fetch(`${API_URL}/api/rcc/schedule/blocks`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data || !Array.isArray(data)) return
+        const map: BlockSummaryMap = {}
+        data.forEach((item: any) => {
+          if (!item.block_number) return
+          map[item.block_number] = {
+            planned_volume_m3: item.planned_volume_m3 ?? 0,
+            actual_volume_m3: item.actual_volume_m3 ?? 0,
+            percent_complete: item.percent_complete ?? 0,
+            status: item.status ?? 'unknown',
+          }
+        })
+        setBlockSummaries(map)
+      })
+      .catch(() => null)
+  }, [])
+
+  useEffect(() => {
+    refreshBlockSummaries()
+  }, [refreshBlockSummaries])
+
+  useEffect(() => {
+    refreshBlockSummaries()
+  }, [alarms.length, blocks.length, refreshBlockSummaries])
 
   const handleFlowInit = useCallback((instance: ReactFlowInstance) => {
     setFlowInstance(instance)
@@ -571,7 +604,21 @@ export default function ProcessControlCenter() {
                 <button type="button" onClick={() => highlightCell(activeCell?.id ?? null)}>Highlight active</button>
               </div>
             </header>
-            <BlockGrid blocks={blocks} activeId={activeCell?.id ?? null} highlightedId={highlightedCell} onSelect={(cellId) => handleCellSelect(cellId)} />
+            <BlockGrid
+              blocks={blocks}
+              activeId={activeCell?.id ?? null}
+              highlightedId={highlightedCell}
+              onSelect={(cellId) => handleCellSelect(cellId)}
+              blockSummaries={blockSummaries}
+              showHelper={showBlockHelper}
+              highlightPredicate={(cell) => highlightedBlocks.has(cell.block)}
+            />
+            <div className="block-helper-toggle">
+              <label>
+                <input type="checkbox" checked={showBlockHelper} onChange={(e) => setShowBlockHelper(e.target.checked)} />
+                Highlight RCC schedule blocks (12–29)
+              </label>
+            </div>
           </div>
         </div>
       </main>

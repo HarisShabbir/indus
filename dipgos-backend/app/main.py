@@ -30,6 +30,7 @@ from .routers import (
     collaboration,
     rcc,
     rcc_dam,
+    rcc_schedule,
 )
 from .db import open_pool, close_pool, pool, initialize_database
 from .services.rcc_rules import alarm_rule_monitor, evaluate_alarm_rules
@@ -66,27 +67,34 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-origins = [
-    "http://localhost",
-    "http://127.0.0.1",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "http://localhost:5175",
-    "http://127.0.0.1:5175",
-]
+# Allow any localhost/127.* origin for dev tools (Vite/Next/Storybook, etc.)
+origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
-    allow_credentials=True,
+    allow_origin_regex=r".*",
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Fallback header injector to guarantee CORS for local dev (covers any response path)
+@app.middleware("http")
+async def add_cors_headers(request, call_next):
+    if request.method == "OPTIONS":
+        from fastapi import Response
+
+        resp = Response(status_code=200)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        return resp
+    response = await call_next(request)
+    response.headers.setdefault("Access-Control-Allow-Origin", "*")
+    response.headers.setdefault("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+    response.headers.setdefault("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    return response
 
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 app.include_router(alerts.router,   prefix="/api/alerts",   tags=["alerts"])
@@ -112,6 +120,7 @@ app.include_router(process_historian.router, prefix="/api/process-historian", ta
 app.include_router(collaboration.router, prefix="/api/collaboration", tags=["collaboration"])
 app.include_router(rcc.router)
 app.include_router(rcc_dam.router)
+app.include_router(rcc_schedule.router)
 
 @app.get("/api/health")
 def health():

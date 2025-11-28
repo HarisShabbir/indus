@@ -5,6 +5,7 @@ import { TraceabilityEngine } from '../lib/traceabilityEngine'
 import { createBlockMatrix } from '../simulator/data'
 import { generateStageInsight } from '../ai/responses'
 import { requestCollaboratorResponse } from '../ai/collaboratorAgent'
+import { API_URL } from '../config'
 import type {
   AlarmEvent,
   Batch,
@@ -65,6 +66,80 @@ const blockIdFromLabel = (label: string) => {
   const match = label.match(/Block (\d+), Lift (\d+)/i)
   if (!match) return null
   return `B${match[1]}-L${match[2]}`
+}
+
+const numericBlockFromLabel = (label: string) => {
+  const match = label.match(/Block (\d+)/i)
+  return match ? Number(match[1]) : null
+}
+
+const blockGroupFor = (blockNo: number) => {
+  if (blockNo >= 12 && blockNo <= 15) return 'B12-15'
+  if (blockNo >= 16 && blockNo <= 18) return 'B16-18'
+  if (blockNo >= 19 && blockNo <= 21) return 'B19-21'
+  if (blockNo >= 22 && blockNo <= 24) return 'B22-24'
+  if (blockNo >= 25 && blockNo <= 27) return 'B25-27'
+  if (blockNo >= 28 && blockNo <= 29) return 'B28-29'
+  return 'B-Other'
+}
+
+export const highlightedBlocks = new Set<number>([
+  12, 13, 14, 15,
+  16, 17, 18,
+  19, 20, 21,
+  22, 23, 24,
+  25, 26, 27,
+  28, 29,
+])
+
+const pushAlarmToSchedule = async (blockLabel: string, alarm: AlarmEvent) => {
+  const blockNo = numericBlockFromLabel(blockLabel)
+  if (!blockNo) return
+  const payload = {
+    block_number: blockNo,
+    block_group_code: blockGroupFor(blockNo),
+    activity_code: alarm.ruleId,
+    alarm_code: alarm.ruleId,
+    severity: alarm.severity,
+    message: alarm.description,
+    metadata: { source: 'simulator', block: blockLabel },
+  }
+  try {
+    await fetch(`${API_URL}/api/rcc/schedule/alarms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch (err) {
+    console.warn('failed to sync alarm to schedule', err)
+  }
+}
+
+const clearAlarmInSchedule = async (alarmId: string) => {
+  try {
+    await fetch(`${API_URL}/api/rcc/schedule/alarms/${alarmId}/clear`, { method: 'POST' })
+  } catch (err) {
+    console.warn('failed to clear schedule alarm', err)
+  }
+}
+
+const clearBlockAlarmsInSchedule = async (blockLabel: string, alarmCode?: string) => {
+  const blockNo = numericBlockFromLabel(blockLabel)
+  if (!blockNo) return
+  const payload = {
+    block_number: blockNo,
+    block_group_code: blockGroupFor(blockNo),
+    alarm_code: alarmCode,
+  }
+  try {
+    await fetch(`${API_URL}/api/rcc/schedule/alarms/clear-block`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch (err) {
+    console.warn('failed to clear block alarms in schedule', err)
+  }
 }
 
 const alarmKey = (ruleId: string, blockLabel: string | null) => `${ruleId}::${blockLabel ?? 'unknown'}`
@@ -360,27 +435,26 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         )
         if (newFailures.length) {
           newFailures.forEach((fail) => {
-            alarms = [
-              {
-                id: generateClientId(),
-                timestamp: new Date().toISOString(),
-                severity: fail.rule.severity,
-                ruleId: fail.rule.rule_id,
-                stageId: fail.rule.process_stage,
-                description: fail.rule.rule_description,
-                block: blockLabel,
-                traceMessage: `Caused by ${trace.lot.material} Lot ${trace.lot.id} from ${trace.vendor.name}`,
-                actions: [
-                  { label: 'Alarm Center', href: '/alarms' },
-                  { label: 'Schedule Impact', href: '/schedule' },
-                  { label: 'SCM Action', href: `/atoms/scm?v=${trace.lot.id}` },
-                  { label: 'Trace Chain', actionId: 'trace' },
-                  { label: 'Reject & Rework', actionId: 'rework' },
-                  { label: 'Highlight in 3D', actionId: 'highlight' },
-                ],
-              },
-              ...alarms,
-            ]
+            const alarmPayload = {
+              id: generateClientId(),
+              timestamp: new Date().toISOString(),
+              severity: fail.rule.severity,
+              ruleId: fail.rule.rule_id,
+              stageId: fail.rule.process_stage,
+              description: fail.rule.rule_description,
+              block: blockLabel,
+              traceMessage: `Caused by ${trace.lot.material} Lot ${trace.lot.id} from ${trace.vendor.name}`,
+              actions: [
+                { label: 'Alarm Center', href: '/alarms' },
+                { label: 'Schedule Impact', href: '/schedule' },
+                { label: 'SCM Action', href: `/atoms/scm?v=${trace.lot.id}` },
+                { label: 'Trace Chain', actionId: 'trace' },
+                { label: 'Reject & Rework', actionId: 'rework' },
+                { label: 'Highlight in 3D', actionId: 'highlight' },
+              ],
+            }
+            alarms = [alarmPayload, ...alarms]
+            void pushAlarmToSchedule(blockLabel, alarmPayload)
             const impactPayload = {
               id: generateClientId(),
               type: 'schedule' as ImpactType,
@@ -417,6 +491,9 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
         }
       }
     } else {
+      if (state.alarms.length) {
+        void clearBlockAlarmsInSchedule(activeBlockLabel)
+      }
       let updatedActiveCell = state.activeCell
       if (state.banner === 'REJECTED') {
         feedbackToken = `recover-${Date.now()}`
@@ -447,7 +524,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       if (activeAlarmBlocks.has(cell.id)) return cell
       return { ...cell, status: 'approved', approved: true }
     })
-    const activeTrace = state.currentPour && state.currentBatch ? traceEngine.buildTrace(state.currentPour, state.currentBatch) : state.activeTrace
+      const activeTrace = state.currentPour && state.currentBatch ? traceEngine.buildTrace(state.currentPour, state.currentBatch) : state.activeTrace
     let newActiveCell = activeCellId ? blocks.find((cell) => cell.id === activeCellId) ?? state.activeCell : state.activeCell
     if (newActiveCell?.status === 'alarm' && !activeAlarmBlocks.has(newActiveCell.id)) {
       newActiveCell = { ...newActiveCell, status: 'approved', approved: true }
@@ -535,6 +612,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     set({ autoAdvance: !autoAdvance, nextAutoTimestamp: !autoAdvance ? Date.now() + 35_000 : null })
     },
     dismissAlarm(id: string) {
+    void clearAlarmInSchedule(id)
     set((state) => {
       const alarms = state.alarms.filter((alarm) => alarm.id !== id)
       const activeAlarmBlocks = new Set(alarms.map((alarm) => blockIdFromLabel(alarm.block)).filter((value): value is string => Boolean(value)))
