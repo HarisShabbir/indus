@@ -8,22 +8,31 @@ export type CollapsibleSectionProps = PropsWithChildren<{
 
 export function CollapsibleSection({ title, defaultOpen = true, tooltip, children }: CollapsibleSectionProps) {
   const [open, setOpen] = useState(defaultOpen)
-
+console.log(open,children,'open openopen')
   return (
     <section className={`productivity-section ${open ? 'open' : 'collapsed'}`}>
-      <header className="productivity-section__header">
+      <header
+        className="productivity-section__header"
+        onClick={() => setOpen((prev) => !prev)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setOpen((prev) => !prev)
+          }
+        }}
+      >
         <div className="productivity-section__title" title={tooltip}>
           {title}
         </div>
-        <button
-          type="button"
+        <div
           className="productivity-section__toggle"
           aria-expanded={open}
-          onClick={() => setOpen((prev) => !prev)}
         >
           <span className="sr-only">Toggle {title}</span>
           <div className={`chevron ${open ? 'chevron--open' : ''}`} />
-        </button>
+        </div>
       </header>
       <div className="productivity-section__body">{open ? children : null}</div>
     </section>

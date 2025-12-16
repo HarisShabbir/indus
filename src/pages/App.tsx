@@ -159,7 +159,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Mohmand Dam, Mohmand Agency, Pakistan",
     lat: 34.755,
     lng: 71.215,
-    image: "/images/ACCS/mohmand.jpg",
+    image: "/images/ACCS/mangla.png",
     geofence_radius_m: 1500,
   },
   {
@@ -172,7 +172,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Dasu Hydropower Project, Upper Kohistan, Pakistan",
     lat: 35.291,
     lng: 72.103,
-    image: "/images/ACCS/dasu.jpg",
+    image: "/images/ACCS/ghazi.png",
     geofence_radius_m: 1800,
   },
   {
@@ -185,7 +185,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Diamer Basha Dam, Gilgit-Baltistan, Pakistan",
     lat: 35.619,
     lng: 74.616,
-    image: "/images/ACCS/diamer.jpg",
+    image: "/images/ACCS/chashma.png",
     geofence_radius_m: 2000,
   },
   {
@@ -198,7 +198,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Tarbela Power Project, Haripur, Pakistan",
     lat: 34.088,
     lng: 72.693,
-    image: "/images/ACCS/tarbela_5th_extension.jpg",
+    image: "/images/ACCS/terbela.png",
     geofence_radius_m: 1400,
   },
   {
@@ -211,7 +211,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Tarbela Dam, Haripur, Pakistan",
     lat: 34.088,
     lng: 72.693,
-    image: "/images/AOS/tarbela.jpg",
+    image: "/images/ACCS/terbela.png",
     geofence_radius_m: 1200,
   },
   {
@@ -224,7 +224,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Mangla Dam, Mirpur, Azad Kashmir",
     lat: 33.135,
     lng: 73.64,
-    image: "/images/AOS/mangla.jpg",
+    image: "/images/ACCS/mangla.png",
     geofence_radius_m: 1600,
   },
   {
@@ -237,7 +237,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Ghazi Barotha Hydropower Project, Attock, Pakistan",
     lat: 33.969,
     lng: 72.708,
-    image: "/images/AOS/ghazi.jpg",
+    image: "/images/ACCS/ghazi.png",
     geofence_radius_m: 1300,
   },
   {
@@ -250,7 +250,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Chashma Barrage, Mianwali, Pakistan",
     lat: 32.39,
     lng: 71.41,
-    image: "/images/AOS/chasma.jpg",
+    image: "/images/ACCS/chashma.png",
     geofence_radius_m: 1500,
   },
   {
@@ -263,7 +263,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Bunji, Gilgit-Baltistan, Pakistan",
     lat: 35.68,
     lng: 74.617,
-    image: "/images/CPDS/Bungi_HPP.jpg",
+    image: "/images/ACCS/ghazi.png",
     geofence_radius_m: 2100,
   },
   {
@@ -276,7 +276,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Harpo, Skardu, Gilgit-Baltistan",
     lat: 35.33,
     lng: 74.81,
-    image: "/images/CPDS/HARPO_HPP.jpg",
+    image: "/images/ACCS/mangla.png",
     geofence_radius_m: 1800,
   },
   {
@@ -289,7 +289,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Pattan, Kohistan, Pakistan",
     lat: 35.03,
     lng: 72.943,
-    image: "/images/CPDS/Pattan.jpg",
+    image: "/images/ACCS/chashma.png",
     geofence_radius_m: 1700,
   },
   {
@@ -302,7 +302,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Thakot, Batagram, Pakistan",
     lat: 34.86,
     lng: 72.915,
-    image: "/images/CPDS/Thakot.jpg",
+    image: "/images/ACCS/terbela.png",
     geofence_radius_m: 1600,
   },
 ];
@@ -1269,6 +1269,8 @@ function Dashboard({
   const [phaseFilter, setPhaseFilter] = useState<PhaseFilter>("All");
   const [contractFilter, setContractFilter] = useState<"ALL" | string>("ALL");
   const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const [panelScrolled, setPanelScrolled] = useState(false);
+  const projectsPanelRef = useRef<HTMLDivElement>(null);
   const [showModal, setShowModal] = useState(false);
   const [mapView, setMapView] = useState<MapView>("atlas");
   const [featureToggle, setFeatureToggle] = useState<MapFeatureToggle>({
@@ -1526,6 +1528,17 @@ function Dashboard({
     }
   }, [mapHeight, activeProject]);
 
+  // Track scroll position in projects panel to hide/show controls
+  useEffect(() => {
+    const panel = projectsPanelRef.current;
+    if (!panel) return;
+    const handleScroll = () => {
+      setPanelScrolled(panel.scrollTop > 10);
+    };
+    panel.addEventListener("scroll", handleScroll, { passive: true });
+    return () => panel.removeEventListener("scroll", handleScroll);
+  }, []);
+
   useEffect(() => {
     if (!mapStatsRef.current) return;
     const cards = Array.from(
@@ -1601,7 +1614,9 @@ function Dashboard({
           <div className="header-leading">
             {/* <Breadcrumbs items={[{ label: 'Dashboard' }]} /> */}
             <div className="header-title-group">
-              <h1 className="mb-0 text-xl! font-bold">WAPDA Project Portfolio Dashboard</h1>
+              <h1 className="mb-0 text-xl! font-bold">
+                WAPDA Project Portfolio Dashboard
+              </h1>
               {/* <p>
               Proposal automation, construction execution, monitoring telemetry, and governance insights — one connected workspace.
             </p> */}
@@ -1637,7 +1652,7 @@ function Dashboard({
               ))}
             </div> */}
             <button className="create-btn" onClick={() => setShowModal(true)}>
-              <GoPlusCircle size={20}/>
+              <GoPlusCircle size={20} />
               Create New Project
             </button>
           </div>
@@ -1755,6 +1770,7 @@ function Dashboard({
               zoom={7}
               className="map-canvas"
               scrollWheelZoom
+              zoomControl={false}
               doubleClickZoom={false}
             >
               <TileLayer
@@ -1916,13 +1932,6 @@ function Dashboard({
                   <span>Alert stream</span>
                   <button
                     onClick={() => setSelected(null)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "var(--text-muted)",
-                      cursor: "pointer",
-                      fontSize: "1rem",
-                    }}
                     aria-label="Close alert"
                   >
                     ✕
@@ -1956,7 +1965,7 @@ function Dashboard({
           </div>
         </section>
 
-        {!panelCollapsed && (
+        {!panelCollapsed && !panelScrolled && (
           <div
             className={`resize-bar ${isResizingMap ? "dragging" : ""}`}
             role="separator"
@@ -1968,9 +1977,12 @@ function Dashboard({
           </div>
         )}
 
-        <div className={`projects-panel ${panelCollapsed ? "collapsed" : ""}`}>
+        <div
+          ref={projectsPanelRef}
+          className={`projects-panel ${panelCollapsed ? "collapsed" : ""}`}
+        >
           <button
-            className="panel-toggle"
+            className={`panel-toggle ${panelScrolled ? "hidden" : ""}`}
             onClick={() => setPanelCollapsed((prev) => !prev)}
           >
             {panelCollapsed ? "Expand portfolio ↑" : "Collapse portfolio ↓"}
@@ -2221,13 +2233,13 @@ function ProjectsSection({
 
   const scrollLeft = () => {
     if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -400, behavior: 'smooth' });
+      scrollContainerRef.current.scrollBy({ left: -400, behavior: "smooth" });
     }
   };
 
   const scrollRight = () => {
     if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: 400, behavior: 'smooth' });
+      scrollContainerRef.current.scrollBy({ left: 400, behavior: "smooth" });
     }
   };
 
@@ -2236,20 +2248,23 @@ function ProjectsSection({
       <div
         className="section-header backdrop-blur-sm rounded-2xl px-6 py-4 mb-6 flex items-center justify-between gap-4"
         style={{
-          background: 'var(--surface-1)',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: 'var(--shadow-soft)',
+          background: "var(--surface-1)",
+          border: "1px solid var(--border-subtle)",
+          boxShadow: "var(--shadow-soft)",
         }}
       >
         <div className="section-heading flex items-center gap-3">
-          <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+          <h2
+            className="text-xl font-bold"
+            style={{ color: "var(--text-primary)" }}
+          >
             {title}
           </h2>
           <span
             className="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide"
             style={{
-              background: 'rgba(56, 189, 248, 0.2)',
-              color: 'var(--accent)',
+              background: "rgba(56, 189, 248, 0.2)",
+              color: "var(--accent)",
             }}
           >
             {badge} active
@@ -2260,9 +2275,9 @@ function ProjectsSection({
             type="button"
             className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 border"
             style={{
-              background: 'var(--surface-2)',
-              color: 'var(--text-primary)',
-              borderColor: 'var(--border-subtle)',
+              background: "var(--surface-2)",
+              color: "var(--text-primary)",
+              borderColor: "var(--border-subtle)",
             }}
           >
             Export snapshot
@@ -2274,11 +2289,11 @@ function ProjectsSection({
           onClick={scrollLeft}
           className="shrink-0 backdrop-blur-sm rounded-full p-3 shadow-lg border flex items-center justify-center"
           style={{
-            background: 'var(--surface-1)',
-            borderColor: 'var(--border-subtle)',
-            color: 'var(--text-primary)',
-            width: '48px',
-            height: '48px',
+            background: "var(--surface-1)",
+            borderColor: "var(--border-subtle)",
+            color: "var(--text-primary)",
+            width: "48px",
+            height: "48px",
           }}
           aria-label="Scroll left"
         >
@@ -2300,8 +2315,8 @@ function ProjectsSection({
           ref={scrollContainerRef}
           className="flex gap-6 overflow-x-auto scrollbar-hide scroll-smooth pb-4 flex-1"
           style={{
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
           }}
         >
           {projects.map((project) => (
@@ -2310,12 +2325,7 @@ function ProjectsSection({
               className="project-card shrink-0 w-[calc((100%-72px)/4)] min-w-[260px] max-w-[360px]"
               onMouseEnter={() => onHover(project)}
               onMouseLeave={onLeave}
-              onClick={() => onSelect(project)}
-              onDoubleClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onOpenContract(project);
-              }}
+              onClick={() => onOpenContract(project)}
             >
               <div className="pill-stack">
                 <span
@@ -2334,18 +2344,14 @@ function ProjectsSection({
                 alt={project.name}
                 loading="lazy"
                 decoding="async"
-                onDoubleClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  onOpenContract(project);
-                }}
               />
               <div className="body">
                 <h3>{project.name}</h3>
                 <div className="stats">
                   <span>
                     Status:{" "}
-                    {project.status_label || `${Math.round(project.status_pct)}%`}
+                    {project.status_label ||
+                      `${Math.round(project.status_pct)}%`}
                   </span>
                   <span className="dot" />
                   <span>Phase: {project.phase}</span>
@@ -2353,7 +2359,10 @@ function ProjectsSection({
                 <div className="progress-bar">
                   <span
                     style={{
-                      width: `${Math.min(Math.max(project.status_pct, 0), 100)}%`,
+                      width: `${Math.min(
+                        Math.max(project.status_pct, 0),
+                        100
+                      )}%`,
                       background: `linear-gradient(135deg, ${phaseAccent(
                         project.phase
                       )}, #38bdf8)`,
@@ -2368,11 +2377,11 @@ function ProjectsSection({
           onClick={scrollRight}
           className="shrink-0 backdrop-blur-sm rounded-full p-3 shadow-lg border flex items-center justify-center"
           style={{
-            background: 'var(--surface-1)',
-            borderColor: 'var(--border-subtle)',
-            color: 'var(--text-primary)',
-            width: '48px',
-            height: '48px',
+            background: "var(--surface-1)",
+            borderColor: "var(--border-subtle)",
+            color: "var(--text-primary)",
+            width: "48px",
+            height: "48px",
           }}
           aria-label="Scroll right"
         >
@@ -3011,9 +3020,8 @@ function ContractControlCenterOverlay({
           </button>
         </div>
       </header>
-
       <div className="contract-panel">
-        <div className="contract-body pp-layout">
+        <div className="contract-body pp-layout overflow-auto grid h-full grid-cols-[300px_1fr_300px] gap-4 pr-[70px]!">
           <aside className="contract-list pp-leftRail">
             <div className="contract-filter">
               <span>Contracts</span>
@@ -3063,15 +3071,27 @@ function ContractControlCenterOverlay({
                             onClick={() => handleContractSelect(contract)}
                           >
                             <div>
-                              <div className="contract-name">
+                              <div className="contract-name flex items-center justify-between gap-2">
                                 {contract.name}
+                                {hasSections && (
+                                  <span className="cursor-pointer text-base"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      toggleContractSections(contract.id);
+                                    }}
+                                  >
+                                    {expanded ? "−" : "+"}
+                                  </span>
+                                )}
                               </div>
                               <div className="contract-meta">
                                 <span>{contract.discipline || "General"}</span>
-                                <span>{Math.round(contract.status_pct)}%</span>
+                                  <span>
+                                    {Math.round(contract.status_pct)}%
+                                  </span>
                               </div>
                             </div>
-                            {hasSections && (
+                            {/* {hasSections && (
                               <button
                                 className="contract-toggle"
                                 onClick={(event) => {
@@ -3082,15 +3102,15 @@ function ContractControlCenterOverlay({
                               >
                                 {expanded ? "−" : "+"}
                               </button>
-                            )}
+                            )} */}
                           </div>
                           {hasSections && expanded && (
-                            <div className="sow-list">
+                            <div className="sow-list text-sm">
                               {(sowByContract.get(contract.id) ?? []).map(
                                 (section) => {
                                   const sowExpanded = expandedSows[section.id];
                                   return (
-                                    <div key={section.id} className="sow-item">
+                                    <div key={section.id} className="sow-item"> 
                                       <div
                                         className="sow-header"
                                         onClick={() => toggleSow(section.id)}
@@ -3156,7 +3176,7 @@ function ContractControlCenterOverlay({
               ))}
             </div>
           </aside>
-
+          {/* <div className="bg-amber-50 w-full h-screen">aside</div> */}
           <MapWipSplit
             sizes={mapWipSizes}
             onSizesChange={handleSplitSizesChange}
