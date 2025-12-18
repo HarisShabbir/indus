@@ -649,13 +649,25 @@ function createMarkerIcon(
   }`;
   return L.divIcon({
     className,
+    // <div class="marker-shell" style="--marker-color:${color}">
+    //   <span>${project.name}</span>
+    //   <strong>${Math.round(project.status_pct)}%</strong>
+    //   ${weatherHtml}
+    // </div>
+    // <div class="marker-pointer" style="--marker-color:${color}"></div>
     html: `
-      <div class="marker-shell" style="--marker-color:${color}">
-        <span>${project.name}</span>
-        <strong>${Math.round(project.status_pct)}%</strong>
+    <div style="display: flex; align-items: center; gap: 4px;background-color: #fff;padding: 6px;border-radius: 8px;width:fit-content;">
+      <img src="/images/map-icon.png" alt="Map marker" style="width: 32px; height: 32px; display: block;" />
+      <div style="display: flex; flex-direction: column; max-width: 80px;">
+        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;color: #F86E00;">${
+          project.name
+        }</span>
+        <strong style="color: #328DEE;">${Math.round(
+          project.status_pct
+        )}%</strong>
         ${weatherHtml}
       </div>
-      <div class="marker-pointer" style="--marker-color:${color}"></div>
+    </div>
     `,
     iconSize: [32, 32],
     iconAnchor: [16, 32],
@@ -1279,11 +1291,11 @@ function Dashboard({
   });
   const [analytics, setAnalytics] = useState<ProjectAnalytics | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [mapHeight, setMapHeight] = useState(520);
+  const [mapHeight, setMapHeight] = useState(280);
   const [isResizingMap, setIsResizingMap] = useState(false);
   const resizeSnapshot = useRef<{ startY: number; startHeight: number }>({
     startY: 0,
-    startHeight: 520,
+    startHeight: 280,
   });
   const mapStatsRef = useRef<HTMLDivElement | null>(null);
   const prefetchControlCenter = useCallback((projectId: string) => {
@@ -1919,6 +1931,7 @@ function Dashboard({
                   <span className="legend-dot low" />
                   <span>Stable</span>
                   <span className="legend-dot medium" />
+
                   <span>Watch</span>
                   <span className="legend-dot high" />
                   <span>Critical</span>
@@ -1929,7 +1942,7 @@ function Dashboard({
             {selected && alerts.length > 0 && (
               <div className="alert-drawer">
                 <div className="alert-header">
-                  <span>Alert stream</span>
+                  <span className="text-white!">Alert stream</span>
                   <button
                     onClick={() => setSelected(null)}
                     aria-label="Close alert"
@@ -2244,7 +2257,7 @@ function ProjectsSection({
   };
 
   return (
-    <section className="mt-9">
+    <section className="mt-3">
       <div
         className="section-header backdrop-blur-sm rounded-2xl px-6 py-4 mb-6 flex items-center justify-between gap-4"
         style={{
@@ -2347,14 +2360,17 @@ function ProjectsSection({
               />
               <div className="body">
                 <h3>{project.name}</h3>
-                <div className="stats">
+                <div className="flex items-center justify-between gap-2">
+                  <span>Status: </span>
                   <span>
-                    Status:{" "}
                     {project.status_label ||
                       `${Math.round(project.status_pct)}%`}
                   </span>
-                  <span className="dot" />
-                  <span>Phase: {project.phase}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  {/* <span className="dot" /> */}
+                  <span>Phase: </span>
+                  <span>{project.phase}</span>
                 </div>
                 <div className="progress-bar">
                   <span
@@ -2932,13 +2948,13 @@ function ContractControlCenterOverlay({
           ]}
         />
         <div className="contract-top-actions">
-          {onToggleTheme && (
+          {/* {onToggleTheme && (
             <ThemeToggleButton
               theme={theme ?? "light"}
               onToggle={onToggleTheme}
             />
-          )}
-          <button
+          )} */}
+          {/* <button
             type="button"
             className="top-icon"
             aria-label="Scheduling"
@@ -2955,8 +2971,8 @@ function ContractControlCenterOverlay({
               <path d="M8 2v4" strokeLinecap="round" />
               <path d="M3 10h18" />
             </svg>
-          </button>
-          <button
+          </button> */}
+          {/* <button
             type="button"
             className="top-icon"
             aria-label="Financials"
@@ -2973,7 +2989,7 @@ function ContractControlCenterOverlay({
               <path d="M16 20v-4" strokeLinecap="round" />
               <path d="M2 20h20" strokeLinecap="round" />
             </svg>
-          </button>
+          </button> */}
           <button
             type="button"
             className="top-icon alert"
@@ -2981,15 +2997,18 @@ function ContractControlCenterOverlay({
             title="Alerts"
           >
             <svg
-              viewBox="0 0 24 24"
+              width="17"
+              height="18"
+              viewBox="0 0 17 18"
               fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
+              xmlns="http://www.w3.org/2000/svg"
             >
-              <path d="M12 3l9 16H3z" strokeLinejoin="round" />
-              <path d="M12 9v4" strokeLinecap="round" />
-              <path d="M12 17h.01" strokeLinecap="round" />
+              <path
+                d="M8.10083 0C12.0772 9.3855e-05 15.301 3.2238 15.301 7.2002V10.4268L15.5872 10.7129C15.6704 10.7958 15.7752 10.9011 15.8625 11.0225C16.0256 11.2496 16.1315 11.5102 16.176 11.7812L16.2004 12.1973V12.3027C16.2014 12.5653 16.2023 12.888 16.1057 13.1748C15.9266 13.7058 15.5105 14.1255 14.9768 14.3057C14.6904 14.4022 14.3673 14.4014 14.1067 14.4004H11.7004C11.7002 16.3884 10.0889 17.9999 8.10083 18C6.11275 18 4.50046 16.3885 4.50024 14.4004H2.09399C1.83346 14.4014 1.51203 14.4021 1.22583 14.3057C0.693647 14.1261 0.274739 13.7084 0.0949707 13.1758C-0.00183381 12.8888 -0.000746131 12.5653 0.000244141 12.3027V12.1953C2.69493e-05 12.0773 0.000411604 11.9291 0.0246582 11.7812C0.0694829 11.5083 0.176451 11.2489 0.338135 11.0234C0.425823 10.9013 0.531188 10.7959 0.615479 10.7119L0.900635 10.4268V7.2002C0.900635 3.22375 4.12439 1.02997e-05 8.10083 0ZM6.30103 14.4004C6.30124 15.3944 7.10684 16.2002 8.10083 16.2002C9.09477 16.2001 9.90042 15.3943 9.90063 14.4004H6.30103ZM8.10083 1.7998C5.11849 1.79981 2.70044 4.21786 2.70044 7.2002V10.5498C2.70044 10.9491 2.54141 11.3318 2.26001 11.6133L1.90942 11.9639C1.85246 12.0208 1.82406 12.0499 1.80396 12.0713L1.802 12.0732V12.0762C1.80108 12.1057 1.80103 12.1464 1.80103 12.2275C1.80103 12.4108 1.80082 12.5111 1.80493 12.584L1.80591 12.5947L1.81567 12.5957C1.88779 12.5998 1.98717 12.5996 2.16919 12.5996H14.0325C14.2142 12.5996 14.3137 12.5998 14.386 12.5957L14.3948 12.5947L14.3958 12.584C14.3992 12.5224 14.4005 12.4409 14.4006 12.3066V12.2275C14.4006 12.1472 14.4006 12.1063 14.3997 12.0771L14.3987 12.0732L14.3977 12.0713C14.3773 12.0496 14.3483 12.0209 14.2913 11.9639L13.9407 11.6133C13.7677 11.4403 13.6415 11.2292 13.5696 11C13.5244 10.8558 13.5002 10.7037 13.5002 10.5498V7.2002C13.5002 4.21791 11.0831 1.7999 8.10083 1.7998Z"
+                fill="currentColor"
+              />
             </svg>
+
             <span className="badge">{alertCount}</span>
           </button>
           <button
@@ -3074,7 +3093,8 @@ function ContractControlCenterOverlay({
                               <div className="contract-name flex items-center justify-between gap-2">
                                 {contract.name}
                                 {hasSections && (
-                                  <span className="cursor-pointer text-base"
+                                  <span
+                                    className="cursor-pointer text-base"
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       toggleContractSections(contract.id);
@@ -3086,9 +3106,7 @@ function ContractControlCenterOverlay({
                               </div>
                               <div className="contract-meta">
                                 <span>{contract.discipline || "General"}</span>
-                                  <span>
-                                    {Math.round(contract.status_pct)}%
-                                  </span>
+                                <span>{Math.round(contract.status_pct)}%</span>
                               </div>
                             </div>
                             {/* {hasSections && (
@@ -3110,7 +3128,7 @@ function ContractControlCenterOverlay({
                                 (section) => {
                                   const sowExpanded = expandedSows[section.id];
                                   return (
-                                    <div key={section.id} className="sow-item"> 
+                                    <div key={section.id} className="sow-item">
                                       <div
                                         className="sow-header"
                                         onClick={() => toggleSow(section.id)}
@@ -3604,161 +3622,162 @@ function WorkInProgressBoard({
           {filterLabel} · {stageHint}
         </span>
       </div>
-
-      <div className="wip-summary">
-        {summary.map(({ status, count, color, average }) => {
-          const isActive = activeStatus === status;
-          const displayAverage =
-            average !== null ? `${Math.round(average)}% avg` : "—";
-          return (
-            <button
-              key={status}
-              type="button"
-              className={`wip-summary-chip ${isActive ? "active" : ""}`}
-              style={{ "--chip-accent": color } as React.CSSProperties}
-              aria-pressed={isActive}
-              onClick={() =>
-                setActiveStatus((prev) => (prev === status ? "All" : status))
-              }
-            >
-              <span className="wip-summary-count">{count}</span>
-              <span className="wip-summary-label">{status}</span>
-              <span className="wip-summary-sub">{displayAverage}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {emptyState ? (
-        <div className="wip-empty-state">
-          No active contracts in this stage. Try another status.
+      <div className="min-h-[120px] overflow-auto">
+        <div className="wip-summary">
+          {summary.map(({ status, count, color, average }) => {
+            const isActive = activeStatus === status;
+            const displayAverage =
+              average !== null ? `${Math.round(average)}% avg` : "—";
+            return (
+              <button
+                key={status}
+                type="button"
+                className={`wip-summary-chip ${isActive ? "active" : ""}`}
+                style={{ "--chip-accent": color } as React.CSSProperties}
+                aria-pressed={isActive}
+                onClick={() =>
+                  setActiveStatus((prev) => (prev === status ? "All" : status))
+                }
+              >
+                <span className="wip-summary-count">{count}</span>
+                <span className="wip-summary-label">{status}</span>
+                <span className="wip-summary-sub">{displayAverage}</span>
+              </button>
+            );
+          })}
         </div>
-      ) : (
-        <>
-          <div className="wip-track">
-            {rankedItems.map((item) => {
-              const progress = Math.max(0, Math.min(100, item.percent));
-              const accent =
-                WORK_STATUS_COLORS[item.status] ??
-                contractAccent(item.contract);
-              const circumference = 2 * Math.PI * 36;
-              const dashOffset = circumference * (1 - progress / 100);
-              const gradientId = `wip-dial-${item.contract.replace(
-                /[^a-z0-9]/gi,
-                ""
-              )}-${item.status.replace(/[^a-z0-9]/gi, "")}`;
-              const haloId = `${gradientId}-halo`;
-              const textColor = theme === "light" ? "#0f172a" : "#f8fafc";
-              const trackColor =
-                theme === "light" ? "#e2e8f0" : "rgba(148, 163, 184, 0.35)";
-              const tone =
-                progress >= 65
-                  ? "ahead"
-                  : progress >= 40
-                  ? "steady"
-                  : "lagging";
-              return (
-                <div
-                  key={item.contract + item.status}
-                  className={`wip-card tone-${tone}`}
-                >
-                  <svg
-                    className="wip-dial"
-                    viewBox="0 0 120 120"
-                    role="presentation"
-                    aria-hidden
-                  >
-                    <defs>
-                      <radialGradient id={haloId} cx="50%" cy="50%" r="60%">
-                        <stop
-                          offset="0%"
-                          stopColor={accent}
-                          stopOpacity={0.55}
-                        />
-                        <stop
-                          offset="65%"
-                          stopColor={accent}
-                          stopOpacity={0.16}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor={accent}
-                          stopOpacity={0}
-                        />
-                      </radialGradient>
-                      <linearGradient
-                        id={gradientId}
-                        x1="0%"
-                        y1="0%"
-                        x2="100%"
-                        y2="100%"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor={accent}
-                          stopOpacity={0.9}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor={accent}
-                          stopOpacity={0.5}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <circle
-                      className="wip-dial-halo"
-                      cx="60"
-                      cy="60"
-                      r="50"
-                      fill={`url(#${haloId})`}
-                    />
-                    <circle
-                      className="wip-dial-track"
-                      cx="60"
-                      cy="60"
-                      r="36"
-                      stroke={trackColor}
-                    />
-                    <circle
-                      className="wip-dial-progress"
-                      cx="60"
-                      cy="60"
-                      r="36"
-                      stroke={`url(#${gradientId})`}
-                      strokeDasharray={`${circumference} ${circumference}`}
-                      strokeDashoffset={dashOffset}
-                    />
-                    <text
-                      x="60"
-                      y="64"
-                      className="wip-dial-text"
-                      fill={textColor}
-                    >
-                      {Math.round(progress)}%
-                    </text>
-                  </svg>
-                  <div className="wip-details">
-                    <strong>{item.contract}</strong>
-                    <span className="wip-status-chip">{item.status}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
 
-          <div className="wip-legend">
-            {legendEntries.map((entry) => (
-              <div key={entry.contract} className="wip-legend-chip">
-                <span
-                  className="wip-legend-dot"
-                  style={{ background: entry.color }}
-                />
-                <span>{entry.contract}</span>
-              </div>
-            ))}
+        {emptyState ? (
+          <div className="wip-empty-state">
+            No active contracts in this stage. Try another status.
           </div>
-        </>
-      )}
+        ) : (
+          <>
+            <div className="wip-track">
+              {rankedItems.map((item) => {
+                const progress = Math.max(0, Math.min(100, item.percent));
+                const accent =
+                  WORK_STATUS_COLORS[item.status] ??
+                  contractAccent(item.contract);
+                const circumference = 2 * Math.PI * 36;
+                const dashOffset = circumference * (1 - progress / 100);
+                const gradientId = `wip-dial-${item.contract.replace(
+                  /[^a-z0-9]/gi,
+                  ""
+                )}-${item.status.replace(/[^a-z0-9]/gi, "")}`;
+                const haloId = `${gradientId}-halo`;
+                const textColor = theme === "light" ? "#0f172a" : "#f8fafc";
+                const trackColor =
+                  theme === "light" ? "#e2e8f0" : "rgba(148, 163, 184, 0.35)";
+                const tone =
+                  progress >= 65
+                    ? "ahead"
+                    : progress >= 40
+                    ? "steady"
+                    : "lagging";
+                return (
+                  <div
+                    key={item.contract + item.status}
+                    className={`wip-card tone-${tone}`}
+                  >
+                    <svg
+                      className="wip-dial"
+                      viewBox="0 0 120 120"
+                      role="presentation"
+                      aria-hidden
+                    >
+                      <defs>
+                        <radialGradient id={haloId} cx="50%" cy="50%" r="60%">
+                          <stop
+                            offset="0%"
+                            stopColor={accent}
+                            stopOpacity={0.55}
+                          />
+                          <stop
+                            offset="65%"
+                            stopColor={accent}
+                            stopOpacity={0.16}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor={accent}
+                            stopOpacity={0}
+                          />
+                        </radialGradient>
+                        <linearGradient
+                          id={gradientId}
+                          x1="0%"
+                          y1="0%"
+                          x2="100%"
+                          y2="100%"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor={accent}
+                            stopOpacity={0.9}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor={accent}
+                            stopOpacity={0.5}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <circle
+                        className="wip-dial-halo"
+                        cx="60"
+                        cy="60"
+                        r="50"
+                        fill={`url(#${haloId})`}
+                      />
+                      <circle
+                        className="wip-dial-track"
+                        cx="60"
+                        cy="60"
+                        r="36"
+                        stroke={trackColor}
+                      />
+                      <circle
+                        className="wip-dial-progress"
+                        cx="60"
+                        cy="60"
+                        r="36"
+                        stroke={`url(#${gradientId})`}
+                        strokeDasharray={`${circumference} ${circumference}`}
+                        strokeDashoffset={dashOffset}
+                      />
+                      <text
+                        x="60"
+                        y="64"
+                        className="wip-dial-text"
+                        fill={textColor}
+                      >
+                        {Math.round(progress)}%
+                      </text>
+                    </svg>
+                    <div className="wip-details">
+                      <strong>{item.contract}</strong>
+                      <span className="wip-status-chip">{item.status}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="wip-legend">
+              {legendEntries.map((entry) => (
+                <div key={entry.contract} className="wip-legend-chip">
+                  <span
+                    className="wip-legend-dot"
+                    style={{ background: entry.color }}
+                  />
+                  <span>{entry.contract}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
