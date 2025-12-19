@@ -24,7 +24,9 @@ export default function MapWipSplit({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const dragSnapshot = useRef<{ containerHeight: number; containerTop: number }>({ containerHeight: 0, containerTop: 0 })
   const pointerTargetRef = useRef<HTMLDivElement | null>(null)
+  const wipScrollRef = useRef<HTMLDivElement | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [wipScrolled, setWipScrolled] = useState(false)
 
   const clampSizes = useCallback(
     (percent: number) => {
@@ -127,6 +129,17 @@ export default function MapWipSplit({
     }
   }, [dragging])
 
+  // Track scroll position in WIP pane to hide/show gutter
+  useEffect(() => {
+    const scrollEl = wipScrollRef.current
+    if (!scrollEl) return
+    const handleScroll = () => {
+      setWipScrolled(scrollEl.scrollTop > 10)
+    }
+    scrollEl.addEventListener('scroll', handleScroll, { passive: true })
+    return () => scrollEl.removeEventListener('scroll', handleScroll)
+  }, [])
+
   const paneStyles = useMemo(() => {
     const [mapPct, wipPct] = sizes
     const [mapMin, wipMin] = minSizes
@@ -148,7 +161,7 @@ export default function MapWipSplit({
         {mapPane}
       </div>
       <div
-        className={`map-wip-split__gutter ${dragging ? 'dragging' : ''}`}
+        className={`map-wip-split__gutter ${dragging ? 'dragging' : ''} ${wipScrolled ? 'hidden' : ''}`}
         role="separator"
         aria-orientation="horizontal"
         aria-label="Adjust map and work in progress height"
@@ -156,8 +169,12 @@ export default function MapWipSplit({
       >
         <span />
       </div>
-      <div className="map-wip-pane map-wip-pane--wip" style={paneStyles.wip}>
-        <div className="map-wip-pane__scroll">{wipPane}</div>
+      <div
+        className="h-fit"
+        ref={wipScrollRef}
+        // style={paneStyles.wip} map-wip-pane--wip
+      >
+        <div className="map-wip-pane__scroll h-fit">{wipPane}</div>
       </div>
     </div>
   )

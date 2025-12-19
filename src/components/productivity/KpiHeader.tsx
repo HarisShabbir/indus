@@ -28,21 +28,21 @@ export function PhysicalWorkKPI({
       <div className="productivity-kpi__title">Physical Works Completed</div>
       <div className="productivity-kpi__grid">
         <div className="productivity-kpi__metric highlight">
-          <span>Actual</span>
+          <span title="Actual">Actual</span>
           <strong>{actualPercent.toFixed(0)}%</strong>
         </div>
         <div className="productivity-kpi__metric muted">
-          <span>Planned</span>
+          <span title="Planned">Planned</span>
           <strong>{plannedPercent.toFixed(0)}%</strong>
         </div>
         <div className={`productivity-kpi__metric delta ${quantityVariance >= 0 ? 'positive' : 'negative'}`}>
-          <span>Progress variance</span>
+          <span title="Progress variance">Progress variance</span>
           <strong>{quantityVariance >= 0 ? '+' : '−'}{Math.abs(quantityVariance).toFixed(1)}%</strong>
         </div>
         <div className={`productivity-kpi__metric delta ${valueVariance >= 0 ? 'positive' : 'negative'}`}>
-          <span>Value variance</span>
+          <span title="Value variance">Value variance</span>
           <strong>{valueVariance >= 0 ? '+' : '−'}{Math.abs(valueVariance).toFixed(1)}%</strong>
-          <small>{formatDelta(valueDelta, ' $')}</small>
+          {/* <small>{formatDelta(valueDelta, ' $')}</small> */}
         </div>
       </div>
     </div>

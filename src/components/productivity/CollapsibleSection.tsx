@@ -10,22 +10,33 @@ export function CollapsibleSection({ title, defaultOpen = true, tooltip, childre
   const [open, setOpen] = useState(defaultOpen)
 
   return (
-    <section className={`productivity-section ${open ? 'open' : 'collapsed'}`}>
-      <header className="productivity-section__header">
-        <div className="productivity-section__title" title={tooltip}>
+    <section className={`productivity-section ${open ? 'open' : ''}`}>
+      <header
+        className="productivity-section__header"
+        onClick={() => setOpen((prev) => !prev)}
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setOpen((prev) => !prev)
+          }
+        }}
+      >
+        <div className="productivity-section__title" title={tooltip || title}>
           {title}
         </div>
-        <button
-          type="button"
-          className="productivity-section__toggle"
-          aria-expanded={open}
-          onClick={() => setOpen((prev) => !prev)}
-        >
+        <div className="productivity-section__toggle">
           <span className="sr-only">Toggle {title}</span>
           <div className={`chevron ${open ? 'chevron--open' : ''}`} />
-        </button>
+        </div>
       </header>
-      <div className="productivity-section__body">{open ? children : null}</div>
+      {open && (
+        <div className="productivity-section__body">
+          {children}
+        </div>
+      )}
     </section>
   )
 }

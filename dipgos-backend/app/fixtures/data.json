@@ -10,7 +10,7 @@
       "address": "Mohmand Dam, Mohmand Agency, Pakistan",
       "lat": 34.755,
       "lng": 71.215,
-      "image": "/images/ACCS/mohmand.jpg",
+      "image": "/images/ACCS/chashma.png",
       "geofence_radius_m": 1500.0
     },
     {
@@ -23,7 +23,7 @@
       "address": "Dasu Hydropower Project, Upper Kohistan, Pakistan",
       "lat": 35.291,
       "lng": 72.103,
-      "image": "/images/ACCS/dasu.jpg",
+      "image": "/images/ACCS/ghazi.png",
       "geofence_radius_m": 1800.0
     },
     {
@@ -36,7 +36,7 @@
       "address": "Diamer Basha Dam, Gilgit-Baltistan, Pakistan",
       "lat": 35.619,
       "lng": 74.616,
-      "image": "/images/ACCS/diamer.jpg",
+      "image": "/images/ACCS/mangla.png",
       "geofence_radius_m": 2000.0
     },
     {
@@ -49,7 +49,7 @@
       "address": "Tarbela Power Project, Haripur, Pakistan",
       "lat": 34.088,
       "lng": 72.693,
-      "image": "/images/ACCS/tarbela_5th_extension.jpg",
+      "image": "/images/ACCS/terbela.png",
       "geofence_radius_m": 1400.0
     },
     {
@@ -62,7 +62,7 @@
       "address": "Tarbela Dam, Haripur, Pakistan",
       "lat": 34.088,
       "lng": 72.693,
-      "image": "/images/AOS/tarbela.jpg",
+      "image": "/images/AOS/terbela.png",
       "geofence_radius_m": 1200.0
     },
     {
@@ -75,7 +75,7 @@
       "address": "Mangla Dam, Mirpur, Azad Kashmir",
       "lat": 33.135,
       "lng": 73.64,
-      "image": "/images/AOS/mangla.jpg",
+      "image": "/images/AOS/mangla.png",
       "geofence_radius_m": 1600.0
     },
     {
@@ -88,7 +88,7 @@
       "address": "Ghazi Barotha Hydropower Project, Attock, Pakistan",
       "lat": 33.969,
       "lng": 72.708,
-      "image": "/images/AOS/ghazi.jpg",
+      "image": "/images/AOS/ghazi.png",
       "geofence_radius_m": 1300.0
     },
     {
@@ -101,7 +101,7 @@
       "address": "Chashma Barrage, Mianwali, Pakistan",
       "lat": 32.39,
       "lng": 71.41,
-      "image": "/images/AOS/chasma.jpg",
+      "image": "/images/AOS/chasma.png",
       "geofence_radius_m": 1500.0
     },
     {
@@ -114,7 +114,7 @@
       "address": "Bunji, Gilgit-Baltistan, Pakistan",
       "lat": 35.68,
       "lng": 74.617,
-      "image": "/images/CPDS/Bungi_HPP.jpg",
+      "image": "/images/CPDS/ghazi.png",
       "geofence_radius_m": 2100.0
     },
     {
@@ -127,7 +127,7 @@
       "address": "Harpo, Skardu, Gilgit-Baltistan",
       "lat": 35.33,
       "lng": 74.81,
-      "image": "/images/CPDS/HARPO_HPP.jpg",
+      "image": "/images/CPDS/mangla.png",
       "geofence_radius_m": 1800.0
     },
     {
@@ -140,7 +140,7 @@
       "address": "Pattan, Kohistan, Pakistan",
       "lat": 35.03,
       "lng": 72.943,
-      "image": "/images/CPDS/Pattan.jpg",
+      "image": "/images/CPDS/chashma.png",
       "geofence_radius_m": 1700.0
     },
     {
@@ -153,7 +153,7 @@
       "address": "Thakot, Batagram, Pakistan",
       "lat": 34.86,
       "lng": 72.915,
-      "image": "/images/CPDS/Thakot.jpg",
+      "image": "/images/CPDS/terbela.png",
       "geofence_radius_m": 1600.0
     }
   ],
