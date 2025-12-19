@@ -13,7 +13,7 @@ FALLBACK_PROJECTS: List[Dict[str, object]] = [
         "address": "Mohmand Dam, Mohmand Agency, Pakistan",
         "lat": 34.755,
         "lng": 71.215,
-        "image": "/images/ACCS/mohmand.jpg",
+        "image": "/images/ACCS/chashma.png",
         "geofence_radius_m": 1500.0,
     },
     {
@@ -26,7 +26,7 @@ FALLBACK_PROJECTS: List[Dict[str, object]] = [
         "address": "Dasu Hydropower Project, Upper Kohistan, Pakistan",
         "lat": 35.291,
         "lng": 72.103,
-        "image": "/images/ACCS/dasu.jpg",
+        "image": "/images/ACCS/ghazi.png",
         "geofence_radius_m": 1800.0,
     },
     {
@@ -39,7 +39,7 @@ FALLBACK_PROJECTS: List[Dict[str, object]] = [
         "address": "Diamer Basha Dam, Gilgit-Baltistan, Pakistan",
         "lat": 35.619,
         "lng": 74.616,
-        "image": "/images/ACCS/diamer.jpg",
+        "image": "/images/ACCS/mangla.png",
         "geofence_radius_m": 2000.0,
     },
     {
@@ -52,7 +52,7 @@ FALLBACK_PROJECTS: List[Dict[str, object]] = [
         "address": "Tarbela Power Project, Haripur, Pakistan",
         "lat": 34.088,
         "lng": 72.693,
-        "image": "/images/ACCS/tarbela_5th_extension.jpg",
+        "image": "/images/ACCS/tarbela.png",
         "geofence_radius_m": 1400.0,
     },
     {
@@ -65,7 +65,7 @@ FALLBACK_PROJECTS: List[Dict[str, object]] = [
         "address": "Tarbela Dam, Haripur, Pakistan",
         "lat": 34.088,
         "lng": 72.693,
-        "image": "/images/AOS/tarbela.jpg",
+        "image": "/images/ACCS/tarbela.png",
         "geofence_radius_m": 1200.0,
     },
     {
@@ -78,7 +78,7 @@ FALLBACK_PROJECTS: List[Dict[str, object]] = [
         "address": "Mangla Dam, Mirpur, Azad Kashmir",
         "lat": 33.135,
         "lng": 73.640,
-        "image": "/images/AOS/mangla.jpg",
+        "image": "/images/ACCS/mangla.png",
         "geofence_radius_m": 1600.0,
     },
     {
@@ -91,7 +91,7 @@ FALLBACK_PROJECTS: List[Dict[str, object]] = [
         "address": "Ghazi Barotha Hydropower Project, Attock, Pakistan",
         "lat": 33.969,
         "lng": 72.708,
-        "image": "/images/AOS/ghazi.jpg",
+        "image": "/images/ACCS/ghazi.png",
         "geofence_radius_m": 1300.0,
     },
     {
@@ -104,7 +104,7 @@ FALLBACK_PROJECTS: List[Dict[str, object]] = [
         "address": "Chashma Barrage, Mianwali, Pakistan",
         "lat": 32.390,
         "lng": 71.410,
-        "image": "/images/AOS/chasma.jpg",
+        "image": "/images/ACCS/chashma.png",
         "geofence_radius_m": 1500.0,
     },
     {
@@ -117,7 +117,7 @@ FALLBACK_PROJECTS: List[Dict[str, object]] = [
         "address": "Bunji, Gilgit-Baltistan, Pakistan",
         "lat": 35.680,
         "lng": 74.617,
-        "image": "/images/CPDS/Bungi_HPP.jpg",
+        "image": "/images/ACCS/ghazi.png",
         "geofence_radius_m": 2100.0,
     },
     {
@@ -130,7 +130,7 @@ FALLBACK_PROJECTS: List[Dict[str, object]] = [
         "address": "Harpo, Skardu, Gilgit-Baltistan",
         "lat": 35.330,
         "lng": 74.810,
-        "image": "/images/CPDS/HARPO_HPP.jpg",
+        "image": "/images/ACCS/mangla.png",
         "geofence_radius_m": 1800.0,
     },
     {
@@ -143,7 +143,7 @@ FALLBACK_PROJECTS: List[Dict[str, object]] = [
         "address": "Pattan, Kohistan, Pakistan",
         "lat": 35.030,
         "lng": 72.943,
-        "image": "/images/CPDS/Pattan.jpg",
+        "image": "/images/ACCS/chashma.png",
         "geofence_radius_m": 1700.0,
     },
     {
@@ -156,7 +156,7 @@ FALLBACK_PROJECTS: List[Dict[str, object]] = [
         "address": "Thakot, Batagram, Pakistan",
         "lat": 34.860,
         "lng": 72.915,
-        "image": "/images/CPDS/Thakot.jpg",
+        "image": "/images/ACCS/tarbela.png",
         "geofence_radius_m": 1600.0,
     },
 ]
