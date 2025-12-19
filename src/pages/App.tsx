@@ -567,7 +567,7 @@ function computeAnalytics(projects: Project[]): ProjectAnalytics {
   );
   const average_progress = total
     ? projects.reduce((sum, project) => sum + (project.status_pct ?? 0), 0) /
-      total
+    total
     : 0;
   const phase_breakdown = projects.reduce<Record<string, number>>(
     (acc, project) => {
@@ -627,26 +627,23 @@ function createMarkerIcon(
     project.phase === "Construction"
       ? "#fb923c"
       : project.phase === "Planning & Design"
-      ? "#38bdf8"
-      : "#34d399";
+        ? "#38bdf8"
+        : "#34d399";
 
   const temperature = weather?.temperatureC;
   const description = weather?.weatherDescription;
   const weatherHtml = weather
-    ? `<div class="marker-weather"><span class="marker-weather__temp">${
-        temperature !== null && temperature !== undefined
-          ? `${Math.round(temperature)}°C`
-          : "--"
-      }</span>${
-        description
-          ? `<span class="marker-weather__desc">${description}</span>`
-          : ""
-      }</div>`
+    ? `<div class="marker-weather"><span class="marker-weather__temp">${temperature !== null && temperature !== undefined
+      ? `${Math.round(temperature)}°C`
+      : "--"
+    }</span>${description
+      ? `<span class="marker-weather__desc">${description}</span>`
+      : ""
+    }</div>`
     : "";
 
-  const className = `project-marker theme-${theme} ${
-    isActive ? "project-marker--active" : ""
-  }`;
+  const className = `project-marker theme-${theme} ${isActive ? "project-marker--active" : ""
+    }`;
   return L.divIcon({
     className,
     // <div class="marker-shell" style="--marker-color:${color}">
@@ -659,12 +656,11 @@ function createMarkerIcon(
     <div style="display: flex; align-items: center; gap: 4px;background-color: #fff;padding: 6px;border-radius: 8px;width:fit-content;">
       <img src="/images/map-icon.png" alt="Map marker" style="width: 32px; height: 32px; display: block;" />
       <div style="display: flex; flex-direction: column; max-width: 80px;">
-        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;color: #F86E00;">${
-          project.name
-        }</span>
+        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;color: #F86E00;">${project.name
+      }</span>
         <strong style="color: #328DEE;">${Math.round(
-          project.status_pct
-        )}%</strong>
+        project.status_pct
+      )}%</strong>
         ${weatherHtml}
       </div>
     </div>
@@ -678,15 +674,15 @@ const phaseAccent = (phase: string) =>
   phase === "Construction"
     ? "var(--accent-warm)"
     : phase === "Planning & Design"
-    ? "var(--accent)"
-    : "var(--accent-cool)";
+      ? "var(--accent)"
+      : "var(--accent-cool)";
 
 const phaseLabel = (phase: string) =>
   phase === "Construction"
     ? "ACCS"
     : phase === "Planning & Design"
-    ? "CPDS"
-    : "AOS";
+      ? "CPDS"
+      : "AOS";
 
 const contractAccent = (name: string) => {
   if (name.startsWith("MW-")) return "#38bdf8";
@@ -1157,22 +1153,22 @@ function LoginPage({
           <button className="login-back" onClick={onBack}>
             ← Back to experience
           </button>
-          <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />
+          {/* <ThemeToggleButton theme={theme} onToggle={onToggleTheme} /> */}
         </div>
 
         <div className="login-headline">
           <span className="eyebrow">DiPGOS project operating system</span>
-          <h1>Build once. Orchestrate everywhere.</h1>
-          <p>
+          {/* <h1>Build once. Orchestrate everywhere.</h1> */}
+          {/* <p>
             Fuse commercial, construction, and governance telemetry into a
             living control center that keeps EPC teams in lockstep across
             continents.
-          </p>
-          <div className="login-pills">
+          </p> */}
+          {/* <div className="login-pills">
             <span>AI field insights</span>
             <span>Portfolio command</span>
             <span>Geospatial twins</span>
-          </div>
+          </div> */}
         </div>
 
         <div className="login-form-card">
@@ -1213,49 +1209,70 @@ function LoginPage({
       </aside>
 
       <section className="login-showcase">
-        <img
+        {/* <img
           src="/images/login-hero.jpg"
           alt="Hydropower project digital twin"
           className="login-hero-image"
           loading="eager"
           decoding="async"
-        />
-        <div className="login-image-overlay" />
-        <div className="login-hero-layout">
-          <div className="login-hero-copy">
-            <h2>Construction portfolio oversight, reimagined.</h2>
-            <p>
-              Monitor hydropower mega projects, transmission corridors, and
-              critical civil upgrades with live geospatial telemetry, alert
-              intelligence, and AI-assisted governance.
-            </p>
-          </div>
+        /> */}
+        {/* <div className="login-image-overlay" /> */}
+        {/* <div className="login-hero-layout"> */}
+        <div className="login-hero-copy">
+          <h2>Construction portfolio oversight, reimagined.</h2>
+          <p>
+            Monitor hydropower mega projects, transmission corridors, and
+            critical civil upgrades with live geospatial telemetry, alert
+            intelligence, and AI-assisted governance.
+          </p>
+        </div>
 
-          <div className="login-hero-grid">
-            <div className="login-hero-card">
-              <span className="hero-kicker">Live telemetry</span>
-              <strong>32</strong>
-              <span>
-                sites streaming progress and alert density in real time.
-              </span>
-            </div>
-            <div className="login-hero-card">
-              <span className="hero-kicker">SPI focus</span>
-              <strong>0.78</strong>
-              <span>
-                portfolio schedule performance with AI-generated recovery
-                actions.
-              </span>
-            </div>
-            <div className="login-hero-card">
-              <span className="hero-kicker">Executive pulse</span>
-              <strong>5 min</strong>
-              <span>
-                to prep board-ready reports directly from the control center.
-              </span>
-            </div>
+        <div className="login-hero-grid">
+          <div className="login-hero-card">
+            <span className="hero-kicker">Live telemetry</span>
+            <strong>32</strong>
+            <span>
+              sites streaming progress and alert density in real time.
+            </span>
+          </div>
+          <div className="login-hero-card">
+            <span className="hero-kicker">SPI focus</span>
+            <strong>0.78</strong>
+            <span>
+              portfolio schedule performance with AI-generated recovery
+              actions.
+            </span>
+          </div>
+          <div className="login-hero-card">
+            <span className="hero-kicker">Executive pulse</span>
+            <strong>5 min</strong>
+            <span>
+              to prep board-ready reports directly from the control center.
+            </span>
+          </div>
+          <div className="login-hero-card">
+            <span className="hero-kicker">Live telemetry</span>
+            <strong>32</strong>
+            <span>
+              sites streaming progress and alert density in real time.
+            </span>
+          </div>
+          <div className="login-hero-card">
+            <span className="hero-kicker">Live telemetry</span>
+            <strong>32</strong>
+            <span>
+              sites streaming progress and alert density in real time.
+            </span>
+          </div>
+          <div className="login-hero-card">
+            <span className="hero-kicker">Live telemetry</span>
+            <strong>32</strong>
+            <span>
+              sites streaming progress and alert density in real time.
+            </span>
           </div>
         </div>
+        {/* </div> */}
       </section>
     </div>
   );
@@ -1449,13 +1466,13 @@ function Dashboard({
     : null;
   const highlightStyles = highlightColor
     ? {
-        background: `linear-gradient(135deg, ${hexToRgba(
-          highlightColor,
-          0.18
-        )}, ${hexToRgba(highlightColor, 0.42)})`,
-        border: `1px solid ${hexToRgba(highlightColor, 0.35)}`,
-        color: readableTextColor(highlightColor),
-      }
+      background: `linear-gradient(135deg, ${hexToRgba(
+        highlightColor,
+        0.18
+      )}, ${hexToRgba(highlightColor, 0.42)})`,
+      border: `1px solid ${hexToRgba(highlightColor, 0.35)}`,
+      color: readableTextColor(highlightColor),
+    }
     : undefined;
 
   const handleResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -1734,7 +1751,7 @@ function Dashboard({
                     <div className="map-stat-line subtle">
                       Weather{" "}
                       {activeProjectWeather.temperatureC !== null &&
-                      activeProjectWeather.temperatureC !== undefined
+                        activeProjectWeather.temperatureC !== undefined
                         ? `${Math.round(activeProjectWeather.temperatureC)}°C`
                         : "--"}{" "}
                       ·{" "}
@@ -1749,9 +1766,8 @@ function Dashboard({
                 data-card="toggles"
               >
                 <button
-                  className={`btn-ghost ${
-                    featureToggle.geofences ? "active" : ""
-                  }`}
+                  className={`btn-ghost ${featureToggle.geofences ? "active" : ""
+                    }`}
                   onClick={() =>
                     setFeatureToggle((prev) => ({
                       ...prev,
@@ -1762,9 +1778,8 @@ function Dashboard({
                   Geofences
                 </button>
                 <button
-                  className={`btn-ghost ${
-                    featureToggle.intensity ? "active" : ""
-                  }`}
+                  className={`btn-ghost ${featureToggle.intensity ? "active" : ""
+                    }`}
                   onClick={() =>
                     setFeatureToggle((prev) => ({
                       ...prev,
@@ -1794,9 +1809,8 @@ function Dashboard({
               <ZoomControl position="topright" />
               <ScaleControl position="bottomleft" />
               <MapResizeWatcher
-                trigger={`${panelCollapsed}-${theme}-${mapView}-${
-                  filteredForMap.length
-                }-${Math.round(mapHeight)}`}
+                trigger={`${panelCollapsed}-${theme}-${mapView}-${filteredForMap.length
+                  }-${Math.round(mapHeight)}`}
               />
               <MapFocusUpdater project={selected} />
 
@@ -1844,7 +1858,7 @@ function Dashboard({
                           <div>
                             Weather:{" "}
                             {weatherPoint.temperatureC !== null &&
-                            weatherPoint.temperatureC !== undefined
+                              weatherPoint.temperatureC !== undefined
                               ? `${Math.round(weatherPoint.temperatureC)}°C`
                               : "--"}{" "}
                             ·{" "}
@@ -2618,111 +2632,111 @@ function ContractControlCenterOverlay({
     label: string;
     icon: React.ReactNode;
   }> = [
-    {
-      id: "scheduling",
-      label: "Scheduling View",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          strokeWidth="1.6"
-          stroke="currentColor"
-          fill="none"
-        >
-          <rect x="4" y="5" width="16" height="15" rx="3" />
-          <path d="M8 3v4" strokeLinecap="round" />
-          <path d="M16 3v4" strokeLinecap="round" />
-          <path d="M4 11h16" />
-          <path d="M9 15h2" strokeLinecap="round" />
-          <path d="M13 15h2" strokeLinecap="round" />
-        </svg>
-      ),
-    },
-    {
-      id: "financial",
-      label: "Financial View",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          strokeWidth="1.6"
-          stroke="currentColor"
-          fill="none"
-        >
-          <rect x="4" y="6" width="16" height="13" rx="2" />
-          <path d="M4 10h16" />
-          <path d="M8 14h1" strokeLinecap="round" />
-          <path d="M11 14h1" strokeLinecap="round" />
-          <path d="M14 14h2" strokeLinecap="round" />
-        </svg>
-      ),
-    },
-    {
-      id: "sustainability",
-      label: "Sustainability View",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          strokeWidth="1.6"
-          stroke="currentColor"
-          fill="none"
-        >
-          <path d="M12 21c4-2.5 6-5.5 6-9.5a6 6 0 0 0-12 0C6 15.5 8 18.5 12 21Z" />
-          <path d="M12 10a2 2 0 0 1 2 2" strokeLinecap="round" />
-        </svg>
-      ),
-    },
-    {
-      id: "procurement",
-      label: "Procurement / SCM View",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          strokeWidth="1.6"
-          stroke="currentColor"
-          fill="none"
-        >
-          <path d="M4 7h16" strokeLinecap="round" />
-          <path d="M6 7v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7" />
-          <path d="M10 11h4" strokeLinecap="round" />
-          <path d="M12 7V3" strokeLinecap="round" />
-        </svg>
-      ),
-    },
-    {
-      id: "atom",
-      label: "Atom Manager",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          strokeWidth="1.6"
-          stroke="currentColor"
-          fill="none"
-        >
-          <circle cx="12" cy="12" r="2.4" />
-          <path d="M4.5 8c3.5-6 11.5-6 15 0s-3.5 14-7.5 8-7.5-2-7.5-8Z" />
-        </svg>
-      ),
-    },
-    {
-      id: "forecasting",
-      label: "Forecasting View",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          strokeWidth="1.6"
-          stroke="currentColor"
-          fill="none"
-        >
-          <path d="M4 18h16" strokeLinecap="round" />
-          <path
-            d="M6 16l3.5-4 2.5 3 4.5-6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path d="M17 9h3v3" strokeLinecap="round" />
-        </svg>
-      ),
-    },
-  ];
+      {
+        id: "scheduling",
+        label: "Scheduling View",
+        icon: (
+          <svg
+            viewBox="0 0 24 24"
+            strokeWidth="1.6"
+            stroke="currentColor"
+            fill="none"
+          >
+            <rect x="4" y="5" width="16" height="15" rx="3" />
+            <path d="M8 3v4" strokeLinecap="round" />
+            <path d="M16 3v4" strokeLinecap="round" />
+            <path d="M4 11h16" />
+            <path d="M9 15h2" strokeLinecap="round" />
+            <path d="M13 15h2" strokeLinecap="round" />
+          </svg>
+        ),
+      },
+      {
+        id: "financial",
+        label: "Financial View",
+        icon: (
+          <svg
+            viewBox="0 0 24 24"
+            strokeWidth="1.6"
+            stroke="currentColor"
+            fill="none"
+          >
+            <rect x="4" y="6" width="16" height="13" rx="2" />
+            <path d="M4 10h16" />
+            <path d="M8 14h1" strokeLinecap="round" />
+            <path d="M11 14h1" strokeLinecap="round" />
+            <path d="M14 14h2" strokeLinecap="round" />
+          </svg>
+        ),
+      },
+      {
+        id: "sustainability",
+        label: "Sustainability View",
+        icon: (
+          <svg
+            viewBox="0 0 24 24"
+            strokeWidth="1.6"
+            stroke="currentColor"
+            fill="none"
+          >
+            <path d="M12 21c4-2.5 6-5.5 6-9.5a6 6 0 0 0-12 0C6 15.5 8 18.5 12 21Z" />
+            <path d="M12 10a2 2 0 0 1 2 2" strokeLinecap="round" />
+          </svg>
+        ),
+      },
+      {
+        id: "procurement",
+        label: "Procurement / SCM View",
+        icon: (
+          <svg
+            viewBox="0 0 24 24"
+            strokeWidth="1.6"
+            stroke="currentColor"
+            fill="none"
+          >
+            <path d="M4 7h16" strokeLinecap="round" />
+            <path d="M6 7v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7" />
+            <path d="M10 11h4" strokeLinecap="round" />
+            <path d="M12 7V3" strokeLinecap="round" />
+          </svg>
+        ),
+      },
+      {
+        id: "atom",
+        label: "Atom Manager",
+        icon: (
+          <svg
+            viewBox="0 0 24 24"
+            strokeWidth="1.6"
+            stroke="currentColor"
+            fill="none"
+          >
+            <circle cx="12" cy="12" r="2.4" />
+            <path d="M4.5 8c3.5-6 11.5-6 15 0s-3.5 14-7.5 8-7.5-2-7.5-8Z" />
+          </svg>
+        ),
+      },
+      {
+        id: "forecasting",
+        label: "Forecasting View",
+        icon: (
+          <svg
+            viewBox="0 0 24 24"
+            strokeWidth="1.6"
+            stroke="currentColor"
+            fill="none"
+          >
+            <path d="M4 18h16" strokeLinecap="round" />
+            <path
+              d="M6 16l3.5-4 2.5 3 4.5-6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path d="M17 9h3v3" strokeLinecap="round" />
+          </svg>
+        ),
+      },
+    ];
   const visibleUtilityViews = FEATURE_SCHEDULE_UI
     ? utilityViews
     : utilityViews.filter((view) => view.id !== "scheduling");
@@ -2877,13 +2891,11 @@ function ContractControlCenterOverlay({
     ) => {
       const statusKey = Math.round(contract.status_pct || 0);
       const weatherKey = weatherPoint
-        ? `${Math.round(weatherPoint.temperatureC ?? -999)}-${
-            weatherPoint.weatherCode ?? "na"
-          }`
+        ? `${Math.round(weatherPoint.temperatureC ?? -999)}-${weatherPoint.weatherCode ?? "na"
+        }`
         : "none";
-      const cacheKey = `${contract.id}-${statusKey}-${contract.alerts}-${
-        active ? "on" : "off"
-      }-${weatherKey}`;
+      const cacheKey = `${contract.id}-${statusKey}-${contract.alerts}-${active ? "on" : "off"
+        }-${weatherKey}`;
       if (contractIconCache.current[cacheKey]) {
         return contractIconCache.current[cacheKey];
       }
@@ -2896,15 +2908,13 @@ function ContractControlCenterOverlay({
       const temperature = weatherPoint?.temperatureC;
       const weatherDescription = weatherPoint?.weatherDescription;
       const weatherHtml = weatherPoint
-        ? `<div class="contract-pin__weather">${
-            temperature !== null && temperature !== undefined
-              ? `<span class="temp">${Math.round(temperature)}°C</span>`
-              : ""
-          }${
-            weatherDescription
-              ? `<span class="desc">${weatherDescription}</span>`
-              : ""
-          }</div>`
+        ? `<div class="contract-pin__weather">${temperature !== null && temperature !== undefined
+          ? `<span class="temp">${Math.round(temperature)}°C</span>`
+          : ""
+        }${weatherDescription
+          ? `<span class="desc">${weatherDescription}</span>`
+          : ""
+        }</div>`
         : "";
 
       const icon = L.divIcon({
@@ -3232,9 +3242,8 @@ function ContractControlCenterOverlay({
                     >
                       <button
                         type="button"
-                        className={`btn-map-toggle ${
-                          featureToggle.geofences ? "active" : ""
-                        }`}
+                        className={`btn-map-toggle ${featureToggle.geofences ? "active" : ""
+                          }`}
                         onClick={() =>
                           setFeatureToggle((prev) => ({
                             ...prev,
@@ -3246,9 +3255,8 @@ function ContractControlCenterOverlay({
                       </button>
                       <button
                         type="button"
-                        className={`btn-map-toggle ${
-                          featureToggle.intensity ? "active" : ""
-                        }`}
+                        className={`btn-map-toggle ${featureToggle.intensity ? "active" : ""
+                          }`}
                         onClick={() =>
                           setFeatureToggle((prev) => ({
                             ...prev,
@@ -3284,10 +3292,10 @@ function ContractControlCenterOverlay({
                           <span>
                             Weather{" "}
                             {activeContractWeather.temperatureC !== null &&
-                            activeContractWeather.temperatureC !== undefined
+                              activeContractWeather.temperatureC !== undefined
                               ? `${Math.round(
-                                  activeContractWeather.temperatureC
-                                )}°C`
+                                activeContractWeather.temperatureC
+                              )}°C`
                               : "--"}{" "}
                             ·{" "}
                             {activeContractWeather.weatherDescription ??
@@ -3330,13 +3338,12 @@ function ContractControlCenterOverlay({
                       />
                     )}
                     <MapResizeWatcher
-                      trigger={`${panelCollapsed}-${theme}-${mapView}-${
-                        filteredContracts.length
-                      }-${Math.round(
-                        (mapShellRef.current?.offsetHeight ?? 0) * 100
-                      )}-${mapWipSizes
-                        .map((size) => size.toFixed(2))
-                        .join("-")}`}
+                      trigger={`${panelCollapsed}-${theme}-${mapView}-${filteredContracts.length
+                        }-${Math.round(
+                          (mapShellRef.current?.offsetHeight ?? 0) * 100
+                        )}-${mapWipSizes
+                          .map((size) => size.toFixed(2))
+                          .join("-")}`}
                     />
 
                     {featureToggle.intensity &&
@@ -3374,8 +3381,8 @@ function ContractControlCenterOverlay({
                           const radius =
                             Math.max(
                               contract.geofence_radius_m ??
-                                project.geofence_radius_m ??
-                                0,
+                              project.geofence_radius_m ??
+                              0,
                               900
                             ) * 1.05;
                           return (
@@ -3433,10 +3440,10 @@ function ContractControlCenterOverlay({
                                 <span style={{ fontSize: "0.7rem" }}>
                                   Weather{" "}
                                   {weatherPoint.temperatureC !== null &&
-                                  weatherPoint.temperatureC !== undefined
+                                    weatherPoint.temperatureC !== undefined
                                     ? `${Math.round(
-                                        weatherPoint.temperatureC
-                                      )}°C`
+                                      weatherPoint.temperatureC
+                                    )}°C`
                                     : "--"}{" "}
                                   ·{" "}
                                   {weatherPoint.weatherDescription ??
@@ -3609,10 +3616,9 @@ function WorkInProgressBoard({
     activeStatus === "All"
       ? `Showing ${rankedItems.length} of ${totalProjects} contracts`
       : rankedItems.length
-      ? `Showing ${rankedItems.length} ${
-          rankedItems.length === 1 ? "contract" : "contracts"
+        ? `Showing ${rankedItems.length} ${rankedItems.length === 1 ? "contract" : "contracts"
         }`
-      : `No contracts currently in ${activeStatus}`;
+        : `No contracts currently in ${activeStatus}`;
 
   return (
     <div className="contract-wip-board pp-wip">
@@ -3673,8 +3679,8 @@ function WorkInProgressBoard({
                   progress >= 65
                     ? "ahead"
                     : progress >= 40
-                    ? "steady"
-                    : "lagging";
+                      ? "steady"
+                      : "lagging";
                 return (
                   <div
                     key={item.contract + item.status}
@@ -3777,7 +3783,7 @@ function WorkInProgressBoard({
             </div>
           </>
         )}
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }

@@ -1664,6 +1664,7 @@ font-size: 11px;
   position: relative;
   /* overflow: hidden; */
   padding: 48px 60px;
+  background: rgba(15, 23, 42, 0.92);
 }
 
 .login-hero-image {
@@ -1693,6 +1694,7 @@ font-size: 11px;
 }
 
 .login-hero-copy {
+  margin-bottom: 35px;
   position: relative;
   max-width: 560px;
   color: #fff;
@@ -1715,7 +1717,7 @@ font-size: 11px;
 .login-hero-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 18px;
+  gap: 28px;
   margin-top: auto;
 }
 
