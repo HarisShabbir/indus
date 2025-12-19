@@ -45,45 +45,55 @@ export const sidebarItems: Array<{ label: string; icon: React.ReactNode }> = [
     ),
   },
   {
-    label: 'Analytics',
+    label: 'Atom Manager',
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <path d="M4 18h16" strokeLinecap="round" />
-        <path d="M7 18V11" strokeLinecap="round" />
-        <path d="M12 18V7" strokeLinecap="round" />
-        <path d="M17 18v-9" strokeLinecap="round" />
+      <svg
+        viewBox="0 0 24 24"
+        strokeWidth="1.6"
+        stroke="currentColor"
+        fill="none"
+      >
+        <circle cx="12" cy="12" r="2.4" />
+        <path d="M4.5 8c3.5-6 11.5-6 15 0s-3.5 14-7.5 8-7.5-2-7.5-8Z" />
       </svg>
     ),
   },
-  {
-    label: 'Settings',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08A1.65 1.65 0 0 0 10.91 3V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Change',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <path d="M4 7h7l-2-2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M4 11h11a3 3 0 0 1 0 6h-3" strokeLinecap="round" />
-        <path d="M10 17l-3 3" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M20 7h-5a3 3 0 0 0 0-6h-3" strokeLinecap="round" />
-        <path d="M14 1 11 4" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Placeholder 2',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <path d="M12 5l6 4v6l-6 4-6-4V9z" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
+  // {
+  //   label: 'Analytics',
+  //   icon: (
+  //     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+  //       <path d="M4 18h16" strokeLinecap="round" />
+  //       <path d="M7 18V11" strokeLinecap="round" />
+  //       <path d="M12 18V7" strokeLinecap="round" />
+  //       <path d="M17 18v-9" strokeLinecap="round" />
+  //     </svg>
+  //   ),
+  // },
+  // {
+  //   label: 'Settings',
+  //   icon: (
+  //     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+  //       <circle cx="12" cy="12" r="3" />
+  //       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08A1.65 1.65 0 0 0 10.91 3V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  //     </svg>
+  //   ),
+  // },
+  // {
+  //   label: 'Placeholder 1',
+  //   icon: (
+  //     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+  //       <rect x="6" y="6" width="12" height="12" rx="3" />
+  //     </svg>
+  //   ),
+  // },
+  // {
+  //   label: 'Placeholder 2',
+  //   icon: (
+  //     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+  //       <path d="M12 5l6 4v6l-6 4-6-4V9z" strokeLinejoin="round" />
+  //     </svg>
+  //   ),
+  // },
 ]
 
 export const HOME_NAV_INDEX = sidebarItems.findIndex((item) => item.label === 'Home')
