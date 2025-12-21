@@ -198,7 +198,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Tarbela Power Project, Haripur, Pakistan",
     lat: 34.088,
     lng: 72.693,
-    image: "/images/ACCS/terbela.png",
+    image: "/images/ACCS/tarbela.png",
     geofence_radius_m: 1400,
   },
   {
@@ -211,7 +211,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Tarbela Dam, Haripur, Pakistan",
     lat: 34.088,
     lng: 72.693,
-    image: "/images/ACCS/terbela.png",
+    image: "/images/ACCS/tarbela.png",
     geofence_radius_m: 1200,
   },
   {
@@ -302,7 +302,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Thakot, Batagram, Pakistan",
     lat: 34.86,
     lng: 72.915,
-    image: "/images/ACCS/terbela.png",
+    image: "/images/ACCS/tarbela.png",
     geofence_radius_m: 1600,
   },
 ];
@@ -567,7 +567,7 @@ function computeAnalytics(projects: Project[]): ProjectAnalytics {
   );
   const average_progress = total
     ? projects.reduce((sum, project) => sum + (project.status_pct ?? 0), 0) /
-    total
+      total
     : 0;
   const phase_breakdown = projects.reduce<Record<string, number>>(
     (acc, project) => {
@@ -615,7 +615,7 @@ function statusColor(
   return STATUS_COLOR_MAP[status] ?? [59, 130, 246, 255];
 }
 
-const defaultIcon = new L.Icon.Default();
+// const defaultIcon = new L.Icon.Default();
 
 function createMarkerIcon(
   project: Project,
@@ -627,43 +627,46 @@ function createMarkerIcon(
     project.phase === "Construction"
       ? "#fb923c"
       : project.phase === "Planning & Design"
-        ? "#38bdf8"
-        : "#34d399";
+      ? "#38bdf8"
+      : "#34d399";
 
   const temperature = weather?.temperatureC;
   const description = weather?.weatherDescription;
   const weatherHtml = weather
-    ? `<div class="marker-weather"><span class="marker-weather__temp">${temperature !== null && temperature !== undefined
-      ? `${Math.round(temperature)}°C`
-      : "--"
-    }</span>${description
-      ? `<span class="marker-weather__desc">${description}</span>`
-      : ""
-    }</div>`
+    ? `<div class="marker-weather"><span class="marker-weather__temp">${
+        temperature !== null && temperature !== undefined
+          ? `${Math.round(temperature)}°C`
+          : ""
+      }</span>${
+        description
+          ? `<span class="marker-weather__desc">${description}</span>`
+          : ""
+      }</div>`
     : "";
 
-  const className = `project-marker theme-${theme} ${isActive ? "project-marker--active" : ""
-    }`;
+  const className = `project-marker theme-${theme} ${
+    isActive ? "project-marker--active" : ""
+  }`;
   return L.divIcon({
     className,
-    // <div class="marker-shell" style="--marker-color:${color}">
-    //   <span>${project.name}</span>
-    //   <strong>${Math.round(project.status_pct)}%</strong>
-    //   ${weatherHtml}
-    // </div>
-    // <div class="marker-pointer" style="--marker-color:${color}"></div>
     html: `
-    <div style="display: flex; align-items: center; gap: 4px;background-color: #fff;padding: 6px;border-radius: 8px;width:fit-content;">
+    <div class="marker-container" style="position: relative;">
       <img src="/images/map-icon.png" alt="Map marker" style="width: 32px; height: 32px; display: block;" />
-      <div style="display: flex; flex-direction: column; max-width: 80px;">
-        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;color: #F86E00;">${project.name
-      }</span>
-        <strong style="color: #328DEE;">${Math.round(
-        project.status_pct
-      )}%</strong>
-        ${weatherHtml}
+      <div class="marker-details" style="display: none; position: absolute; top: -10px; left: 40px; background-color: #fff; padding: 6px; border-radius: 8px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 1000;">
+        <div style="display: flex; flex-direction: column;">
+          <span style="color: #F86E00; font-weight: 500;">${project.name}</span>
+          <strong style="color: #328DEE;">${Math.round(
+            project.status_pct
+          )}%</strong>
+          ${weatherHtml ?? ""}
+        </div>
       </div>
     </div>
+    <style>
+      .marker-container:hover .marker-details {
+        display: block !important;
+      }
+    </style>
     `,
     iconSize: [32, 32],
     iconAnchor: [16, 32],
@@ -674,15 +677,15 @@ const phaseAccent = (phase: string) =>
   phase === "Construction"
     ? "var(--accent-warm)"
     : phase === "Planning & Design"
-      ? "var(--accent)"
-      : "var(--accent-cool)";
+    ? "var(--accent)"
+    : "var(--accent-cool)";
 
 const phaseLabel = (phase: string) =>
   phase === "Construction"
     ? "ACCS"
     : phase === "Planning & Design"
-      ? "CPDS"
-      : "AOS";
+    ? "CPDS"
+    : "AOS";
 
 const contractAccent = (name: string) => {
   if (name.startsWith("MW-")) return "#38bdf8";
@@ -823,7 +826,7 @@ export default function App() {
           lastAccsProject ??
           contractProject ??
           fallbackConstruction ??
-          FALLBACK_PROJECTS[0] ??
+          // FALLBACK_PROJECTS[0] ??
           null;
         if (projectToOpen) {
           if (activeNav !== ACCS_NAV_INDEX) {
@@ -929,10 +932,8 @@ export default function App() {
           .then((payload) => finalise(payload.project))
           .catch(() => {
             const fallback =
-              FALLBACK_PROJECTS.find((item) => item.id === candidateId) ??
-              contractProject ??
-              lastAccsProject ??
-              null;
+              // FALLBACK_PROJECTS.find((item) => item.id === candidateId) ??
+              contractProject ?? lastAccsProject ?? null;
             finalise(fallback);
           });
         return;
@@ -1239,8 +1240,7 @@ function LoginPage({
             <span className="hero-kicker">SPI focus</span>
             <strong>0.78</strong>
             <span>
-              portfolio schedule performance with AI-generated recovery
-              actions.
+              portfolio schedule performance with AI-generated recovery actions.
             </span>
           </div>
           <div className="login-hero-card">
@@ -1332,7 +1332,8 @@ function Dashboard({
     setOm(fallbackOm);
     setPlanning(fallbackPlanning);
     setAnalytics(FALLBACK_ANALYTICS);
-    setSelected((prev) => prev ?? FALLBACK_PROJECTS[0] ?? null);
+    // setSelected((prev) => prev ?? FALLBACK_PROJECTS[0] ?? null);
+    // setSelected((prev) => prev ?? null);
   }, []);
 
   const loadProjects = useCallback(async () => {
@@ -1363,12 +1364,12 @@ function Dashboard({
         setAnalytics(computeAnalytics(combined));
       }
 
-      setSelected((prev) => {
-        if (prev) {
-          return combined.find((project) => project.id === prev.id) ?? prev;
-        }
-        return combined[0] ?? null;
-      });
+      // setSelected((prev) => {
+      //   if (prev) {
+      //     return combined.find((project) => project.id === prev.id) ?? prev;
+      //   }
+      //   return combined[0] ?? null;
+      // });
     } catch (error) {
       console.error("Failed to load projects", error);
       applyFallbackProjects();
@@ -1452,7 +1453,9 @@ function Dashboard({
     return base.filter((p) => p.phase === phaseFilter);
   }, [allProjects, phaseFilter, contractFilter]);
 
-  const activeProject = hovered ?? selected ?? filteredForMap[0] ?? null;
+  // const activeProject = hovered ?? selected ?? filteredForMap[0] ?? null;
+  console.log(hovered, selected, "hovered or selected");
+  const activeProject = hovered ?? selected ?? null;
   const activeProjectWeather = activeProject
     ? weatherByProject.get(activeProject.id) ?? null
     : null;
@@ -1466,13 +1469,13 @@ function Dashboard({
     : null;
   const highlightStyles = highlightColor
     ? {
-      background: `linear-gradient(135deg, ${hexToRgba(
-        highlightColor,
-        0.18
-      )}, ${hexToRgba(highlightColor, 0.42)})`,
-      border: `1px solid ${hexToRgba(highlightColor, 0.35)}`,
-      color: readableTextColor(highlightColor),
-    }
+        background: `linear-gradient(135deg, ${hexToRgba(
+          highlightColor,
+          0.18
+        )}, ${hexToRgba(highlightColor, 0.42)})`,
+        border: `1px solid ${hexToRgba(highlightColor, 0.35)}`,
+        color: readableTextColor(highlightColor),
+      }
     : undefined;
 
   const handleResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -1639,11 +1642,11 @@ function Dashboard({
   return (
     <>
       <div className="main" style={{ gridTemplateRows: mapRows }}>
-        <header className="header">
+        <header className="header px-2 py-1 md:px-4 md:py-2 ">
           <div className="header-leading">
             {/* <Breadcrumbs items={[{ label: 'Dashboard' }]} /> */}
             <div className="header-title-group">
-              <h1 className="mb-0 text-xl! font-bold">
+              <h1 className="mb-0 text-base! md:text-xl! font-bold">
                 WAPDA Project Portfolio Dashboard
               </h1>
               {/* <p>
@@ -1680,9 +1683,13 @@ function Dashboard({
                 </button>
               ))}
             </div> */}
-            <button className="create-btn" onClick={() => setShowModal(true)}>
+            <button
+              className="create-btn"
+              title="Create New Project"
+              onClick={() => setShowModal(true)}
+            >
               <GoPlusCircle size={20} />
-              Create New Project
+              <span className="hidden md:block">Create New Project</span>
             </button>
           </div>
         </header>
@@ -1733,14 +1740,24 @@ function Dashboard({
                 <span className="label">Alerts in Focus</span>
                 <strong>{projectsAnalytics.alerts_total}</strong>
               </div>
-              {activeProject && (
+              {/* {activeProject && (
                 <div
                   className="map-stats-card highlight"
                   data-card="highlight"
                   style={highlightStyles}
                 >
                   <span className="label text-black!">Highlighted Site</span>
-                  <strong>{activeProject.name}</strong>
+                  <strong
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      display: "block",
+                    }}
+                    title={activeProject.name}
+                  >
+                    {activeProject.name}
+                  </strong>
                   <div className="map-stat-line subtle text-black!">
                     {Math.round(activeProject.status_pct)}% completion
                   </div>
@@ -1751,7 +1768,7 @@ function Dashboard({
                     <div className="map-stat-line subtle">
                       Weather{" "}
                       {activeProjectWeather.temperatureC !== null &&
-                        activeProjectWeather.temperatureC !== undefined
+                      activeProjectWeather.temperatureC !== undefined
                         ? `${Math.round(activeProjectWeather.temperatureC)}°C`
                         : "--"}{" "}
                       ·{" "}
@@ -1760,14 +1777,15 @@ function Dashboard({
                     </div>
                   )}
                 </div>
-              )}
+              )} */}
               <div
                 className="map-stats-card map-stats-toggle"
                 data-card="toggles"
               >
                 <button
-                  className={`btn-ghost ${featureToggle.geofences ? "active" : ""
-                    }`}
+                  className={`btn-ghost ${
+                    featureToggle.geofences ? "active" : ""
+                  }`}
                   onClick={() =>
                     setFeatureToggle((prev) => ({
                       ...prev,
@@ -1778,8 +1796,9 @@ function Dashboard({
                   Geofences
                 </button>
                 <button
-                  className={`btn-ghost ${featureToggle.intensity ? "active" : ""
-                    }`}
+                  className={`btn-ghost ${
+                    featureToggle.intensity ? "active" : ""
+                  }`}
                   onClick={() =>
                     setFeatureToggle((prev) => ({
                       ...prev,
@@ -1809,8 +1828,9 @@ function Dashboard({
               <ZoomControl position="topright" />
               <ScaleControl position="bottomleft" />
               <MapResizeWatcher
-                trigger={`${panelCollapsed}-${theme}-${mapView}-${filteredForMap.length
-                  }-${Math.round(mapHeight)}`}
+                trigger={`${panelCollapsed}-${theme}-${mapView}-${
+                  filteredForMap.length
+                }-${Math.round(mapHeight)}`}
               />
               <MapFocusUpdater project={selected} />
 
@@ -1828,7 +1848,7 @@ function Dashboard({
                   <Marker
                     key={project.id}
                     position={[project.lat, project.lng]}
-                    icon={icon ?? defaultIcon}
+                    icon={icon}
                     eventHandlers={{
                       click: () => {
                         setSelected(project);
@@ -1840,14 +1860,18 @@ function Dashboard({
                         prefetchControlCenter(project.id);
                       },
                       mouseout: () =>
-                        setHovered((prev) =>
-                          prev?.id === project.id ? null : prev
+                        setHovered(
+                          (prev) =>
+                            // prev?.id === project.id ? null : prev
+                            null
                         ),
                     }}
                   >
                     <Popup>
                       <div style={{ minWidth: "200px" }}>
-                        <strong>{project.name}</strong>
+                        <strong className="text-[#F86E00] text-base font-bold truncate md:w-[190px] 2xl:w-[245px]">
+                          {project.name}
+                        </strong>
                         <div>Status: {Math.round(project.status_pct)}%</div>
                         <div>Alerts: {project.alerts}</div>
                         {project.address && <div>{project.address}</div>}
@@ -1858,7 +1882,7 @@ function Dashboard({
                           <div>
                             Weather:{" "}
                             {weatherPoint.temperatureC !== null &&
-                              weatherPoint.temperatureC !== undefined
+                            weatherPoint.temperatureC !== undefined
                               ? `${Math.round(weatherPoint.temperatureC)}°C`
                               : "--"}{" "}
                             ·{" "}
@@ -1906,7 +1930,7 @@ function Dashboard({
                           </div>
                         </Tooltip>
                       </Circle>
-                      <CircleMarker
+                      {/* <CircleMarker
                         center={[project.lat, project.lng]}
                         radius={6}
                         pathOptions={{
@@ -1915,12 +1939,12 @@ function Dashboard({
                           fillColor: alertLevelColor(project.alerts),
                           fillOpacity: 0.9,
                         }}
-                      />
+                      /> */}
                     </React.Fragment>
                   ) : null
                 )}
 
-              {featureToggle.intensity &&
+              {/* featureToggle.intensity &&
                 filteredForMap.map((project) => (
                   <CircleMarker
                     key={`intensity-${project.id}`}
@@ -1935,7 +1959,7 @@ function Dashboard({
                       fillOpacity: 0.6,
                     }}
                   />
-                ))}
+                )) */}
             </MapContainer>
 
             {featureToggle.intensity && (
@@ -1992,7 +2016,8 @@ function Dashboard({
           </div>
         </section>
 
-        {!panelCollapsed && !panelScrolled && (
+        {!panelCollapsed && (
+          // && !panelScrolled
           <div
             className={`resize-bar ${isResizingMap ? "dragging" : ""}`}
             role="separator"
@@ -2000,20 +2025,48 @@ function Dashboard({
             aria-label="Adjust map and gallery height"
             onMouseDown={handleResizeStart}
           >
-            <span />
+            <svg
+              width="26"
+              height="11"
+              viewBox="0 0 26 11"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect width="26" height="11" rx="2" fill="#D4D7D9" />
+              <rect
+                x="2"
+                y="3"
+                width="22"
+                height="1.5"
+                rx="0.75"
+                fill="white"
+              />
+              <rect
+                x="2"
+                y="6.5"
+                width="22"
+                height="1.5"
+                rx="0.75"
+                fill="white"
+              />
+            </svg>
+
+            {/* <span /> */}
           </div>
         )}
 
         <div
           ref={projectsPanelRef}
-          className={`projects-panel ${panelCollapsed ? "collapsed" : ""}`}
+          className={`projects-panel py-3 px-2 xl:px-6 xl:py-4 ${
+            panelCollapsed ? "collapsed" : ""
+          }`}
         >
-          <button
+          {/* <button
             className={`panel-toggle ${panelScrolled ? "hidden" : ""}`}
             onClick={() => setPanelCollapsed((prev) => !prev)}
           >
             {panelCollapsed ? "Expand portfolio ↑" : "Collapse portfolio ↓"}
-          </button>
+          </button> */}
 
           <ProjectsSection
             title="Operations & Maintenance (AOS)"
@@ -2297,7 +2350,7 @@ function ProjectsSection({
             {badge} active
           </span>
         </div>
-        <div className="section-actions flex items-center gap-4">
+        {/* <div className="section-actions flex items-center gap-4">
           <button
             type="button"
             className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 border"
@@ -2309,7 +2362,7 @@ function ProjectsSection({
           >
             Export snapshot
           </button>
-        </div>
+        </div> */}
       </div>
       <div className="relative group flex items-center gap-4">
         <button
@@ -2371,22 +2424,35 @@ function ProjectsSection({
                 alt={project.name}
                 loading="lazy"
                 decoding="async"
+                // className="rounded-3xl"
               />
-              <div className="body">
-                <h3>{project.name}</h3>
-                <div className="flex items-center justify-between gap-2">
-                  <span>Status: </span>
-                  <span>
-                    {project.status_label ||
-                      `${Math.round(project.status_pct)}%`}
-                  </span>
+              <div className="flex gap-2 items-center px-3 py-4">
+                <div>
+                  <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center text-lg font-semibold mb-3">
+                    {project.name.charAt(0).toUpperCase()}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  {/* <span className="dot" /> */}
-                  <span>Phase: </span>
-                  <span>{project.phase}</span>
+                <div>
+                  <h3 className="text-base font-bold truncate md:w-[190px] 2xl:w-[245px]">
+                    {project.name}
+                  </h3>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm!">Status: </span>
+                      <span className="text-sm!">
+                        {project.status_label ||
+                          `${Math.round(project.status_pct)}%`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {/* <span className="dot" /> */}
+                      <span className="text-sm!">Phase: </span>
+                      <span className="text-sm!">{project.phase}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="progress-bar">
+                {/* <div className="progress-bar">
                   <span
                     style={{
                       width: `${Math.min(
@@ -2398,7 +2464,7 @@ function ProjectsSection({
                       )}, #38bdf8)`,
                     }}
                   />
-                </div>
+                </div> */}
               </div>
             </article>
           ))}
@@ -2632,111 +2698,111 @@ function ContractControlCenterOverlay({
     label: string;
     icon: React.ReactNode;
   }> = [
-      {
-        id: "scheduling",
-        label: "Scheduling View",
-        icon: (
-          <svg
-            viewBox="0 0 24 24"
-            strokeWidth="1.6"
-            stroke="currentColor"
-            fill="none"
-          >
-            <rect x="4" y="5" width="16" height="15" rx="3" />
-            <path d="M8 3v4" strokeLinecap="round" />
-            <path d="M16 3v4" strokeLinecap="round" />
-            <path d="M4 11h16" />
-            <path d="M9 15h2" strokeLinecap="round" />
-            <path d="M13 15h2" strokeLinecap="round" />
-          </svg>
-        ),
-      },
-      {
-        id: "financial",
-        label: "Financial View",
-        icon: (
-          <svg
-            viewBox="0 0 24 24"
-            strokeWidth="1.6"
-            stroke="currentColor"
-            fill="none"
-          >
-            <rect x="4" y="6" width="16" height="13" rx="2" />
-            <path d="M4 10h16" />
-            <path d="M8 14h1" strokeLinecap="round" />
-            <path d="M11 14h1" strokeLinecap="round" />
-            <path d="M14 14h2" strokeLinecap="round" />
-          </svg>
-        ),
-      },
-      {
-        id: "sustainability",
-        label: "Sustainability View",
-        icon: (
-          <svg
-            viewBox="0 0 24 24"
-            strokeWidth="1.6"
-            stroke="currentColor"
-            fill="none"
-          >
-            <path d="M12 21c4-2.5 6-5.5 6-9.5a6 6 0 0 0-12 0C6 15.5 8 18.5 12 21Z" />
-            <path d="M12 10a2 2 0 0 1 2 2" strokeLinecap="round" />
-          </svg>
-        ),
-      },
-      {
-        id: "procurement",
-        label: "Procurement / SCM View",
-        icon: (
-          <svg
-            viewBox="0 0 24 24"
-            strokeWidth="1.6"
-            stroke="currentColor"
-            fill="none"
-          >
-            <path d="M4 7h16" strokeLinecap="round" />
-            <path d="M6 7v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7" />
-            <path d="M10 11h4" strokeLinecap="round" />
-            <path d="M12 7V3" strokeLinecap="round" />
-          </svg>
-        ),
-      },
-      {
-        id: "atom",
-        label: "Atom Manager",
-        icon: (
-          <svg
-            viewBox="0 0 24 24"
-            strokeWidth="1.6"
-            stroke="currentColor"
-            fill="none"
-          >
-            <circle cx="12" cy="12" r="2.4" />
-            <path d="M4.5 8c3.5-6 11.5-6 15 0s-3.5 14-7.5 8-7.5-2-7.5-8Z" />
-          </svg>
-        ),
-      },
-      {
-        id: "forecasting",
-        label: "Forecasting View",
-        icon: (
-          <svg
-            viewBox="0 0 24 24"
-            strokeWidth="1.6"
-            stroke="currentColor"
-            fill="none"
-          >
-            <path d="M4 18h16" strokeLinecap="round" />
-            <path
-              d="M6 16l3.5-4 2.5 3 4.5-6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path d="M17 9h3v3" strokeLinecap="round" />
-          </svg>
-        ),
-      },
-    ];
+    {
+      id: "scheduling",
+      label: "Scheduling View",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          strokeWidth="1.6"
+          stroke="currentColor"
+          fill="none"
+        >
+          <rect x="4" y="5" width="16" height="15" rx="3" />
+          <path d="M8 3v4" strokeLinecap="round" />
+          <path d="M16 3v4" strokeLinecap="round" />
+          <path d="M4 11h16" />
+          <path d="M9 15h2" strokeLinecap="round" />
+          <path d="M13 15h2" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      id: "financial",
+      label: "Financial View",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          strokeWidth="1.6"
+          stroke="currentColor"
+          fill="none"
+        >
+          <rect x="4" y="6" width="16" height="13" rx="2" />
+          <path d="M4 10h16" />
+          <path d="M8 14h1" strokeLinecap="round" />
+          <path d="M11 14h1" strokeLinecap="round" />
+          <path d="M14 14h2" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      id: "sustainability",
+      label: "Sustainability View",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          strokeWidth="1.6"
+          stroke="currentColor"
+          fill="none"
+        >
+          <path d="M12 21c4-2.5 6-5.5 6-9.5a6 6 0 0 0-12 0C6 15.5 8 18.5 12 21Z" />
+          <path d="M12 10a2 2 0 0 1 2 2" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      id: "procurement",
+      label: "Procurement / SCM View",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          strokeWidth="1.6"
+          stroke="currentColor"
+          fill="none"
+        >
+          <path d="M4 7h16" strokeLinecap="round" />
+          <path d="M6 7v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7" />
+          <path d="M10 11h4" strokeLinecap="round" />
+          <path d="M12 7V3" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      id: "atom",
+      label: "Atom Manager",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          strokeWidth="1.6"
+          stroke="currentColor"
+          fill="none"
+        >
+          <circle cx="12" cy="12" r="2.4" />
+          <path d="M4.5 8c3.5-6 11.5-6 15 0s-3.5 14-7.5 8-7.5-2-7.5-8Z" />
+        </svg>
+      ),
+    },
+    {
+      id: "forecasting",
+      label: "Forecasting View",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          strokeWidth="1.6"
+          stroke="currentColor"
+          fill="none"
+        >
+          <path d="M4 18h16" strokeLinecap="round" />
+          <path
+            d="M6 16l3.5-4 2.5 3 4.5-6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path d="M17 9h3v3" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+  ];
   const visibleUtilityViews = FEATURE_SCHEDULE_UI
     ? utilityViews
     : utilityViews.filter((view) => view.id !== "scheduling");
@@ -2891,11 +2957,13 @@ function ContractControlCenterOverlay({
     ) => {
       const statusKey = Math.round(contract.status_pct || 0);
       const weatherKey = weatherPoint
-        ? `${Math.round(weatherPoint.temperatureC ?? -999)}-${weatherPoint.weatherCode ?? "na"
-        }`
+        ? `${Math.round(weatherPoint.temperatureC ?? -999)}-${
+            weatherPoint.weatherCode ?? "na"
+          }`
         : "none";
-      const cacheKey = `${contract.id}-${statusKey}-${contract.alerts}-${active ? "on" : "off"
-        }-${weatherKey}`;
+      const cacheKey = `${contract.id}-${statusKey}-${contract.alerts}-${
+        active ? "on" : "off"
+      }-${weatherKey}`;
       if (contractIconCache.current[cacheKey]) {
         return contractIconCache.current[cacheKey];
       }
@@ -2908,13 +2976,15 @@ function ContractControlCenterOverlay({
       const temperature = weatherPoint?.temperatureC;
       const weatherDescription = weatherPoint?.weatherDescription;
       const weatherHtml = weatherPoint
-        ? `<div class="contract-pin__weather">${temperature !== null && temperature !== undefined
-          ? `<span class="temp">${Math.round(temperature)}°C</span>`
-          : ""
-        }${weatherDescription
-          ? `<span class="desc">${weatherDescription}</span>`
-          : ""
-        }</div>`
+        ? `<div class="contract-pin__weather">${
+            temperature !== null && temperature !== undefined
+              ? `<span class="temp">${Math.round(temperature)}°C</span>`
+              : ""
+          }${
+            weatherDescription
+              ? `<span class="desc">${weatherDescription}</span>`
+              : ""
+          }</div>`
         : "";
 
       const icon = L.divIcon({
@@ -3000,6 +3070,82 @@ function ContractControlCenterOverlay({
               <path d="M2 20h20" strokeLinecap="round" />
             </svg>
           </button> */}
+
+          <button
+            type="button"
+            className="top-icon"
+            aria-label="Management"
+            title="Management"
+          >
+            <svg
+              width="19"
+              height="19"
+              viewBox="0 0 19 19"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M18.1 1.59998V11.35C18.1 11.7478 17.9419 12.1293 17.6606 12.4106C17.3793 12.6919 16.9978 12.85 16.6 12.85H6.41029L7.3806 13.8194C7.45028 13.889 7.50556 13.9718 7.54327 14.0628C7.58098 14.1538 7.60039 14.2514 7.60039 14.35C7.60039 14.4485 7.58098 14.5461 7.54327 14.6371C7.50556 14.7282 7.45028 14.8109 7.3806 14.8806C7.31092 14.9503 7.22819 15.0056 7.13715 15.0433C7.0461 15.081 6.94852 15.1004 6.84998 15.1004C6.75143 15.1004 6.65385 15.081 6.5628 15.0433C6.47176 15.0056 6.38903 14.9503 6.31935 14.8806L4.06935 12.6306C3.99962 12.5609 3.9443 12.4782 3.90656 12.3872C3.86881 12.2961 3.84939 12.1985 3.84939 12.1C3.84939 12.0014 3.86881 11.9038 3.90656 11.8128C3.9443 11.7217 3.99962 11.639 4.06935 11.5694L6.31935 9.31935C6.46008 9.17862 6.65095 9.09956 6.84998 9.09956C7.049 9.09956 7.23987 9.17862 7.3806 9.31935C7.52133 9.46008 7.60039 9.65095 7.60039 9.84998C7.60039 10.049 7.52133 10.2399 7.3806 10.3806L6.41029 11.35H16.6V1.59998H6.09998V2.34998C6.09998 2.54889 6.02096 2.73965 5.88031 2.88031C5.73965 3.02096 5.54889 3.09998 5.34998 3.09998C5.15106 3.09998 4.9603 3.02096 4.81965 2.88031C4.67899 2.73965 4.59998 2.54889 4.59998 2.34998V1.59998C4.59998 1.20215 4.75801 0.82062 5.03932 0.539315C5.32062 0.258011 5.70215 0.0999756 6.09998 0.0999756H16.6C16.9978 0.0999756 17.3793 0.258011 17.6606 0.539315C17.9419 0.82062 18.1 1.20215 18.1 1.59998ZM12.85 15.1C12.6511 15.1 12.4603 15.179 12.3196 15.3196C12.179 15.4603 12.1 15.6511 12.1 15.85V16.6H1.59998V6.84998H11.7897L10.8194 7.81935C10.6786 7.96008 10.5996 8.15095 10.5996 8.34998C10.5996 8.549 10.6786 8.73987 10.8194 8.8806C10.9601 9.02133 11.151 9.10039 11.35 9.10039C11.549 9.10039 11.7399 9.02133 11.8806 8.8806L14.1306 6.6306C14.2003 6.56095 14.2557 6.47823 14.2934 6.38718C14.3311 6.29613 14.3506 6.19854 14.3506 6.09998C14.3506 6.00141 14.3311 5.90382 14.2934 5.81277C14.2557 5.72172 14.2003 5.63901 14.1306 5.56935L11.8806 3.31935C11.7399 3.17862 11.549 3.09956 11.35 3.09956C11.151 3.09956 10.9601 3.17862 10.8194 3.31935C10.6786 3.46008 10.5996 3.65095 10.5996 3.84998C10.5996 4.049 10.6786 4.23987 10.8194 4.3806L11.7897 5.34998H1.59998C1.20215 5.34998 0.82062 5.50801 0.539315 5.78932C0.258011 6.07062 0.0999756 6.45215 0.0999756 6.84998V16.6C0.0999756 16.9978 0.258011 17.3793 0.539315 17.6606C0.82062 17.9419 1.20215 18.1 1.59998 18.1H12.1C12.4978 18.1 12.8793 17.9419 13.1606 17.6606C13.4419 17.3793 13.6 16.9978 13.6 16.6V15.85C13.6 15.6511 13.521 15.4603 13.3803 15.3196C13.2397 15.179 13.0489 15.1 12.85 15.1Z"
+                fill="#1A1A1A"
+                stroke="#1A1A1A"
+                stroke-width="0.2"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="top-icon"
+            aria-label="History"
+            title="History"
+          >
+            <svg
+              width="20"
+              height="19"
+              viewBox="0 0 20 19"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M10.75 4.75002V8.82533L14.1362 10.8569C14.3068 10.9593 14.4297 11.1253 14.4779 11.3184C14.526 11.5114 14.4955 11.7157 14.3931 11.8863C14.2907 12.0568 14.1247 12.1797 13.9316 12.2279C13.7386 12.2761 13.5343 12.2456 13.3637 12.1431L9.61374 9.89314C9.50275 9.82646 9.41091 9.73218 9.34717 9.61948C9.28343 9.50678 9.24995 9.37949 9.24999 9.25002V4.75002C9.24999 4.55111 9.329 4.36034 9.46966 4.21969C9.61031 4.07904 9.80107 4.00002 9.99999 4.00002C10.1989 4.00002 10.3897 4.07904 10.5303 4.21969C10.671 4.36034 10.75 4.55111 10.75 4.75002ZM9.99999 0.250028C8.81686 0.247081 7.64489 0.478809 6.55192 0.931802C5.45894 1.3848 4.46666 2.05006 3.6325 2.88909C2.95093 3.57909 2.34531 4.24283 1.75 4.93752V3.25002C1.75 3.05111 1.67098 2.86035 1.53033 2.71969C1.38968 2.57904 1.19891 2.50002 0.999999 2.50002C0.801087 2.50002 0.610322 2.57904 0.46967 2.71969C0.329017 2.86035 0.25 3.05111 0.25 3.25002V7.00002C0.25 7.19893 0.329017 7.3897 0.46967 7.53035C0.610322 7.671 0.801087 7.75002 0.999999 7.75002H4.74999C4.94891 7.75002 5.13967 7.671 5.28032 7.53035C5.42097 7.3897 5.49999 7.19893 5.49999 7.00002C5.49999 6.80111 5.42097 6.61034 5.28032 6.46969C5.13967 6.32904 4.94891 6.25002 4.74999 6.25002H2.59375C3.26406 5.46065 3.93156 4.71721 4.69281 3.94659C5.73517 2.90423 7.06159 2.19216 8.50633 1.89935C9.95108 1.60654 11.4501 1.74597 12.816 2.30023C14.182 2.85449 15.3543 3.79899 16.1865 5.01572C17.0188 6.23244 17.474 7.66744 17.4953 9.14141C17.5166 10.6154 17.1031 12.0629 16.3064 13.3032C15.5097 14.5435 14.3652 15.5215 13.0159 16.1151C11.6665 16.7086 10.1722 16.8913 8.71958 16.6404C7.26697 16.3896 5.92051 15.7161 4.84843 14.7044C4.77678 14.6367 4.69249 14.5837 4.60038 14.5486C4.50827 14.5135 4.41014 14.4968 4.31159 14.4996C4.21305 14.5024 4.11601 14.5245 4.02604 14.5648C3.93606 14.6051 3.85489 14.6627 3.78718 14.7344C3.71947 14.806 3.66653 14.8903 3.63139 14.9824C3.59626 15.0745 3.5796 15.1727 3.58239 15.2712C3.58518 15.3698 3.60734 15.4668 3.64763 15.5568C3.68792 15.6468 3.74553 15.7279 3.81718 15.7956C4.88541 16.8037 6.18413 17.535 7.59999 17.9257C9.01585 18.3164 10.5058 18.3547 11.9399 18.0372C13.3739 17.7196 14.7084 17.0559 15.827 16.104C16.9456 15.1521 17.8142 13.9409 18.357 12.5761C18.8998 11.2113 19.1003 9.73438 18.9411 8.27425C18.7818 6.81413 18.2676 5.41517 17.4434 4.19946C16.6192 2.98375 15.5099 1.98825 14.2125 1.29982C12.915 0.6114 11.4688 0.250984 9.99999 0.250028Z"
+                fill="#1A1A1A"
+                stroke="#1A1A1A"
+                stroke-width="0.5"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="top-icon"
+            aria-label="Collaborators"
+            title="Collaborators"
+          >
+            <svg
+              width="20"
+              height="19"
+              viewBox="0 0 20 19"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M5 8C5 7.44772 5.44772 7 6 7H6.002C6.27127 7 6.52916 7.10859 6.71732 7.3012C6.90548 7.49381 7.00802 7.75417 7.00173 8.02336L7.00168 8.02536C6.99549 8.2906 6.88414 8.54251 6.69215 8.72563C6.50016 8.90874 6.24327 9.00806 5.97804 9.00172L5.97608 9.00167C5.43327 8.98868 5 8.54492 5 8.00196V8Z"
+                fill="#1A1A1A"
+              />
+              <path
+                d="M9 8C9 7.44772 9.44772 7 10 7H10.002C10.2713 7 10.5292 7.10859 10.7173 7.3012C10.9055 7.49381 11.008 7.75417 11.0017 8.02336L11.0017 8.02536C10.9955 8.2906 10.8841 8.54251 10.6921 8.72563C10.5002 8.90874 10.2433 9.00806 9.97804 9.00172L9.97608 9.00167C9.43327 8.98868 9 8.54492 9 8.00196V8Z"
+                fill="#1A1A1A"
+              />
+              <path
+                d="M13 8C13 7.44772 13.4477 7 14 7H14.002C14.2713 7 14.5292 7.10859 14.7173 7.3012C14.9055 7.49381 15.008 7.75417 15.0017 8.02336L15.0017 8.02536C14.9955 8.2906 14.8841 8.54251 14.6921 8.72563C14.5002 8.90874 14.2433 9.00806 13.978 9.00172L13.9761 9.00167C13.4333 8.98868 13 8.54492 13 8.00196V8Z"
+                fill="#1A1A1A"
+              />
+              <path
+                fill-rule="evenodd"
+                clip-rule="evenodd"
+                d="M4.16168 8.60056e-07H15.8388C16.3659 -1.70213e-05 16.8205 -3.25181e-05 17.1949 0.0305751C17.5902 0.0628916 17.9831 0.134244 18.3614 0.326982C18.9248 0.614051 19.3851 1.07224 19.6732 1.63781C19.8659 2.016 19.9372 2.40906 19.9695 2.80397C20 3.17815 20 3.6323 20 4.15839V11.8421C20 12.3682 20 12.8222 19.9695 13.1962C19.9372 13.591 19.8659 13.9838 19.6732 14.3619C19.3857 14.9262 18.9266 15.3855 18.362 15.6732C17.9839 15.8659 17.5909 15.9372 17.196 15.9695C16.8218 16 16.3677 16 15.8416 16H7.12207C6.66611 16 6.57738 16.0047 6.50085 16.0204C6.41146 16.0388 6.32585 16.0688 6.24664 16.1093C6.17901 16.1438 6.10813 16.1945 5.75948 16.4734L5.74376 16.4858L5.74047 16.4883L4.18975 17.7289C3.8034 18.038 3.46126 18.3117 3.17105 18.5036C2.88772 18.6909 2.48663 18.9189 2.00206 18.9195C1.39287 18.9201 0.816826 18.6431 0.436918 18.1672C0.134659 17.7885 0.0621401 17.333 0.031411 16.9947C-5.0921e-05 16.6484 -2.62429e-05 16.2104 1.65212e-06 15.7157L2.36738e-06 4.16168C-1.5514e-05 3.63451 -3.0892e-05 3.17965 0.0305707 2.80499C0.0628635 2.40962 0.13416 2.01625 0.326984 1.63781C0.614604 1.07332 1.07332 0.614602 1.63781 0.326982C2.01625 0.134158 2.40962 0.0628619 2.80499 0.0305692C3.17965 -3.23988e-05 3.63451 -1.70213e-05 4.16168 8.60056e-07ZM2.9678 2.02393C2.69595 2.04614 2.59518 2.08383 2.54579 2.109C2.35763 2.20487 2.20487 2.35763 2.109 2.54579C2.08383 2.59517 2.04614 2.69595 2.02393 2.9678C2.00078 3.25126 2 3.62365 2 4.2002V15.6712C2 16.224 2.001 16.5693 2.02321 16.8138C2.02476 16.8309 2.02637 16.8466 2.02799 16.8611C2.04036 16.8533 2.0537 16.8447 2.06805 16.8352C2.27295 16.6998 2.54327 16.4848 2.97492 16.1395L4.49888 14.9203L4.5146 14.908L4.51782 14.9055C4.5333 14.8931 4.54868 14.8808 4.56396 14.8685C4.82855 14.6565 5.06493 14.4671 5.33673 14.3282C5.57847 14.2047 5.83511 14.1154 6.09876 14.0613C6.39992 13.9994 6.70494 13.9997 7.05158 14C7.07489 14 7.09838 14 7.12207 14H15.8031C16.3785 14 16.7502 13.9992 17.033 13.9761C17.3043 13.9539 17.4048 13.9163 17.454 13.8912C17.642 13.7954 17.7953 13.6422 17.8912 13.4539C17.9164 13.4046 17.954 13.3041 17.9761 13.0332C17.9992 12.7505 18 12.379 18 11.8036V4.19691C18 3.62146 17.9992 3.2498 17.9761 2.96686C17.9539 2.69554 17.9163 2.59501 17.8912 2.54579C17.7959 2.35871 17.6427 2.20542 17.4534 2.109C17.4039 2.08375 17.3032 2.04611 17.0319 2.02393C16.7488 2.00078 16.3768 2 15.8002 2H4.2002C3.62365 2 3.25126 2.00078 2.9678 2.02393Z"
+                fill="#1A1A1A"
+              />
+            </svg>
+          </button>
           <button
             type="button"
             className="top-icon alert"
@@ -3020,32 +3166,6 @@ function ContractControlCenterOverlay({
             </svg>
 
             <span className="badge">{alertCount}</span>
-          </button>
-          <button
-            type="button"
-            className="top-icon"
-            aria-label="Collaborators"
-            title="Collaborators"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-            >
-              <circle cx="9" cy="9" r="3" />
-              <circle cx="17" cy="10" r="2.5" />
-              <path
-                d="M4 19a5 5 0 0 1 10 0"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M14 19a4 4 0 0 1 6 0"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
           </button>
         </div>
       </header>
@@ -3242,8 +3362,9 @@ function ContractControlCenterOverlay({
                     >
                       <button
                         type="button"
-                        className={`btn-map-toggle ${featureToggle.geofences ? "active" : ""
-                          }`}
+                        className={`btn-map-toggle ${
+                          featureToggle.geofences ? "active" : ""
+                        }`}
                         onClick={() =>
                           setFeatureToggle((prev) => ({
                             ...prev,
@@ -3255,8 +3376,9 @@ function ContractControlCenterOverlay({
                       </button>
                       <button
                         type="button"
-                        className={`btn-map-toggle ${featureToggle.intensity ? "active" : ""
-                          }`}
+                        className={`btn-map-toggle ${
+                          featureToggle.intensity ? "active" : ""
+                        }`}
                         onClick={() =>
                           setFeatureToggle((prev) => ({
                             ...prev,
@@ -3292,10 +3414,10 @@ function ContractControlCenterOverlay({
                           <span>
                             Weather{" "}
                             {activeContractWeather.temperatureC !== null &&
-                              activeContractWeather.temperatureC !== undefined
+                            activeContractWeather.temperatureC !== undefined
                               ? `${Math.round(
-                                activeContractWeather.temperatureC
-                              )}°C`
+                                  activeContractWeather.temperatureC
+                                )}°C`
                               : "--"}{" "}
                             ·{" "}
                             {activeContractWeather.weatherDescription ??
@@ -3338,12 +3460,13 @@ function ContractControlCenterOverlay({
                       />
                     )}
                     <MapResizeWatcher
-                      trigger={`${panelCollapsed}-${theme}-${mapView}-${filteredContracts.length
-                        }-${Math.round(
-                          (mapShellRef.current?.offsetHeight ?? 0) * 100
-                        )}-${mapWipSizes
-                          .map((size) => size.toFixed(2))
-                          .join("-")}`}
+                      trigger={`${panelCollapsed}-${theme}-${mapView}-${
+                        filteredContracts.length
+                      }-${Math.round(
+                        (mapShellRef.current?.offsetHeight ?? 0) * 100
+                      )}-${mapWipSizes
+                        .map((size) => size.toFixed(2))
+                        .join("-")}`}
                     />
 
                     {featureToggle.intensity &&
@@ -3381,8 +3504,8 @@ function ContractControlCenterOverlay({
                           const radius =
                             Math.max(
                               contract.geofence_radius_m ??
-                              project.geofence_radius_m ??
-                              0,
+                                project.geofence_radius_m ??
+                                0,
                               900
                             ) * 1.05;
                           return (
@@ -3440,10 +3563,10 @@ function ContractControlCenterOverlay({
                                 <span style={{ fontSize: "0.7rem" }}>
                                   Weather{" "}
                                   {weatherPoint.temperatureC !== null &&
-                                    weatherPoint.temperatureC !== undefined
+                                  weatherPoint.temperatureC !== undefined
                                     ? `${Math.round(
-                                      weatherPoint.temperatureC
-                                    )}°C`
+                                        weatherPoint.temperatureC
+                                      )}°C`
                                     : "--"}{" "}
                                   ·{" "}
                                   {weatherPoint.weatherDescription ??
@@ -3616,9 +3739,10 @@ function WorkInProgressBoard({
     activeStatus === "All"
       ? `Showing ${rankedItems.length} of ${totalProjects} contracts`
       : rankedItems.length
-        ? `Showing ${rankedItems.length} ${rankedItems.length === 1 ? "contract" : "contracts"
+      ? `Showing ${rankedItems.length} ${
+          rankedItems.length === 1 ? "contract" : "contracts"
         }`
-        : `No contracts currently in ${activeStatus}`;
+      : `No contracts currently in ${activeStatus}`;
 
   return (
     <div className="contract-wip-board pp-wip">
@@ -3679,8 +3803,8 @@ function WorkInProgressBoard({
                   progress >= 65
                     ? "ahead"
                     : progress >= 40
-                      ? "steady"
-                      : "lagging";
+                    ? "steady"
+                    : "lagging";
                 return (
                   <div
                     key={item.contract + item.status}
@@ -3783,7 +3907,7 @@ function WorkInProgressBoard({
             </div>
           </>
         )}
-      </div >
-    </div >
+      </div>
+    </div>
   );
 }
