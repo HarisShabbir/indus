@@ -3173,7 +3173,7 @@ function ContractControlCenterOverlay({
         <div className="contract-body pp-layout overflow-auto grid h-full grid-cols-[300px_1fr_300px] gap-4 pr-[70px]!">
           <aside className="contract-list pp-leftRail">
             <div className="contract-filter">
-              <span>Contracts</span>
+              <span className="text-lg font-bold capitalize">Contracts</span>
               <select
                 value={contractFilter}
                 onChange={(event) => setContractFilter(event.target.value)}
@@ -3235,8 +3235,8 @@ function ContractControlCenterOverlay({
                                 )}
                               </div>
                               <div className="contract-meta">
-                                <span>{contract.discipline || "General"}</span>
-                                <span>{Math.round(contract.status_pct)}%</span>
+                                {/* <span>{contract.discipline || "General"}</span> */}
+                                {/* <span>{Math.round(contract.status_pct)}%</span> */}
                               </div>
                             </div>
                             {/* {hasSections && (
@@ -3263,52 +3263,49 @@ function ContractControlCenterOverlay({
                                         className="sow-header"
                                         onClick={() => toggleSow(section.id)}
                                       >
-                                        <div>
+                                        <div className="sow-header-content">
                                           <div className="sow-title">
                                             {section.title}
                                           </div>
-                                          <div className="sow-status">
-                                            {section.status}
-                                          </div>
                                         </div>
-                                        <div className="sow-progress">
-                                          <div className="progress-bar thin">
-                                            <span
-                                              style={{
-                                                width: `${Math.min(
-                                                  Math.max(section.progress, 0),
-                                                  100
-                                                )}%`,
-                                              }}
-                                            />
-                                          </div>
-                                          <span>
-                                            {Math.round(section.progress)}%
+                                        {section.clauses.length > 0 && (
+                                          <span className="sow-toggle">
+                                            {sowExpanded ? "−" : "+"}
                                           </span>
-                                        </div>
+                                        )}
                                       </div>
                                       {section.clauses.length > 0 &&
                                         sowExpanded && (
-                                          <ul className="sow-clauses">
-                                            {section.clauses.map((clause) => (
-                                              <li key={clause.id}>
-                                                <div className="clause-title">
-                                                  {clause.title}
-                                                </div>
-                                                <div className="clause-meta">
-                                                  <span>{clause.status}</span>
-                                                  {clause.lead && (
+                                          <div className="bg-white rounded-lg p-2 mt-2">
+                                            <div className="sow-meta pb-2">
+                                              <span className="sow-status">
+                                                {section.status}
+                                              </span>
+                                              <span className="sow-progress">
+                                                {Math.round(section.progress)}%
+                                              </span>
+                                            </div>
+                                            <ul className="sow-clauses">
+                                              {section.clauses.map((clause) => (
+                                                <li key={clause.id}>
+                                                  <div className="clause-title">
+                                                    {clause.title}
+                                                  </div>
+                                                  <div className="clause-meta">
+                                                    <span>{clause.status}</span>
+                                                    {clause.lead && (
+                                                      <span>
+                                                        Lead: {clause.lead}
+                                                      </span>
+                                                    )}
                                                     <span>
-                                                      Lead: {clause.lead}
+                                                      {clause.progress}%
                                                     </span>
-                                                  )}
-                                                  <span>
-                                                    {clause.progress}%
-                                                  </span>
-                                                </div>
-                                              </li>
-                                            ))}
-                                          </ul>
+                                                  </div>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
                                         )}
                                     </div>
                                   );
@@ -3753,7 +3750,7 @@ function WorkInProgressBoard({
         </span>
       </div>
       <div className="min-h-[120px] overflow-auto">
-        <div className="wip-summary">
+        {/* <div className="wip-summary">
           {summary.map(({ status, count, color, average }) => {
             const isActive = activeStatus === status;
             const displayAverage =
@@ -3775,7 +3772,7 @@ function WorkInProgressBoard({
               </button>
             );
           })}
-        </div>
+        </div> */}
 
         {emptyState ? (
           <div className="wip-empty-state">
@@ -3783,8 +3780,69 @@ function WorkInProgressBoard({
           </div>
         ) : (
           <>
-            <div className="wip-track">
+            <div className="wip-track wip-track-horizontal">
               {rankedItems.map((item) => {
+                const progress = Math.max(0, Math.min(100, item.percent));
+                const accent =
+                  WORK_STATUS_COLORS[item.status] ??
+                  contractAccent(item.contract);
+                const circumference = 2 * Math.PI * 40;
+                const dashOffset = circumference * (1 - progress / 100);
+                
+                return (
+                  <div key={item.contract + item.status} className="wip-chart-item">
+                    <div className="wip-chart-circle">
+                      <svg
+                        className="wip-chart-svg"
+                        viewBox="0 0 100 100"
+                        role="presentation"
+                        aria-hidden
+                      >
+                        <circle
+                          className="wip-chart-track"
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="none"
+                          stroke="#e2e8f0"
+                          strokeWidth="2"
+                        />
+                        <circle
+                          className="wip-chart-progress"
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="none"
+                          stroke={accent}
+                          strokeWidth="15"
+                          strokeDasharray={circumference}
+                          strokeDashoffset={dashOffset}
+                          // strokeLinecap="round"
+                          transform="rotate(-90 50 50)"
+                        />
+                        <text
+                          x="50"
+                          y="55"
+                          className="wip-chart-text"
+                          textAnchor="middle"
+                          fill="#1a1a1a"
+                          fontSize="16"
+                          fontWeight="600"
+                        >
+                          {Math.round(progress)}%
+                        </text>
+                      </svg>
+                      {/* <div
+                        className="wip-chart-indicator"
+                        style={{ backgroundColor: accent }}
+                      /> */}
+                    </div>
+                    <div className="wip-chart-label" title={item.contract}>{item.contract}</div>
+                    <div className="wip-chart-status font-semibold">Status: {item.status}</div>
+                  </div>
+                );
+              })}
+              {/* {rankedItems.map((item) => {
                 const progress = Math.max(0, Math.min(100, item.percent));
                 const accent =
                   WORK_STATUS_COLORS[item.status] ??
@@ -3891,7 +3949,7 @@ function WorkInProgressBoard({
                     </div>
                   </div>
                 );
-              })}
+              })} */}
             </div>
 
             <div className="wip-legend">
