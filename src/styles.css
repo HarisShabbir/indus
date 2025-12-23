@@ -2438,8 +2438,8 @@ font-size: 11px;
 }
 
 .utility-dock-btn {
-  width: 44px;
-  height: 44px;
+  width: 45px;
+  height: 45px;
   border: none;
   border-radius: 16px;
   display: grid;
@@ -3034,13 +3034,15 @@ font-size: 11px;
   }
 
   .project-productivity {
-    position: fixed;
+    /* position: fixed;
     right: calc(var(--page-gutter) + var(--right-rail-w));
-    top: var(--page-gutter);
-    width: min(92vw, 300px);
-    max-height: calc(100vh - var(--page-gutter) * 2);
+    top: var(--page-gutter); */
+    /* width: min(92vw, 300px); */
+    width: 100%;
+    max-width: 100%;
+    /* max-height: calc(100vh - var(--page-gutter) * 2);
     overflow-y: auto;
-    z-index: 30;
+    z-index: 30; */
   }
 }
 
@@ -3050,12 +3052,12 @@ font-size: 11px;
     padding-inline: var(--page-gutter);
   }
 
-  .project-productivity {
-    position: static;
+  /* .project-productivity { */
+    /* position: static;
     width: 100%;
     max-width: none;
     margin-top: 24px;
-  }
+  } */
 }
 
 .productivity-heading {
