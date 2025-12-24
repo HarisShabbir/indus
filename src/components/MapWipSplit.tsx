@@ -172,7 +172,7 @@ export default function MapWipSplit({
       <div
         className="h-fit"
         ref={wipScrollRef}
-        // style={paneStyles.wip} map-wip-pane--wip
+      // style={paneStyles.wip} map-wip-pane--wip
       >
         <div className="map-wip-pane__scroll h-fit">{wipPane}</div>
       </div>
