@@ -570,7 +570,7 @@ function computeAnalytics(projects: Project[]): ProjectAnalytics {
   );
   const average_progress = total
     ? projects.reduce((sum, project) => sum + (project.status_pct ?? 0), 0) /
-    total
+      total
     : 0;
   const phase_breakdown = projects.reduce<Record<string, number>>(
     (acc, project) => {
@@ -630,23 +630,26 @@ function createMarkerIcon(
     project.phase === "Construction"
       ? "#fb923c"
       : project.phase === "Planning & Design"
-        ? "#38bdf8"
-        : "#34d399";
+      ? "#38bdf8"
+      : "#34d399";
 
   const temperature = weather?.temperatureC;
   const description = weather?.weatherDescription;
   const weatherHtml = weather
-    ? `<div class="marker-weather"><span class="marker-weather__temp">${temperature !== null && temperature !== undefined
-      ? `${Math.round(temperature)}°C`
-      : ""
-    }</span>${description
-      ? `<span class="marker-weather__desc">${description}</span>`
-      : ""
-    }</div>`
+    ? `<div class="marker-weather"><span class="marker-weather__temp">${
+        temperature !== null && temperature !== undefined
+          ? `${Math.round(temperature)}°C`
+          : ""
+      }</span>${
+        description
+          ? `<span class="marker-weather__desc">${description}</span>`
+          : ""
+      }</div>`
     : "";
 
-  const className = `project-marker theme-${theme} ${isActive ? "project-marker--active" : ""
-    }`;
+  const className = `project-marker theme-${theme} ${
+    isActive ? "project-marker--active" : ""
+  }`;
   return L.divIcon({
     className,
     html: `
@@ -656,8 +659,8 @@ function createMarkerIcon(
         <div style="display: flex; flex-direction: column;">
           <span style="color: #F86E00; font-weight: 500;">${project.name}</span>
           <strong style="color: #328DEE;">${Math.round(
-      project.status_pct
-    )}%</strong>
+            project.status_pct
+          )}%</strong>
           ${weatherHtml ?? ""}
         </div>
       </div>
@@ -677,15 +680,15 @@ const phaseAccent = (phase: string) =>
   phase === "Construction"
     ? "var(--accent-warm)"
     : phase === "Planning & Design"
-      ? "var(--accent)"
-      : "var(--accent-cool)";
+    ? "var(--accent)"
+    : "var(--accent-cool)";
 
 const phaseLabel = (phase: string) =>
   phase === "Construction"
     ? "ACCS"
     : phase === "Planning & Design"
-      ? "CPDS"
-      : "AOS";
+    ? "CPDS"
+    : "AOS";
 
 const contractAccent = (name: string) => {
   if (name.startsWith("MW-")) return "#38bdf8";
@@ -1307,13 +1310,13 @@ function Dashboard({
     : null;
   const highlightStyles = highlightColor
     ? {
-      background: `linear-gradient(135deg, ${hexToRgba(
-        highlightColor,
-        0.18
-      )}, ${hexToRgba(highlightColor, 0.42)})`,
-      border: `1px solid ${hexToRgba(highlightColor, 0.35)}`,
-      color: readableTextColor(highlightColor),
-    }
+        background: `linear-gradient(135deg, ${hexToRgba(
+          highlightColor,
+          0.18
+        )}, ${hexToRgba(highlightColor, 0.42)})`,
+        border: `1px solid ${hexToRgba(highlightColor, 0.35)}`,
+        color: readableTextColor(highlightColor),
+      }
     : undefined;
 
   const handleResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -1621,8 +1624,9 @@ function Dashboard({
                 data-card="toggles"
               >
                 <button
-                  className={`btn-ghost ${featureToggle.geofences ? "active" : ""
-                    }`}
+                  className={`btn-ghost ${
+                    featureToggle.geofences ? "active" : ""
+                  }`}
                   onClick={() =>
                     setFeatureToggle((prev) => ({
                       ...prev,
@@ -1633,8 +1637,9 @@ function Dashboard({
                   Geofences
                 </button>
                 <button
-                  className={`btn-ghost ${featureToggle.intensity ? "active" : ""
-                    }`}
+                  className={`btn-ghost ${
+                    featureToggle.intensity ? "active" : ""
+                  }`}
                   onClick={() =>
                     setFeatureToggle((prev) => ({
                       ...prev,
@@ -1664,8 +1669,9 @@ function Dashboard({
               <ZoomControl position="topright" />
               <ScaleControl position="bottomleft" />
               <MapResizeWatcher
-                trigger={`${panelCollapsed}-${theme}-${mapView}-${filteredForMap.length
-                  }-${Math.round(mapHeight)}`}
+                trigger={`${panelCollapsed}-${theme}-${mapView}-${
+                  filteredForMap.length
+                }-${Math.round(mapHeight)}`}
               />
               <MapFocusUpdater project={selected} />
 
@@ -1717,7 +1723,7 @@ function Dashboard({
                           <div>
                             Weather:{" "}
                             {weatherPoint.temperatureC !== null &&
-                              weatherPoint.temperatureC !== undefined
+                            weatherPoint.temperatureC !== undefined
                               ? `${Math.round(weatherPoint.temperatureC)}°C`
                               : "--"}{" "}
                             ·{" "}
@@ -1868,8 +1874,9 @@ function Dashboard({
 
         <div
           ref={projectsPanelRef}
-          className={`projects-panel py-3 px-2 xl:px-6 xl:py-4 ${panelCollapsed ? "collapsed" : ""
-            }`}
+          className={`projects-panel p-2 xl:p-4 ${
+            panelCollapsed ? "collapsed" : ""
+          }`}
         >
           {/* <button
             className={`panel-toggle ${panelScrolled ? "hidden" : ""}`}
@@ -2187,7 +2194,12 @@ function ProjectsSection({
           }}
           aria-label="Scroll left"
         >
-          <SvgIcon name="arrow-left" className="w-5 h-5" stroke="currentColor" strokeWidth={2} />
+          <SvgIcon
+            name="arrow-left"
+            className="w-5 h-5"
+            stroke="currentColor"
+            strokeWidth={2}
+          />
         </button>
         <div
           ref={scrollContainerRef}
@@ -2222,7 +2234,7 @@ function ProjectsSection({
                 alt={project.name}
                 loading="lazy"
                 decoding="async"
-              // className="rounded-3xl"
+                // className="rounded-3xl"
               />
               <div className="flex gap-2 items-center px-3 py-4">
                 <div>
@@ -2279,7 +2291,12 @@ function ProjectsSection({
           }}
           aria-label="Scroll right"
         >
-          <SvgIcon name="arrow-right" className="w-5 h-5" stroke="currentColor" strokeWidth={2} />
+          <SvgIcon
+            name="arrow-right"
+            className="w-5 h-5"
+            stroke="currentColor"
+            strokeWidth={2}
+          />
         </button>
       </div>
     </section>
@@ -2417,7 +2434,7 @@ function ContractControlCenterOverlay({
     Record<string, boolean>
   >({});
   const [expandedSows, setExpandedSows] = useState<Record<string, boolean>>({});
-  const [mapView, setMapView] = useState<MapView>("atlas");
+  const [mapView, setMapView] = useState<MapView>("satellite");
   const [featureToggle, setFeatureToggle] = useState<MapFeatureToggle>({
     geofences: false,
     intensity: false,
@@ -2484,57 +2501,61 @@ function ContractControlCenterOverlay({
     label: string;
     icon: React.ReactNode;
   }> = [
-      {
-        id: "scheduling",
-        label: "Scheduling View",
-        icon: (
-          <SvgIcon name="scheduling" stroke="currentColor" strokeWidth="1.6" />
-        ),
-      },
-      {
-        id: "financial",
-        label: "Financial View",
-        icon: (
-          <SvgIcon name="financial" stroke="currentColor" strokeWidth="1.6" />
-        ),
-      },
-      {
-        id: "sustainability",
-        label: "Sustainability View",
-        icon: (
-          <SvgIcon name="sustainability" stroke="currentColor" strokeWidth="1.6" />
-        ),
-      },
-      {
-        id: "procurement",
-        label: "Procurement / SCM View",
-        icon: (
-          <SvgIcon name="procurement" stroke="currentColor" strokeWidth="1.6" />
-        ),
-      },
-      {
-        id: "atom",
-        label: "Atom Manager",
-        icon: (
-          // <svg
-          //   viewBox="0 0 24 24"
-          //   strokeWidth="1.6"
-          //   stroke="currentColor"
-          //   fill="none"
-          // >
-          //   <circle cx="12" cy="12" r="2.4" />
-          //   <path d="M4.5 8c3.5-6 11.5-6 15 0s-3.5 14-7.5 8-7.5-2-7.5-8Z" />
-          <SvgIcon name="atom" fill="currentColor" />
-        ),
-      },
-      {
-        id: "forecasting",
-        label: "Forecasting View",
-        icon: (
-          <SvgIcon name="forecasting" stroke="currentColor" strokeWidth="1.6" />
-        ),
-      },
-    ];
+    {
+      id: "scheduling",
+      label: "Scheduling View",
+      icon: (
+        <SvgIcon name="scheduling" stroke="currentColor" strokeWidth="1.6" />
+      ),
+    },
+    {
+      id: "financial",
+      label: "Financial View",
+      icon: (
+        <SvgIcon name="financial" stroke="currentColor" strokeWidth="1.6" />
+      ),
+    },
+    {
+      id: "sustainability",
+      label: "Sustainability View",
+      icon: (
+        <SvgIcon
+          name="sustainability"
+          stroke="currentColor"
+          strokeWidth="1.6"
+        />
+      ),
+    },
+    {
+      id: "procurement",
+      label: "Procurement / SCM View",
+      icon: (
+        <SvgIcon name="procurement" stroke="currentColor" strokeWidth="1.6" />
+      ),
+    },
+    {
+      id: "atom",
+      label: "Atom Manager",
+      icon: (
+        // <svg
+        //   viewBox="0 0 24 24"
+        //   strokeWidth="1.6"
+        //   stroke="currentColor"
+        //   fill="none"
+        // >
+        //   <circle cx="12" cy="12" r="2.4" />
+        //   <path d="M4.5 8c3.5-6 11.5-6 15 0s-3.5 14-7.5 8-7.5-2-7.5-8Z" />
+        <SvgIcon name="atom" fill="currentColor" />
+      ),
+    },
+    {
+      id: "forecasting",
+      label: "Forecasting View",
+      icon: (
+        <SvgIcon name="forecasting" stroke="currentColor" strokeWidth="1.6" />
+      ),
+    },
+  ];
   const visibleUtilityViews = FEATURE_SCHEDULE_UI
     ? utilityViews
     : utilityViews.filter((view) => view.id !== "scheduling");
@@ -2689,11 +2710,13 @@ function ContractControlCenterOverlay({
     ) => {
       const statusKey = Math.round(contract.status_pct || 0);
       const weatherKey = weatherPoint
-        ? `${Math.round(weatherPoint.temperatureC ?? -999)}-${weatherPoint.weatherCode ?? "na"
-        }`
+        ? `${Math.round(weatherPoint.temperatureC ?? -999)}-${
+            weatherPoint.weatherCode ?? "na"
+          }`
         : "none";
-      const cacheKey = `${contract.id}-${statusKey}-${contract.alerts}-${active ? "on" : "off"
-        }-${weatherKey}`;
+      const cacheKey = `${contract.id}-${statusKey}-${contract.alerts}-${
+        active ? "on" : "off"
+      }-${weatherKey}`;
       if (contractIconCache.current[cacheKey]) {
         return contractIconCache.current[cacheKey];
       }
@@ -2706,28 +2729,34 @@ function ContractControlCenterOverlay({
       const temperature = weatherPoint?.temperatureC;
       const weatherDescription = weatherPoint?.weatherDescription;
       const weatherHtml = weatherPoint
-        ? `<div class="contract-pin__weather">${temperature !== null && temperature !== undefined
-          ? `<span class="temp">${Math.round(temperature)}°C</span>`
-          : ""
-        }${weatherDescription
-          ? `<span class="desc">${weatherDescription}</span>`
-          : ""
-        }</div>`
+        ? `<div class="contract-pin__weather">${
+            temperature !== null && temperature !== undefined
+              ? `<span class="temp">${Math.round(temperature)}°C</span>`
+              : ""
+          }${
+            weatherDescription
+              ? `<span class="desc">${weatherDescription}</span>`
+              : ""
+          }</div>`
         : "";
 
       const icon = L.divIcon({
         className: `contract-pin ${active ? "contract-pin--active" : ""}`,
         html: `
         <div class="contract-pin__glow" style="--contract-accent:${accent};--contract-intensity:${intensity}"></div>
-        <div class="contract-pin__core" style="--contract-accent:${accent}">
-          <span class="contract-pin__value">${statusKey}%</span>
-          ${alertsBadge}
-          ${weatherHtml}
-        </div>
+          <div class="contract-pin__container" style="--contract-accent:${accent}">
+            <div class="contract-pin__core" style="--contract-accent:${accent}">
+              <div class="contract-pin__core-inner" style="--contract-accent:${accent}">
+                <span class="contract-pin__value">${statusKey}%</span>
+                ${weatherHtml}
+                </div>
+                </div>
+                ${alertsBadge}
+          </div>
       `,
-        iconSize: [54, 54],
-        iconAnchor: [27, 27],
-        popupAnchor: [0, -20],
+        iconSize: [32, 40],
+        iconAnchor: [16, 40],
+        popupAnchor: [0, -40],
       });
 
       contractIconCache.current[cacheKey] = icon;
@@ -2746,7 +2775,7 @@ function ContractControlCenterOverlay({
     : "Project";
 
   return (
-    <div className="contract-page">
+    <div className="contract-page p-2 xl:p-4 gap-4">
       <header className="contract-topbar">
         <Breadcrumbs
           items={[
@@ -2836,7 +2865,7 @@ function ContractControlCenterOverlay({
         </div>
       </header>
       <div className="contract-panel">
-        <div className="contract-body pp-layout overflow-auto grid! h-full grid-cols-1 xl:grid-cols-[22%_53%_25%] gap-4 mr-[50px]! xl:mr-[70px]!">
+        <div className="contract-body pp-layout overflow-auto grid! h-full grid-cols-1 xl:grid-cols-[20%_58%_22%] gap-4 mr-[50px]! xl:mr-[60px]!">
           <aside className="contract-list pp-leftRail">
             <div className="contract-filter">
               <span className="text-lg font-bold capitalize">Contracts</span>
@@ -2888,7 +2917,11 @@ function ContractControlCenterOverlay({
                             <div>
                               <div className="contract-name flex items-center justify-between gap-2">
                                 <div className="flex gap-2 items-center">
-                                  <SvgIcon name="contract-icon" width={14} height={14} />
+                                  <SvgIcon
+                                    name="contract-icon"
+                                    width={14}
+                                    height={14}
+                                  />
                                   <span
                                     className="max-w-full xl:max-w-[120px] 2xl:max-w-full"
                                     style={{
@@ -2947,8 +2980,12 @@ function ContractControlCenterOverlay({
                                         onClick={() => toggleSow(section.id)}
                                       >
                                         <div className="sow-header-content">
-                                          <div className="sow-title flex gap-2 items-center text-[#EE6E27]!">
-                                            <SvgIcon name="sow-icon" width={10} height={11} />
+                                          <div className="sow-title flex gap-2 items-center">
+                                            <SvgIcon
+                                              name="sow-icon"
+                                              width={10}
+                                              height={11}
+                                            />
                                             <span
                                               className="max-w-full xl:max-w-[120px] 2xl:max-w-full"
                                               style={{
@@ -2964,7 +3001,7 @@ function ContractControlCenterOverlay({
                                           </div>
                                         </div>
                                         {section.clauses.length > 0 && (
-                                          <span className="sow-toggle text-[#EE6E27]!">
+                                          <span className="sow-toggle">
                                             {sowExpanded ? "−" : "+"}
                                           </span>
                                         )}
@@ -3054,8 +3091,9 @@ function ContractControlCenterOverlay({
                     >
                       <button
                         type="button"
-                        className={`btn-map-toggle ${featureToggle.geofences ? "active" : ""
-                          }`}
+                        className={`btn-map-toggle ${
+                          featureToggle.geofences ? "active" : ""
+                        }`}
                         onClick={() =>
                           setFeatureToggle((prev) => ({
                             ...prev,
@@ -3067,8 +3105,9 @@ function ContractControlCenterOverlay({
                       </button>
                       <button
                         type="button"
-                        className={`btn-map-toggle ${featureToggle.intensity ? "active" : ""
-                          }`}
+                        className={`btn-map-toggle ${
+                          featureToggle.intensity ? "active" : ""
+                        }`}
                         onClick={() =>
                           setFeatureToggle((prev) => ({
                             ...prev,
@@ -3104,10 +3143,10 @@ function ContractControlCenterOverlay({
                           <span>
                             Weather{" "}
                             {activeContractWeather.temperatureC !== null &&
-                              activeContractWeather.temperatureC !== undefined
+                            activeContractWeather.temperatureC !== undefined
                               ? `${Math.round(
-                                activeContractWeather.temperatureC
-                              )}°C`
+                                  activeContractWeather.temperatureC
+                                )}°C`
                               : "--"}{" "}
                             ·{" "}
                             {activeContractWeather.weatherDescription ??
@@ -3150,12 +3189,13 @@ function ContractControlCenterOverlay({
                       />
                     )}
                     <MapResizeWatcher
-                      trigger={`${panelCollapsed}-${theme}-${mapView}-${filteredContracts.length
-                        }-${Math.round(
-                          (mapShellRef.current?.offsetHeight ?? 0) * 100
-                        )}-${mapWipSizes
-                          .map((size) => size.toFixed(2))
-                          .join("-")}`}
+                      trigger={`${panelCollapsed}-${theme}-${mapView}-${
+                        filteredContracts.length
+                      }-${Math.round(
+                        (mapShellRef.current?.offsetHeight ?? 0) * 100
+                      )}-${mapWipSizes
+                        .map((size) => size.toFixed(2))
+                        .join("-")}`}
                     />
 
                     {featureToggle.intensity &&
@@ -3193,8 +3233,8 @@ function ContractControlCenterOverlay({
                           const radius =
                             Math.max(
                               contract.geofence_radius_m ??
-                              project.geofence_radius_m ??
-                              0,
+                                project.geofence_radius_m ??
+                                0,
                               900
                             ) * 1.05;
                           return (
@@ -3252,10 +3292,10 @@ function ContractControlCenterOverlay({
                                 <span style={{ fontSize: "0.7rem" }}>
                                   Weather{" "}
                                   {weatherPoint.temperatureC !== null &&
-                                    weatherPoint.temperatureC !== undefined
+                                  weatherPoint.temperatureC !== undefined
                                     ? `${Math.round(
-                                      weatherPoint.temperatureC
-                                    )}°C`
+                                        weatherPoint.temperatureC
+                                      )}°C`
                                     : "--"}{" "}
                                   ·{" "}
                                   {weatherPoint.weatherDescription ??
@@ -3291,8 +3331,10 @@ function ContractControlCenterOverlay({
             projectId={project.id}
             initialContractId={focusedContract?.id ?? contracts[0]?.id}
           /> */}
-          <ProjectProductivityPanelV2 projectId={project.id}
-            initialContractId={focusedContract?.id ?? contracts[0]?.id} />
+          <ProjectProductivityPanelV2
+            projectId={project.id}
+            initialContractId={focusedContract?.id ?? contracts[0]?.id}
+          />
         </div>
       </div>
       <div
@@ -3328,11 +3370,12 @@ function ContractControlCenterOverlay({
 }
 
 const WORK_STATUS_COLORS: Record<string, string> = {
-  Construction: "#1d4ed8",
-  Bidding: "#c2410c",
-  "Pre-PQ": "#d97706",
+  Construction: "#2563eb",
+  Bidding: "#38bdf8",
+  "Pre-PQ": "#fb923c",
   PQ: "#7c3aed",
 };
+
 const WORK_STATUS_ORDER: Array<keyof typeof WORK_STATUS_COLORS> = [
   "Construction",
   "Bidding",
@@ -3430,9 +3473,10 @@ function WorkInProgressBoard({
     activeStatus === "All"
       ? `Showing ${rankedItems.length} of ${totalProjects} contracts`
       : rankedItems.length
-        ? `Showing ${rankedItems.length} ${rankedItems.length === 1 ? "contract" : "contracts"
+      ? `Showing ${rankedItems.length} ${
+          rankedItems.length === 1 ? "contract" : "contracts"
         }`
-        : `No contracts currently in ${activeStatus}`;
+      : `No contracts currently in ${activeStatus}`;
 
   return (
     <div className="contract-wip-board pp-wip">
@@ -3442,8 +3486,9 @@ function WorkInProgressBoard({
           {filterLabel} · {stageHint}
         </span>
       </div>
-      <div className="min-h-[120px] overflow-auto">
-        {/* <div className="wip-summary">
+      <div className="min-h-[240px] 2xl:min-h-[270px] flex justify-center items-center">
+        <div className="overflow-x-auto">
+          {/* <div className="wip-summary">
           {summary.map(({ status, count, color, average }) => {
             const isActive = activeStatus === status;
             const displayAverage =
@@ -3467,82 +3512,82 @@ function WorkInProgressBoard({
           })}
         </div> */}
 
-        {emptyState ? (
-          <div className="wip-empty-state">
-            No active contracts in this stage. Try another status.
-          </div>
-        ) : (
-          <>
-            <div className="wip-track wip-track-horizontal">
-              {rankedItems.map((item) => {
-                const progress = Math.max(0, Math.min(100, item.percent));
-                const accent =
-                  WORK_STATUS_COLORS[item.status] ??
-                  contractAccent(item.contract);
-                const circumference = 2 * Math.PI * 40;
-                const dashOffset = circumference * (1 - progress / 100);
+          {emptyState ? (
+            <div className="wip-empty-state">
+              No active contracts in this stage. Try another status.
+            </div>
+          ) : (
+            <>
+              <div className="wip-track wip-track-horizontal">
+                {rankedItems.map((item) => {
+                  const progress = Math.max(0, Math.min(100, item.percent));
+                  const accent =
+                    WORK_STATUS_COLORS[item.status] ??
+                    contractAccent(item.contract);
+                  const circumference = 2 * Math.PI * 40;
+                  const dashOffset = circumference * (1 - progress / 100);
 
-                return (
-                  <div
-                    key={item.contract + item.status}
-                    className="wip-chart-item"
-                  >
-                    <div className="wip-chart-circle">
-                      <svg
-                        className="wip-chart-svg"
-                        viewBox="0 0 100 100"
-                        role="presentation"
-                        aria-hidden
-                      >
-                        <circle
-                          className="wip-chart-track"
-                          cx="50"
-                          cy="50"
-                          r="40"
-                          fill="none"
-                          stroke="#e2e8f0"
-                          strokeWidth="2"
-                        />
-                        <circle
-                          className="wip-chart-progress"
-                          cx="50"
-                          cy="50"
-                          r="40"
-                          fill="none"
-                          stroke={accent}
-                          strokeWidth="15"
-                          strokeDasharray={circumference}
-                          strokeDashoffset={dashOffset}
-                          // strokeLinecap="round"
-                          transform="rotate(-90 50 50)"
-                        />
-                        <text
-                          x="50"
-                          y="55"
-                          className="wip-chart-text"
-                          textAnchor="middle"
-                          fill="#1a1a1a"
-                          fontSize="16"
-                          fontWeight="600"
+                  return (
+                    <div
+                      key={item.contract + item.status}
+                      className="wip-chart-item"
+                    >
+                      <div className="wip-chart-circle">
+                        <svg
+                          className="wip-chart-svg"
+                          viewBox="0 0 100 100"
+                          role="presentation"
+                          aria-hidden
                         >
-                          {Math.round(progress)}%
-                        </text>
-                      </svg>
-                      {/* <div
+                          <circle
+                            className="wip-chart-track"
+                            cx="50"
+                            cy="50"
+                            r="40"
+                            fill="none"
+                            stroke="#e2e8f0"
+                            strokeWidth="2"
+                          />
+                          <circle
+                            className="wip-chart-progress"
+                            cx="50"
+                            cy="50"
+                            r="40"
+                            fill="none"
+                            stroke={accent}
+                            strokeWidth="15"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={dashOffset}
+                            // strokeLinecap="round"
+                            transform="rotate(-90 50 50)"
+                          />
+                          <text
+                            x="50"
+                            y="55"
+                            className="wip-chart-text"
+                            textAnchor="middle"
+                            fill="#1a1a1a"
+                            fontSize="16"
+                            fontWeight="600"
+                          >
+                            {Math.round(progress)}%
+                          </text>
+                        </svg>
+                        {/* <div
                         className="wip-chart-indicator"
                         style={{ backgroundColor: accent }}
                       /> */}
+                      </div>
+                      <div className="wip-chart-label" title={item.contract}>
+                        {item.contract}
+                      </div>
+                      <div className="wip-chart-status font-semibold">
+                        Status: {item.status}
+                      </div>
                     </div>
-                    <div className="wip-chart-label" title={item.contract}>
-                      {item.contract}
-                    </div>
-                    <div className="wip-chart-status font-semibold">
-                      Status: {item.status}
-                    </div>
-                  </div>
-                );
-              })}
-              {/* {rankedItems.map((item) => {
+                  );
+                })}
+                {/* {rankedItems.map((item) => {
                 const progress = Math.max(0, Math.min(100, item.percent));
                 const accent =
                   WORK_STATUS_COLORS[item.status] ??
@@ -3650,9 +3695,9 @@ function WorkInProgressBoard({
                   </div>
                 );
               })} */}
-            </div>
+              </div>
 
-            <div className="wip-legend">
+              {/* <div className="wip-legend">
               {legendEntries.map((entry) => (
                 <div key={entry.contract} className="wip-legend-chip">
                   <span
@@ -3662,9 +3707,10 @@ function WorkInProgressBoard({
                   <span>{entry.contract}</span>
                 </div>
               ))}
-            </div>
-          </>
-        )}
+            </div> */}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
