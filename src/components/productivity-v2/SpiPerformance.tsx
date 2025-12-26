@@ -155,9 +155,9 @@ export function SpiPerformance({
     <div className="space-y-4">
       {/* Main SPI Card */}
       <div className="pp-v2-card rounded-lg p-4">
-        {/* <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-3">
           <span className="text-sm font-semibold pp-v2-text-secondary">SPI</span>
-        </div> */}
+        </div>
         <div className="mb-3">
           <div className="text-sm font-semibold pp-v2-text-primary mb-2">
             {projectName}

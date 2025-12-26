@@ -35,34 +35,29 @@ import {
   fetchProjects,
   fetchWeatherSummary,
   WeatherSummary,
-} from '../api'
-import ContractScmDashboard from '../components/scm/ContractScmDashboard'
-import HierarchyWipBoard from '../components/wip/HierarchyWipBoard'
-import { FEATURE_SCHEDULE_UI, FEATURE_CCC_V2, FEATURE_FINANCIAL_VIEW, FEATURE_ATOM_MANAGER, FEATURE_SCM } from '../config'
-import 'leaflet/dist/leaflet.css'
-import Breadcrumbs from '../components/breadcrumbs/Breadcrumbs'
+} from "../api";
 import ProjectProductivityPanel from "../panels/ProjectProductivityPanel";
 import MapWipSplit from "../components/MapWipSplit";
+import SvgIcon from "../components/SvgIcon";
+import { FEATURE_SCHEDULE_UI } from "../config";
 import "leaflet/dist/leaflet.css";
+import Breadcrumbs from "../components/breadcrumbs/Breadcrumbs";
+import { Login } from "../components/Login";
 import {
   SidebarNav,
   sidebarItems,
   HOME_NAV_INDEX,
   ACCS_NAV_INDEX,
-  CHANGE_NAV_INDEX,
   ThemeToggleButton,
   type ThemeMode,
-} from '../layout/navigation'
-import { useScheduleStore } from '../state/scheduleStore'
-import { applyTheme, resolveInitialTheme, toggleThemeValue } from '../utils/theme'
-import { generateClientId } from '../utils/id'
+} from "../layout/navigation";
 import {
   persistCredentials,
   readAuthToken,
   readSavedCredentials,
   setAuthToken,
 } from "../utils/auth";
-import { Login } from "../components/Login";
+import ProjectProductivityPanelV2 from "../panels/ProjectProductivityPanelV2";
 
 type Theme = ThemeMode;
 type View = "landing" | "login" | "dashboard" | "contract";
@@ -206,7 +201,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Tarbela Power Project, Haripur, Pakistan",
     lat: 34.088,
     lng: 72.693,
-    image: "/images/ACCS/terbela.png",
+    image: "/images/ACCS/tarbela.png",
     geofence_radius_m: 1400,
   },
   {
@@ -219,7 +214,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Tarbela Dam, Haripur, Pakistan",
     lat: 34.088,
     lng: 72.693,
-    image: "/images/ACCS/terbela.png",
+    image: "/images/ACCS/tarbela.png",
     geofence_radius_m: 1200,
   },
   {
@@ -310,7 +305,7 @@ const FALLBACK_PROJECTS: Project[] = [
     address: "Thakot, Batagram, Pakistan",
     lat: 34.86,
     lng: 72.915,
-    image: "/images/ACCS/terbela.png",
+    image: "/images/ACCS/tarbela.png",
     geofence_radius_m: 1600,
   },
 ];
@@ -623,7 +618,7 @@ function statusColor(
   return STATUS_COLOR_MAP[status] ?? [59, 130, 246, 255];
 }
 
-const defaultIcon = new L.Icon.Default();
+// const defaultIcon = new L.Icon.Default();
 
 function createMarkerIcon(
   project: Project,
@@ -643,7 +638,7 @@ function createMarkerIcon(
   const weatherHtml = weather
     ? `<div class="marker-weather"><span class="marker-weather__temp">${temperature !== null && temperature !== undefined
       ? `${Math.round(temperature)}°C`
-      : "--"
+      : ""
     }</span>${description
       ? `<span class="marker-weather__desc">${description}</span>`
       : ""
@@ -654,24 +649,24 @@ function createMarkerIcon(
     }`;
   return L.divIcon({
     className,
-    // <div class="marker-shell" style="--marker-color:${color}">
-    //   <span>${project.name}</span>
-    //   <strong>${Math.round(project.status_pct)}%</strong>
-    //   ${weatherHtml}
-    // </div>
-    // <div class="marker-pointer" style="--marker-color:${color}"></div>
     html: `
-    <div style="display: flex; align-items: center; gap: 4px;background-color: #fff;padding: 6px;border-radius: 8px;width:fit-content;">
+    <div class="marker-container" style="position: relative;">
       <img src="/images/map-icon.png" alt="Map marker" style="width: 32px; height: 32px; display: block;" />
-      <div style="display: flex; flex-direction: column; max-width: 80px;">
-        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;color: #F86E00;">${project.name
-      }</span>
-        <strong style="color: #328DEE;">${Math.round(
-        project.status_pct
-      )}%</strong>
-        ${weatherHtml}
+      <div class="marker-details" style="display: none; position: absolute; top: -10px; left: 40px; background-color: #fff; padding: 6px; border-radius: 8px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 1000;">
+        <div style="display: flex; flex-direction: column;">
+          <span style="color: #F86E00; font-weight: 500;">${project.name}</span>
+          <strong style="color: #328DEE;">${Math.round(
+      project.status_pct
+    )}%</strong>
+          ${weatherHtml ?? ""}
+        </div>
       </div>
     </div>
+    <style>
+      .marker-container:hover .marker-details {
+        display: block !important;
+      }
+    </style>
     `,
     iconSize: [32, 32],
     iconAnchor: [16, 32],
@@ -700,33 +695,6 @@ const contractAccent = (name: string) => {
 };
 
 const accentColor = (contract: ContractSite) => contractAccent(contract.name);
-
-const extractContractCode = (contract: ContractSite) => {
-  const match = contract.name.match(/^[A-Za-z0-9-]+/)
-  if (match && match[0]) {
-    return match[0]
-  }
-  const idMatch = contract.id.match(/^[A-Za-z0-9-]+/)
-  return idMatch?.[0] ?? contract.id
-}
-
-const normaliseKey = (value: string) => value.replace(/[^a-z0-9]/gi, '').toLowerCase()
-
-const STAGE_LABELS = ['Construction', 'Bidding', 'Pre-PQ', 'PQ']
-
-const resolveStageLabel = (raw?: string | null): string => {
-  const value = (raw ?? '').toLowerCase()
-  if (value.includes('pre-pq') || value.includes('pre pq') || value.includes('prepq')) {
-    return 'Pre-PQ'
-  }
-  if (value.includes('pq')) {
-    return 'PQ'
-  }
-  if (value.includes('bid')) {
-    return 'Bidding'
-  }
-  return 'Construction'
-}
 
 const phaseAccentHex = (phase: string) => {
   if (phase === "Construction") return "#fb923c";
@@ -788,10 +756,6 @@ export default function App() {
   const toggleTheme = () =>
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
 
-  const handleThemeToggle = useCallback(() => {
-    setTheme((prev) => toggleThemeValue(prev))
-  }, [])
-
   useEffect(() => {
     if (!isAuthenticated) {
       setWeather(null);
@@ -849,13 +813,6 @@ export default function App() {
 
   const handleSelectNav = useCallback(
     (index: number) => {
-      if (index === CHANGE_NAV_INDEX) {
-        setView('dashboard')
-        setActiveNav(CHANGE_NAV_INDEX)
-        routerNavigate('/change-management', { state: { projectId: contractProject?.id ?? null } })
-        return
-      }
-
       if (index === ACCS_NAV_INDEX) {
         if (!isAuthenticated) {
           setView("login");
@@ -869,7 +826,7 @@ export default function App() {
           lastAccsProject ??
           contractProject ??
           fallbackConstruction ??
-          FALLBACK_PROJECTS[0] ??
+          // FALLBACK_PROJECTS[0] ??
           null;
         if (projectToOpen) {
           if (activeNav !== ACCS_NAV_INDEX) {
@@ -975,10 +932,8 @@ export default function App() {
           .then((payload) => finalise(payload.project))
           .catch(() => {
             const fallback =
-              FALLBACK_PROJECTS.find((item) => item.id === candidateId) ??
-              contractProject ??
-              lastAccsProject ??
-              null;
+              // FALLBACK_PROJECTS.find((item) => item.id === candidateId) ??
+              contractProject ?? lastAccsProject ?? null;
             finalise(fallback);
           });
         return;
@@ -1018,7 +973,7 @@ export default function App() {
           onPrimary={() => setView("login")}
           onExplore={() => setView(isAuthenticated ? "dashboard" : "login")}
           theme={theme}
-          onToggleTheme={handleThemeToggle}
+          onToggleTheme={toggleTheme}
         />
       );
     }
@@ -1034,7 +989,7 @@ export default function App() {
             setView("dashboard");
           }}
           theme={theme}
-          onToggleTheme={handleThemeToggle}
+          onToggleTheme={toggleTheme}
         />
       );
     }
@@ -1044,7 +999,7 @@ export default function App() {
           project={contractProject}
           onBack={handleCloseContract}
           theme={theme}
-          onToggleTheme={handleThemeToggle}
+          onToggleTheme={toggleTheme}
           isAuthenticated={isAuthenticated}
           weather={weather}
           initialUtilityView={utilityViewOverride ?? undefined}
@@ -1057,7 +1012,7 @@ export default function App() {
     return (
       <Dashboard
         theme={theme}
-        onToggleTheme={handleThemeToggle}
+        onToggleTheme={toggleTheme}
         onOpenContract={handleOpenContract}
         weather={weather}
       />
@@ -1070,7 +1025,7 @@ export default function App() {
         activeIndex={activeNav}
         onSelect={handleSelectNav}
         theme={theme}
-        onToggleTheme={handleThemeToggle}
+        onToggleTheme={toggleTheme}
         onNavigateLanding={() => {
           setContractProject(null);
           setView("landing");
@@ -1161,169 +1116,6 @@ function LandingPage({
   );
 }
 
-function LoginPage({
-  onBack,
-  onLogin,
-  theme,
-  onToggleTheme,
-}: {
-  onBack: () => void;
-  onLogin: (credentials: { username: string; password: string }) => void;
-  theme: Theme;
-  onToggleTheme: () => void;
-}) {
-  const [error, setError] = useState<string | null>(null);
-  const savedCredentials = readSavedCredentials();
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const username = String(formData.get("username") || "");
-    const password = String(formData.get("password") || "");
-
-    if (username === "demo@dipgos" && password === "Secure!Demo2025") {
-      setError(null);
-      onLogin({ username, password });
-      return;
-    }
-
-    setError(
-      "Invalid credentials. Use demo@dipgos / Secure!Demo2025 or request access from the PMO."
-    );
-  };
-
-  return (
-    <div className="login-screen">
-      <aside className="login-panel">
-        <div className="login-panel-top">
-          <button className="login-back" onClick={onBack}>
-            ← Back to experience
-          </button>
-          {/* <ThemeToggleButton theme={theme} onToggle={onToggleTheme} /> */}
-        </div>
-
-        <div className="login-headline">
-          <span className="eyebrow">DiPGOS project operating system</span>
-          {/* <h1>Build once. Orchestrate everywhere.</h1> */}
-          {/* <p>
-            Fuse commercial, construction, and governance telemetry into a
-            living control center that keeps EPC teams in lockstep across
-            continents.
-          </p> */}
-          {/* <div className="login-pills">
-            <span>AI field insights</span>
-            <span>Portfolio command</span>
-            <span>Geospatial twins</span>
-          </div> */}
-        </div>
-
-        <div className="login-form-card">
-          <h2>Sign in to DiPGOS</h2>
-          <p className="login-subcopy">
-            Secure access for project executives, construction leads, and
-            governance teams.
-          </p>
-          <form className="login-form" onSubmit={handleSubmit}>
-            <label>
-              Username
-              <input
-                name="username"
-                placeholder="demo@dipgos"
-                autoComplete="username"
-                defaultValue={savedCredentials.username}
-              />
-            </label>
-            <label>
-              Password
-              <input
-                type="password"
-                name="password"
-                placeholder="Secure!Demo2025"
-                autoComplete="current-password"
-                defaultValue={savedCredentials.password}
-              />
-            </label>
-            {/* <small className="login-hint">Demo credentials: demo@dipgos / Secure!Demo2025</small> */}
-            {error && <span className="login-error">{error}</span>}
-            <button type="submit">Enter control center</button>
-          </form>
-          <div className="login-footnote">
-            Need an enterprise walkthrough?{" "}
-            <a href="mailto:hello@dipgos.example">hello@dipgos.example</a>
-          </div>
-        </div>
-      </aside>
-
-      <section className="login-showcase">
-        {/* <img
-          src="/images/login-hero.jpg"
-          alt="Hydropower project digital twin"
-          className="login-hero-image"
-          loading="eager"
-          decoding="async"
-        /> */}
-        {/* <div className="login-image-overlay" /> */}
-        {/* <div className="login-hero-layout"> */}
-        <div className="login-hero-copy">
-          <h2>Construction portfolio oversight, reimagined.</h2>
-          <p>
-            Monitor hydropower mega projects, transmission corridors, and
-            critical civil upgrades with live geospatial telemetry, alert
-            intelligence, and AI-assisted governance.
-          </p>
-        </div>
-
-        <div className="login-hero-grid">
-          <div className="login-hero-card">
-            <span className="hero-kicker">Live telemetry</span>
-            <strong>32</strong>
-            <span>
-              sites streaming progress and alert density in real time.
-            </span>
-          </div>
-          <div className="login-hero-card">
-            <span className="hero-kicker">SPI focus</span>
-            <strong>0.78</strong>
-            <span>
-              portfolio schedule performance with AI-generated recovery
-              actions.
-            </span>
-          </div>
-          <div className="login-hero-card">
-            <span className="hero-kicker">Executive pulse</span>
-            <strong>5 min</strong>
-            <span>
-              to prep board-ready reports directly from the control center.
-            </span>
-          </div>
-          <div className="login-hero-card">
-            <span className="hero-kicker">Live telemetry</span>
-            <strong>32</strong>
-            <span>
-              sites streaming progress and alert density in real time.
-            </span>
-          </div>
-          <div className="login-hero-card">
-            <span className="hero-kicker">Live telemetry</span>
-            <strong>32</strong>
-            <span>
-              sites streaming progress and alert density in real time.
-            </span>
-          </div>
-          <div className="login-hero-card">
-            <span className="hero-kicker">Live telemetry</span>
-            <strong>32</strong>
-            <span>
-              sites streaming progress and alert density in real time.
-            </span>
-          </div>
-        </div>
-        {/* </div> */}
-      </section>
-    </div>
-  );
-}
-
 function Dashboard({
   theme,
   onToggleTheme,
@@ -1378,7 +1170,8 @@ function Dashboard({
     setOm(fallbackOm);
     setPlanning(fallbackPlanning);
     setAnalytics(FALLBACK_ANALYTICS);
-    setSelected((prev) => prev ?? FALLBACK_PROJECTS[0] ?? null);
+    // setSelected((prev) => prev ?? FALLBACK_PROJECTS[0] ?? null);
+    // setSelected((prev) => prev ?? null);
   }, []);
 
   const loadProjects = useCallback(async () => {
@@ -1409,12 +1202,12 @@ function Dashboard({
         setAnalytics(computeAnalytics(combined));
       }
 
-      setSelected((prev) => {
-        if (prev) {
-          return combined.find((project) => project.id === prev.id) ?? prev;
-        }
-        return combined[0] ?? null;
-      });
+      // setSelected((prev) => {
+      //   if (prev) {
+      //     return combined.find((project) => project.id === prev.id) ?? prev;
+      //   }
+      //   return combined[0] ?? null;
+      // });
     } catch (error) {
       console.error("Failed to load projects", error);
       applyFallbackProjects();
@@ -1498,7 +1291,9 @@ function Dashboard({
     return base.filter((p) => p.phase === phaseFilter);
   }, [allProjects, phaseFilter, contractFilter]);
 
-  const activeProject = hovered ?? selected ?? filteredForMap[0] ?? null;
+  // const activeProject = hovered ?? selected ?? filteredForMap[0] ?? null;
+  console.log(hovered, selected, "hovered or selected");
+  const activeProject = hovered ?? selected ?? null;
   const activeProjectWeather = activeProject
     ? weatherByProject.get(activeProject.id) ?? null
     : null;
@@ -1685,11 +1480,11 @@ function Dashboard({
   return (
     <>
       <div className="main" style={{ gridTemplateRows: mapRows }}>
-        <header className="header">
+        <header className="header px-2 py-1 md:px-4 md:py-2 ">
           <div className="header-leading">
             {/* <Breadcrumbs items={[{ label: 'Dashboard' }]} /> */}
             <div className="header-title-group">
-              <h1 className="mb-0 text-xl! font-bold">
+              <h1 className="mb-0 text-base! md:text-xl! font-bold">
                 WAPDA Project Portfolio Dashboard
               </h1>
               {/* <p>
@@ -1726,9 +1521,13 @@ function Dashboard({
                 </button>
               ))}
             </div> */}
-            <button className="create-btn" onClick={() => setShowModal(true)}>
+            <button
+              className="create-btn"
+              title="Create New Project"
+              onClick={() => setShowModal(true)}
+            >
               <GoPlusCircle size={20} />
-              Create New Project
+              <span className="hidden md:block">Create New Project</span>
             </button>
           </div>
         </header>
@@ -1779,14 +1578,24 @@ function Dashboard({
                 <span className="label">Alerts in Focus</span>
                 <strong>{projectsAnalytics.alerts_total}</strong>
               </div>
-              {activeProject && (
+              {/* {activeProject && (
                 <div
                   className="map-stats-card highlight"
                   data-card="highlight"
                   style={highlightStyles}
                 >
                   <span className="label text-black!">Highlighted Site</span>
-                  <strong>{activeProject.name}</strong>
+                  <strong
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      display: "block",
+                    }}
+                    title={activeProject.name}
+                  >
+                    {activeProject.name}
+                  </strong>
                   <div className="map-stat-line subtle text-black!">
                     {Math.round(activeProject.status_pct)}% completion
                   </div>
@@ -1797,7 +1606,7 @@ function Dashboard({
                     <div className="map-stat-line subtle">
                       Weather{" "}
                       {activeProjectWeather.temperatureC !== null &&
-                        activeProjectWeather.temperatureC !== undefined
+                      activeProjectWeather.temperatureC !== undefined
                         ? `${Math.round(activeProjectWeather.temperatureC)}°C`
                         : "--"}{" "}
                       ·{" "}
@@ -1806,7 +1615,7 @@ function Dashboard({
                     </div>
                   )}
                 </div>
-              )}
+              )} */}
               <div
                 className="map-stats-card map-stats-toggle"
                 data-card="toggles"
@@ -1874,7 +1683,7 @@ function Dashboard({
                   <Marker
                     key={project.id}
                     position={[project.lat, project.lng]}
-                    icon={icon ?? defaultIcon}
+                    icon={icon}
                     eventHandlers={{
                       click: () => {
                         setSelected(project);
@@ -1886,14 +1695,18 @@ function Dashboard({
                         prefetchControlCenter(project.id);
                       },
                       mouseout: () =>
-                        setHovered((prev) =>
-                          prev?.id === project.id ? null : prev
+                        setHovered(
+                          (prev) =>
+                            // prev?.id === project.id ? null : prev
+                            null
                         ),
                     }}
                   >
                     <Popup>
                       <div style={{ minWidth: "200px" }}>
-                        <strong>{project.name}</strong>
+                        <strong className="text-[#F86E00] text-base font-bold truncate md:w-[190px] 2xl:w-[245px]">
+                          {project.name}
+                        </strong>
                         <div>Status: {Math.round(project.status_pct)}%</div>
                         <div>Alerts: {project.alerts}</div>
                         {project.address && <div>{project.address}</div>}
@@ -1952,7 +1765,7 @@ function Dashboard({
                           </div>
                         </Tooltip>
                       </Circle>
-                      <CircleMarker
+                      {/* <CircleMarker
                         center={[project.lat, project.lng]}
                         radius={6}
                         pathOptions={{
@@ -1961,12 +1774,12 @@ function Dashboard({
                           fillColor: alertLevelColor(project.alerts),
                           fillOpacity: 0.9,
                         }}
-                      />
+                      /> */}
                     </React.Fragment>
                   ) : null
                 )}
 
-              {featureToggle.intensity &&
+              {/* featureToggle.intensity &&
                 filteredForMap.map((project) => (
                   <CircleMarker
                     key={`intensity-${project.id}`}
@@ -1981,7 +1794,7 @@ function Dashboard({
                       fillOpacity: 0.6,
                     }}
                   />
-                ))}
+                )) */}
             </MapContainer>
 
             {featureToggle.intensity && (
@@ -2038,7 +1851,8 @@ function Dashboard({
           </div>
         </section>
 
-        {!panelCollapsed && !panelScrolled && (
+        {!panelCollapsed && (
+          // && !panelScrolled
           <div
             className={`resize-bar ${isResizingMap ? "dragging" : ""}`}
             role="separator"
@@ -2046,20 +1860,23 @@ function Dashboard({
             aria-label="Adjust map and gallery height"
             onMouseDown={handleResizeStart}
           >
-            <span />
+            <SvgIcon name="resize-bar" width={26} height={11} />
+
+            {/* <span /> */}
           </div>
         )}
 
         <div
           ref={projectsPanelRef}
-          className={`projects-panel ${panelCollapsed ? "collapsed" : ""}`}
+          className={`projects-panel py-3 px-2 xl:px-6 xl:py-4 ${panelCollapsed ? "collapsed" : ""
+            }`}
         >
-          <button
+          {/* <button
             className={`panel-toggle ${panelScrolled ? "hidden" : ""}`}
             onClick={() => setPanelCollapsed((prev) => !prev)}
           >
             {panelCollapsed ? "Expand portfolio ↑" : "Collapse portfolio ↓"}
-          </button>
+          </button> */}
 
           <ProjectsSection
             title="Operations & Maintenance (AOS)"
@@ -2343,7 +2160,7 @@ function ProjectsSection({
             {badge} active
           </span>
         </div>
-        <div className="section-actions flex items-center gap-4">
+        {/* <div className="section-actions flex items-center gap-4">
           <button
             type="button"
             className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 border"
@@ -2355,7 +2172,7 @@ function ProjectsSection({
           >
             Export snapshot
           </button>
-        </div>
+        </div> */}
       </div>
       <div className="relative group flex items-center gap-4">
         <button
@@ -2370,19 +2187,7 @@ function ProjectsSection({
           }}
           aria-label="Scroll left"
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
+          <SvgIcon name="arrow-left" className="w-5 h-5" stroke="currentColor" strokeWidth={2} />
         </button>
         <div
           ref={scrollContainerRef}
@@ -2417,22 +2222,35 @@ function ProjectsSection({
                 alt={project.name}
                 loading="lazy"
                 decoding="async"
+              // className="rounded-3xl"
               />
-              <div className="body">
-                <h3>{project.name}</h3>
-                <div className="flex items-center justify-between gap-2">
-                  <span>Status: </span>
-                  <span>
-                    {project.status_label ||
-                      `${Math.round(project.status_pct)}%`}
-                  </span>
+              <div className="flex gap-2 items-center px-3 py-4">
+                <div>
+                  <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center text-lg font-semibold mb-3">
+                    {project.name.charAt(0).toUpperCase()}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  {/* <span className="dot" /> */}
-                  <span>Phase: </span>
-                  <span>{project.phase}</span>
+                <div>
+                  <h3 className="text-base font-bold truncate md:w-[190px] 2xl:w-[245px]">
+                    {project.name}
+                  </h3>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm!">Status: </span>
+                      <span className="text-sm!">
+                        {project.status_label ||
+                          `${Math.round(project.status_pct)}%`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {/* <span className="dot" /> */}
+                      <span className="text-sm!">Phase: </span>
+                      <span className="text-sm!">{project.phase}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="progress-bar">
+                {/* <div className="progress-bar">
                   <span
                     style={{
                       width: `${Math.min(
@@ -2444,7 +2262,7 @@ function ProjectsSection({
                       )}, #38bdf8)`,
                     }}
                   />
-                </div>
+                </div> */}
               </div>
             </article>
           ))}
@@ -2461,19 +2279,7 @@ function ProjectsSection({
           }}
           aria-label="Scroll right"
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
+          <SvgIcon name="arrow-right" className="w-5 h-5" stroke="currentColor" strokeWidth={2} />
         </button>
       </div>
     </section>
@@ -2557,82 +2363,6 @@ function ContractControlCenterPage({
   );
 }
 
-// main branch code
-// function ContractControlCenterPage({
-//   project,
-//   onBack,
-//   theme,
-//   onToggleTheme,
-//   isAuthenticated,
-//   weather,
-//   initialUtilityView,
-//   onUtilityViewApplied,
-//   initialFocusedContractId,
-//   onFocusedContractApplied,
-// }: {
-//   project: Project
-//   onBack: () => void
-//   theme: Theme
-//   onToggleTheme: () => void
-//   isAuthenticated: boolean
-//   weather: WeatherSummary | null
-//   initialUtilityView?: UtilityView
-//   onUtilityViewApplied?: () => void
-//   initialFocusedContractId?: string
-//   onFocusedContractApplied?: () => void
-// }) {
-//   const [payload, setPayload] = useState<ProjectControlCenterPayload | null>(null)
-//   const [loading, setLoading] = useState(true)
-//   const [error, setError] = useState<string | null>(null)
-
-//   const loadControlCenter = useCallback(() => {
-//     const cached = getCachedProjectControlCenter(project.id)
-//     if (cached) {
-//       setPayload(cached)
-//       setError(null)
-//       setLoading(false)
-//       return
-//     }
-//     setLoading(true)
-//     setError(null)
-//     setPayload(null)
-//     warmProjectControlCenter(project.id)
-//       .then((data) => {
-//         setPayload(data)
-//       })
-//       .catch((err: Error) => {
-//         console.error('Failed to load control center', err)
-//         setError(err.message || 'Unable to load control center data.')
-//       })
-//       .finally(() => setLoading(false))
-//   }, [project.id])
-
-//   useEffect(() => {
-//     loadControlCenter()
-//   }, [loadControlCenter])
-
-//   return (
-//     <div className="contract-page-wrapper">
-//       <ContractControlCenterOverlay
-//         project={project}
-//         payload={payload}
-//         loading={loading}
-//         error={error}
-//         onClose={onBack}
-//         onRetry={loadControlCenter}
-//         theme={theme}
-//         onToggleTheme={onToggleTheme}
-//         isAuthenticated={isAuthenticated}
-//         weather={weather}
-//         initialUtilityView={initialUtilityView}
-//         onUtilityViewApplied={onUtilityViewApplied}
-//         initialFocusedContractId={initialFocusedContractId}
-//         onFocusedContractApplied={onFocusedContractApplied}
-//       />
-//     </div>
-//   )
-// }
-
 type UtilityView =
   | "scheduling"
   | "financial"
@@ -2648,31 +2378,6 @@ type RouteState = {
   focusContractId?: string | null;
   projectId?: string | null;
 } | null;
-
-const getSowId = (section: any): string | null => {
-  if (!section) return null
-  return section.id ?? section.code ?? section.sow_id ?? null
-}
-
-const getSowName = (section: any): string => section?.title ?? section?.name ?? section?.label ?? 'Scope of work'
-
-const getSectionProcesses = (section: any): any[] => {
-  if (!section) return []
-  if (Array.isArray(section.processes) && section.processes.length) {
-    return section.processes
-  }
-  if (Array.isArray(section.clauses) && section.clauses.length) {
-    return section.clauses
-  }
-  return []
-}
-
-const getProcessId = (process: any): string | null => {
-  if (!process) return null
-  return process.id ?? process.code ?? process.process_id ?? process.processId ?? null
-}
-
-const getProcessName = (process: any): string => process?.title ?? process?.name ?? process?.label ?? 'Process'
 
 function ContractControlCenterOverlay({
   project,
@@ -2712,8 +2417,6 @@ function ContractControlCenterOverlay({
     Record<string, boolean>
   >({});
   const [expandedSows, setExpandedSows] = useState<Record<string, boolean>>({});
-  const [focusedSowId, setFocusedSowId] = useState<string | null>(null);
-  const [focusedProcessId, setFocusedProcessId] = useState<string | null>(null);
   const [mapView, setMapView] = useState<MapView>("atlas");
   const [featureToggle, setFeatureToggle] = useState<MapFeatureToggle>({
     geofences: false,
@@ -2726,10 +2429,8 @@ function ContractControlCenterOverlay({
   const [hoveredContract, setHoveredContract] = useState<ContractSite | null>(
     null
   );
-  const [centerMapHeight, setCenterMapHeight] = useState(480);
   const mapStatsRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
-  const routerNavigate = useNavigate();
   const [activeUtilityView, setActiveUtilityView] = useState<UtilityView>(
     initialUtilityView ?? "financial"
   );
@@ -2787,104 +2488,50 @@ function ContractControlCenterOverlay({
         id: "scheduling",
         label: "Scheduling View",
         icon: (
-          <svg
-            viewBox="0 0 24 24"
-            strokeWidth="1.6"
-            stroke="currentColor"
-            fill="none"
-          >
-            <rect x="4" y="5" width="16" height="15" rx="3" />
-            <path d="M8 3v4" strokeLinecap="round" />
-            <path d="M16 3v4" strokeLinecap="round" />
-            <path d="M4 11h16" />
-            <path d="M9 15h2" strokeLinecap="round" />
-            <path d="M13 15h2" strokeLinecap="round" />
-          </svg>
+          <SvgIcon name="scheduling" stroke="currentColor" strokeWidth="1.6" />
         ),
       },
       {
         id: "financial",
         label: "Financial View",
         icon: (
-          <svg
-            viewBox="0 0 24 24"
-            strokeWidth="1.6"
-            stroke="currentColor"
-            fill="none"
-          >
-            <rect x="4" y="6" width="16" height="13" rx="2" />
-            <path d="M4 10h16" />
-            <path d="M8 14h1" strokeLinecap="round" />
-            <path d="M11 14h1" strokeLinecap="round" />
-            <path d="M14 14h2" strokeLinecap="round" />
-          </svg>
+          <SvgIcon name="financial" stroke="currentColor" strokeWidth="1.6" />
         ),
       },
       {
         id: "sustainability",
         label: "Sustainability View",
         icon: (
-          <svg
-            viewBox="0 0 24 24"
-            strokeWidth="1.6"
-            stroke="currentColor"
-            fill="none"
-          >
-            <path d="M12 21c4-2.5 6-5.5 6-9.5a6 6 0 0 0-12 0C6 15.5 8 18.5 12 21Z" />
-            <path d="M12 10a2 2 0 0 1 2 2" strokeLinecap="round" />
-          </svg>
+          <SvgIcon name="sustainability" stroke="currentColor" strokeWidth="1.6" />
         ),
       },
       {
         id: "procurement",
         label: "Procurement / SCM View",
         icon: (
-          <svg
-            viewBox="0 0 24 24"
-            strokeWidth="1.6"
-            stroke="currentColor"
-            fill="none"
-          >
-            <path d="M4 7h16" strokeLinecap="round" />
-            <path d="M6 7v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7" />
-            <path d="M10 11h4" strokeLinecap="round" />
-            <path d="M12 7V3" strokeLinecap="round" />
-          </svg>
+          <SvgIcon name="procurement" stroke="currentColor" strokeWidth="1.6" />
         ),
       },
       {
         id: "atom",
         label: "Atom Manager",
         icon: (
-          <svg
-            viewBox="0 0 24 24"
-            strokeWidth="1.6"
-            stroke="currentColor"
-            fill="none"
-          >
-            <circle cx="12" cy="12" r="2.4" />
-            <path d="M4.5 8c3.5-6 11.5-6 15 0s-3.5 14-7.5 8-7.5-2-7.5-8Z" />
-          </svg>
+          // <svg
+          //   viewBox="0 0 24 24"
+          //   strokeWidth="1.6"
+          //   stroke="currentColor"
+          //   fill="none"
+          // >
+          //   <circle cx="12" cy="12" r="2.4" />
+          //   <path d="M4.5 8c3.5-6 11.5-6 15 0s-3.5 14-7.5 8-7.5-2-7.5-8Z" />
+          <SvgIcon name="atom" fill="currentColor" />
         ),
       },
       {
         id: "forecasting",
         label: "Forecasting View",
         icon: (
-          <svg
-            viewBox="0 0 24 24"
-            strokeWidth="1.6"
-            stroke="currentColor"
-            fill="none"
-          >
-            <path d="M4 18h16" strokeLinecap="round" />
-            <path
-              d="M6 16l3.5-4 2.5 3 4.5-6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path d="M17 9h3v3" strokeLinecap="round" />
-          </svg>
+          <SvgIcon name="forecasting" stroke="currentColor" strokeWidth="1.6" />
         ),
       },
     ];
@@ -2931,23 +2578,7 @@ function ContractControlCenterOverlay({
   }, [contracts, metrics.workInProgress]);
   const hasWorkInProgress = workInProgressItems.length > 0;
 
-  const workInProgressByContract = useMemo(() => {
-    const map = new Map<string, WorkInProgressMetric>()
-    workInProgressItems.forEach((item) => {
-      map.set(normaliseKey(item.contract), item)
-    })
-    return map
-  }, [workInProgressItems])
-
-  const sowGroups = payload?.sow_tree ?? []
-
-  const sowByContract = useMemo(() => {
-    const map = new Map<string, typeof sowGroups[number]['sections']>()
-    sowGroups.forEach((group) => {
-      map.set(group.contract_id, group.sections)
-    })
-    return map
-  }, [sowGroups])
+  const sowGroups = payload?.sow_tree ?? [];
 
   const filteredContracts = useMemo(() => {
     if (contractFilter === "ALL") return contracts;
@@ -2958,88 +2589,16 @@ function ContractControlCenterOverlay({
     filteredContracts.find((contract) => contract.id === focusedContractId) ??
     filteredContracts[0];
 
-  const focusedContractSections = useMemo(() => {
-    if (!focusedContract) {
-      return []
-    }
-    return sowByContract.get(focusedContract.id) ?? []
-  }, [focusedContract, sowByContract])
-
-  const focusedSow = useMemo(() => {
-    if (!focusedContractSections.length) return null
-    if (focusedSowId) {
-      const match = focusedContractSections.find((section) => getSowId(section) === focusedSowId)
-      if (match) return match
-    }
-    return focusedContractSections[0] ?? null
-  }, [focusedContractSections, focusedSowId])
-
-  const focusedSowProcesses = useMemo(() => getSectionProcesses(focusedSow), [focusedSow])
-
-  useEffect(() => {
-    if (!FEATURE_CCC_V2) {
-      if (focusedSowId !== null) {
-        setFocusedSowId(null)
-      }
-      return
-    }
-    if (!focusedContract) {
-      if (focusedSowId !== null) {
-        setFocusedSowId(null)
-      }
-      return
-    }
-    if (!focusedContractSections.length) {
-      if (focusedSowId !== null) {
-        setFocusedSowId(null)
-      }
-      return
-    }
-    const hasCurrent = focusedSowId ? focusedContractSections.some((section) => getSowId(section) === focusedSowId) : false
-    if (!hasCurrent) {
-      const firstSectionId = getSowId(focusedContractSections[0])
-      if (firstSectionId && firstSectionId !== focusedSowId) {
-        setFocusedSowId(firstSectionId)
-      }
-    }
-  }, [FEATURE_CCC_V2, focusedContract, focusedContractSections, focusedSowId])
-
-  useEffect(() => {
-    if (!focusedSowProcesses.length) {
-      if (focusedProcessId !== null) {
-        setFocusedProcessId(null)
-      }
-      return
-    }
-    const hasCurrent = focusedProcessId ? focusedSowProcesses.some((process) => getProcessId(process) === focusedProcessId) : false
-    if (!hasCurrent) {
-      const firstProcessId = getProcessId(focusedSowProcesses[0])
-      if (firstProcessId && firstProcessId !== focusedProcessId) {
-        setFocusedProcessId(firstProcessId)
-      } else if (!firstProcessId && focusedProcessId !== null) {
-        setFocusedProcessId(null)
-      }
-    }
-  }, [focusedProcessId, focusedSowProcesses])
-
-  const focusedProcess = useMemo(() => {
-    if (!focusedProcessId) return null
-    return focusedSowProcesses.find((process) => getProcessId(process) === focusedProcessId) ?? null
-  }, [focusedProcessId, focusedSowProcesses])
-
-  const focusedSowName = focusedSow ? getSowName(focusedSow) : null
-  const focusedProcessName = focusedProcess ? getProcessName(focusedProcess) : null
-
   const handleScheduleNavigate = useCallback(() => {
     if (!FEATURE_SCHEDULE_UI) {
       return;
     }
     if (!isAuthenticated) {
-      routerNavigate('/', { state: { openView: 'login' } })
-      return
+      navigate("/", { state: { openView: "login" } });
+      return;
     }
     if (focusedContract) {
-      routerNavigate(`/contracts/${focusedContract.id}/schedule`, {
+      navigate(`/contracts/${focusedContract.id}/schedule`, {
         state: {
           contractName: focusedContract.name,
           projectName: project?.name,
@@ -3052,201 +2611,19 @@ function ContractControlCenterOverlay({
       return;
     }
     if (project?.id) {
-      routerNavigate('/schedule', {
+      navigate("/schedule", {
         state: { projectId: project.id, projectName: project.name },
       });
     }
-  }, [focusedContract, isAuthenticated, project, routerNavigate])
+  }, [focusedContract, isAuthenticated, navigate, project]);
 
-  const handleFinancialNavigate = useCallback(() => {
-    if (!FEATURE_FINANCIAL_VIEW) {
-      return
-    }
-    if (!isAuthenticated) {
-      routerNavigate('/', { state: { openView: 'login' } })
-      return
-    }
-    if (focusedContract) {
-      routerNavigate(`/contracts/${focusedContract.id}/financial`, {
-        state: {
-          contractName: focusedContract.name,
-          projectName: project?.name,
-          projectId: project?.id,
-          contractId: focusedContract.id,
-          projectSnapshot: project ?? null,
-          utilityView: 'financial',
-        },
-      })
-      return
-    }
-    if (project?.id) {
-      routerNavigate('/financial', {
-        state: { projectId: project.id, projectName: project.name, projectSnapshot: project ?? null },
-      })
-    }
-  }, [focusedContract, isAuthenticated, project, routerNavigate])
-
-  const handleScmNavigate = useCallback(() => {
-    if (!FEATURE_SCM) {
-      return
-    }
-    if (!isAuthenticated) {
-      routerNavigate('/', { state: { openView: 'login' } })
-      return
-    }
-    const statePayload = {
-      tenantId: 'default',
-      projectId: project?.id ?? null,
-      projectName: project?.name ?? null,
-      contractId: focusedContract?.id ?? null,
-      contractName: focusedContract?.name ?? null,
-      sowId: focusedSow ? getSowId(focusedSow) : null,
-      sowName: focusedSowName,
-      processId: focusedProcessId ?? null,
-      processName: focusedProcessName,
-      source: 'ccc',
-    }
-    routerNavigate('/atoms/scm', { state: statePayload })
-  }, [
-    FEATURE_SCM,
-    focusedContract,
-    focusedProcessId,
-    focusedProcessName,
-    focusedSow,
-    focusedSowName,
-    isAuthenticated,
-    project,
-    routerNavigate,
-  ])
-
-  const handleAtomNavigate = useCallback(() => {
-    if (!FEATURE_ATOM_MANAGER) {
-      return
-    }
-    if (!isAuthenticated) {
-      routerNavigate('/', { state: { openView: 'login' } })
-      return
-    }
-    const statePayload = {
-      projectId: project?.id,
-      projectName: project?.name,
-      contractId: focusedContract?.id ?? null,
-      contractName: focusedContract?.name ?? null,
-      sowId: focusedSowId,
-      role: 'contractor',
-    }
-    if (focusedContract) {
-      routerNavigate(`/contracts/${focusedContract.id}/atoms`, {
-        state: statePayload,
-      })
-      return
-    }
-    if (project?.id) {
-      routerNavigate('/atoms', {
-        state: statePayload,
-      })
-    }
-  }, [FEATURE_ATOM_MANAGER, focusedContract, focusedSowId, isAuthenticated, project, routerNavigate])
-
-  const handleOpenSowDrilldown = useCallback(
-    (contract: ContractSite) => {
-      if (!project?.id) {
-        return
-      }
-      routerNavigate(`/projects/${project.id}/contracts/${contract.id}/sow`)
-    },
-    [project?.id, routerNavigate],
-  )
-
-  const handleContractSelect = useCallback((contract: ContractSite) => {
-    setFocusedContractId(contract.id)
-    useScheduleStore.setState({ currentContractId: contract.id })
-    if (FEATURE_CCC_V2) {
-      const sections = sowByContract.get(contract.id) ?? []
-      if (sections.length) {
-        const firstSection = sections[0]
-        const firstSectionId = getSowId(firstSection)
-        if (firstSectionId && firstSectionId !== focusedSowId) {
-          setFocusedSowId(firstSectionId)
-        } else if (!firstSectionId) {
-          setFocusedSowId(null)
-        }
-        const processes = getSectionProcesses(firstSection)
-        const firstProcessId = processes.length ? getProcessId(processes[0]) : null
-        setFocusedProcessId(firstProcessId ?? null)
-      } else {
-        setFocusedSowId(null)
-        setFocusedProcessId(null)
-      }
-    } else {
-      setFocusedProcessId(null)
-    }
-  }, [FEATURE_CCC_V2, focusedSowId, sowByContract])
-
-  const toggleContractExpansion = useCallback(
-    (contract: ContractSite) => {
-      setExpandedContracts((prev) => {
-        const next = !prev[contract.id]
-        if (next) {
-          handleContractSelect(contract)
-        }
-        return { ...prev, [contract.id]: next }
-      })
-    },
-    [handleContractSelect],
-  )
-
-  const toggleContractSections = useCallback((contractId: string) => {
-    setExpandedContracts((prev) => ({
-      ...prev,
-      [contractId]: !prev[contractId],
-    }));
-  }, []);
-
-  const toggleSow = useCallback((sowId: string) => {
-    setExpandedSows((prev) => ({ ...prev, [sowId]: !prev[sowId] }));
-  }, []);
-
-  const contractDialItems = useMemo(() => {
-    if (!FEATURE_CCC_V2) {
-      return []
-    }
-    return contracts
-      .map((contract) => {
-        const key = normaliseKey(contract.name)
-        const wip = workInProgressByContract.get(key) || workInProgressByContract.get(normaliseKey(extractContractCode(contract)))
-        const percent = wip ? Math.max(0, Math.min(100, wip.percent)) : Math.max(0, Math.min(100, Math.round(contract.status_pct ?? 0)))
-        const stage = resolveStageLabel(wip?.status ?? contract.status_label ?? contract.phase)
-        return {
-          id: contract.id,
-          name: contract.name,
-          percent,
-          color: contractAccent(contract.name),
-          stage,
-        }
-      })
-      .sort((a, b) => b.percent - a.percent)
-  }, [FEATURE_CCC_V2, contracts, workInProgressByContract])
-
-  const stageSummary = useMemo(() => {
-    if (!FEATURE_CCC_V2) {
-      return []
-    }
-    return STAGE_LABELS.map((stage) => {
-      const stageContracts = contractDialItems.filter((item) => item.stage === stage)
-      const count = stageContracts.length
-      const average = count ? stageContracts.reduce((sum, item) => sum + item.percent, 0) / count : 0
-      return { name: stage, count, average }
-    })
-  }, [FEATURE_CCC_V2, contractDialItems])
-
-  const projectWipPercent = useMemo(() => {
-    if (!FEATURE_CCC_V2 || !contractDialItems.length) {
-      return null
-    }
-    const total = contractDialItems.reduce((sum, item) => sum + Math.max(0, Math.min(100, item.percent)), 0)
-    return total / contractDialItems.length
-  }, [FEATURE_CCC_V2, contractDialItems])
+  const sowByContract = useMemo(() => {
+    const map = new Map<string, (typeof sowGroups)[number]["sections"]>();
+    sowGroups.forEach((group) => {
+      map.set(group.contract_id, group.sections);
+    });
+    return map;
+  }, [sowGroups]);
 
   const phaseGroups = useMemo(() => {
     const groups: Record<string, ContractSite[]> = {};
@@ -3259,29 +2636,6 @@ function ContractControlCenterOverlay({
 
   const mapStyle = MAP_STYLES[mapView];
 
-  const mapSplitTrigger = useMemo(() => Math.round(centerMapHeight).toString(), [centerMapHeight])
-
-  const wipPaneContent = (
-    <div className="contract-wip-card">
-      {FEATURE_CCC_V2 ? (
-        contractDialItems.length ? (
-          <HierarchyWipBoard
-            projectLabel={project.name}
-            projectPercent={projectWipPercent}
-            stages={stageSummary}
-            contractItems={contractDialItems}
-          />
-        ) : (
-          <div className="pp-wip-status">Preparing work in progress…</div>
-        )
-      ) : hasWorkInProgress ? (
-        <WorkInProgressBoard items={workInProgressItems} theme={theme} />
-      ) : (
-        <div className="pp-wip-status">Preparing work in progress…</div>
-      )}
-    </div>
-  )
-
   const bounds = useMemo(() => {
     if (!filteredContracts.length) return undefined;
     const latLngs = filteredContracts.map((contract) => [
@@ -3293,18 +2647,37 @@ function ContractControlCenterOverlay({
 
   useEffect(() => {
     if (filteredContracts.length === 0) {
-      setFocusedContractId(null)
-      useScheduleStore.setState({ currentContractId: null })
-      return
+      setFocusedContractId(null);
+      return;
     }
-    setFocusedContractId((prev) => (prev && filteredContracts.some((contract) => contract.id === prev) ? prev : filteredContracts[0].id))
-  }, [filteredContracts])
+    setFocusedContractId((prev) =>
+      prev && filteredContracts.some((contract) => contract.id === prev)
+        ? prev
+        : filteredContracts[0].id
+    );
+  }, [filteredContracts]);
 
   const mapCenter: [number, number] = focusedContract
     ? [focusedContract.lat, focusedContract.lng]
     : [project.lat, project.lng];
 
-  const alertCount = focusedContract?.alerts ?? project.alerts ?? 0
+  const handleContractSelect = useCallback((contract: ContractSite) => {
+    setFocusedContractId(contract.id);
+    setExpandedContracts((prev) => ({ ...prev, [contract.id]: true }));
+  }, []);
+
+  const toggleContractSections = useCallback((contractId: string) => {
+    setExpandedContracts((prev) => ({
+      ...prev,
+      [contractId]: !prev[contractId],
+    }));
+  }, []);
+
+  const toggleSow = useCallback((sowId: string) => {
+    setExpandedSows((prev) => ({ ...prev, [sowId]: !prev[sowId] }));
+  }, []);
+
+  const alertCount = focusedContract?.alerts ?? project.alerts ?? 0;
 
   const contractIconCache = useRef<Record<string, DivIcon>>({});
 
@@ -3372,58 +2745,24 @@ function ContractControlCenterOverlay({
     ? project.name.replace(/\s+/g, "_")
     : "Project";
 
-  const handleOpenCollaborationWorkspace = useCallback(() => {
-    const contextPayload = {
-      title: 'Construction Control Center',
-      path: location.pathname,
-      timestamp: new Date().toISOString(),
-      scope: {
-        project_id: project.id,
-        project_name: project.name,
-        contract_id: focusedContract?.id ?? null,
-        contract_name: focusedContract?.name ?? null,
-      },
-      filters: {
-        contractFilter,
-        focusedContractId,
-      },
-    }
-    routerNavigate('/collaboration', {
-      state: {
-        threadId: generateClientId(),
-        origin: {
-          path: location.pathname,
-          label: 'Construction Control Center',
-          chain: ['Projects', projectCrumbLabel],
-          state: location.state,
-        },
-        context: {
-          kind: 'page',
-          payload: contextPayload,
-        },
-      },
-    })
-  }, [contractFilter, focusedContract, focusedContractId, location.pathname, location.state, project.id, project.name, projectCrumbLabel, routerNavigate])
-
   return (
-    <>
-      <div className="contract-page">
-        <header className="contract-topbar">
-          <Breadcrumbs
-            items={[
-              { label: "Dashboard", onClick: onClose },
-              { label: projectCrumbLabel },
-              { label: "Construction Control Center" },
-            ]}
-          />
-          <div className="contract-top-actions">
-            {/* {onToggleTheme && (
+    <div className="contract-page">
+      <header className="contract-topbar">
+        <Breadcrumbs
+          items={[
+            { label: "Dashboard", onClick: onClose },
+            { label: projectCrumbLabel },
+            { label: "Construction Control Center" },
+          ]}
+        />
+        <div className="contract-top-actions">
+          {/* {onToggleTheme && (
             <ThemeToggleButton
               theme={theme ?? "light"}
               onToggle={onToggleTheme}
             />
           )} */}
-            {/* <button
+          {/* <button
             type="button"
             className="top-icon"
             aria-label="Scheduling"
@@ -3441,7 +2780,7 @@ function ContractControlCenterOverlay({
               <path d="M3 10h18" />
             </svg>
           </button> */}
-            {/* <button
+          {/* <button
             type="button"
             className="top-icon"
             aria-label="Financials"
@@ -3459,50 +2798,48 @@ function ContractControlCenterOverlay({
               <path d="M2 20h20" strokeLinecap="round" />
             </svg>
           </button> */}
-            <button
-              type="button"
-              className="top-icon alert"
-              aria-label="Alerts"
-              title="Alerts"
-            >
-              <svg
-                width="17"
-                height="18"
-                viewBox="0 0 17 18"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M8.10083 0C12.0772 9.3855e-05 15.301 3.2238 15.301 7.2002V10.4268L15.5872 10.7129C15.6704 10.7958 15.7752 10.9011 15.8625 11.0225C16.0256 11.2496 16.1315 11.5102 16.176 11.7812L16.2004 12.1973V12.3027C16.2014 12.5653 16.2023 12.888 16.1057 13.1748C15.9266 13.7058 15.5105 14.1255 14.9768 14.3057C14.6904 14.4022 14.3673 14.4014 14.1067 14.4004H11.7004C11.7002 16.3884 10.0889 17.9999 8.10083 18C6.11275 18 4.50046 16.3885 4.50024 14.4004H2.09399C1.83346 14.4014 1.51203 14.4021 1.22583 14.3057C0.693647 14.1261 0.274739 13.7084 0.0949707 13.1758C-0.00183381 12.8888 -0.000746131 12.5653 0.000244141 12.3027V12.1953C2.69493e-05 12.0773 0.000411604 11.9291 0.0246582 11.7812C0.0694829 11.5083 0.176451 11.2489 0.338135 11.0234C0.425823 10.9013 0.531188 10.7959 0.615479 10.7119L0.900635 10.4268V7.2002C0.900635 3.22375 4.12439 1.02997e-05 8.10083 0ZM6.30103 14.4004C6.30124 15.3944 7.10684 16.2002 8.10083 16.2002C9.09477 16.2001 9.90042 15.3943 9.90063 14.4004H6.30103ZM8.10083 1.7998C5.11849 1.79981 2.70044 4.21786 2.70044 7.2002V10.5498C2.70044 10.9491 2.54141 11.3318 2.26001 11.6133L1.90942 11.9639C1.85246 12.0208 1.82406 12.0499 1.80396 12.0713L1.802 12.0732V12.0762C1.80108 12.1057 1.80103 12.1464 1.80103 12.2275C1.80103 12.4108 1.80082 12.5111 1.80493 12.584L1.80591 12.5947L1.81567 12.5957C1.88779 12.5998 1.98717 12.5996 2.16919 12.5996H14.0325C14.2142 12.5996 14.3137 12.5998 14.386 12.5957L14.3948 12.5947L14.3958 12.584C14.3992 12.5224 14.4005 12.4409 14.4006 12.3066V12.2275C14.4006 12.1472 14.4006 12.1063 14.3997 12.0771L14.3987 12.0732L14.3977 12.0713C14.3773 12.0496 14.3483 12.0209 14.2913 11.9639L13.9407 11.6133C13.7677 11.4403 13.6415 11.2292 13.5696 11C13.5244 10.8558 13.5002 10.7037 13.5002 10.5498V7.2002C13.5002 4.21791 11.0831 1.7999 8.10083 1.7998Z"
-                  fill="currentColor"
-                />
-              </svg>
 
-              <span className="badge">{alertCount}</span>
-            </button>
-          <button type="button" className="top-icon" aria-label="Collaborators" title="Collaborators" onClick={handleOpenCollaborationWorkspace}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-          <circle cx="9" cy="9" r="3" />
-          <circle cx="17" cy="10" r="2.5" />
-          <path
-            d="M4 19a5 5 0 0 1 10 0"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M14 19a4 4 0 0 1 6 0"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-    </div>
-  </header>
-    <div className="contract-panel">
-      <div className="contract-body pp-layout overflow-auto grid h-full grid-cols-[300px_1fr_300px] gap-4 pr-[70px]!">
-        <aside className="contract-list pp-leftRail">
-          <div className="contract-filter">
-            <span>Contracts</span>
+          <button
+            type="button"
+            className="top-icon"
+            aria-label="Management"
+            title="Management"
+          >
+            <SvgIcon name="management" width={19} height={19} />
+          </button>
+          <button
+            type="button"
+            className="top-icon"
+            aria-label="History"
+            title="History"
+          >
+            <SvgIcon name="history" width={20} height={19} />
+          </button>
+          <button
+            type="button"
+            className="top-icon"
+            aria-label="Collaborators"
+            title="Collaborators"
+          >
+            <SvgIcon name="collaborators" width={20} height={19} />
+          </button>
+          <button
+            type="button"
+            className="top-icon alert"
+            aria-label="Alerts"
+            title="Alerts"
+          >
+            <SvgIcon name="alerts" width={17} height={18} fill="currentColor" />
+
+            <span className="badge">{alertCount}</span>
+          </button>
+        </div>
+      </header>
+      <div className="contract-panel">
+        <div className="contract-body pp-layout overflow-auto grid! h-full grid-cols-1 xl:grid-cols-[22%_53%_25%] gap-4 mr-[50px]! xl:mr-[70px]!">
+          <aside className="contract-list pp-leftRail">
+            <div className="contract-filter">
+              <span className="text-lg font-bold capitalize">Contracts</span>
               <select
                 value={contractFilter}
                 onChange={(event) => setContractFilter(event.target.value)}
@@ -3514,404 +2851,424 @@ function ContractControlCenterOverlay({
                   </option>
                 ))}
               </select>
-            </div >
-    <div className="contract-list-scroll">
-      {error && (
-        <div className="contract-error">
-          {error}
-          <button onClick={onRetry}>Retry</button>
-        </div>
-      )}
-      {loading && (
-        <div className="contract-loading">Loading contracts…</div>
-      )}
-      {!loading && phaseGroups.length === 0 && (
-        <div className="contract-loading">
-          No contract data available yet.
-        </div>
-      )}
-      {phaseGroups.map(([phase, items]) => (
-        <section key={phase} className="contract-phase">
-          <header className="contract-phase-title">{phase}</header>
-          <ul>
-            {items.map((contract) => {
-              const isActive = contract.id === focusedContract?.id;
-              const hasSections =
-                (sowByContract.get(contract.id) ?? []).length > 0;
-              const expanded = expandedContracts[contract.id];
-              return (
-                <li
-                  key={contract.id}
-                  className={isActive ? "active" : ""}
-                >
-                  <div
-                    className="contract-row"
-                    onClick={() => handleContractSelect(contract)}
-                  >
-                    <div>
-                      <div className="contract-name flex items-center justify-between gap-2">
-                        {contract.name}
-                        {hasSections && (
-                          <span
-                            className="cursor-pointer text-base"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              toggleContractSections(contract.id);
-                            }}
+            </div>
+            <div className="contract-list-scroll">
+              {error && (
+                <div className="contract-error">
+                  {error}
+                  <button onClick={onRetry}>Retry</button>
+                </div>
+              )}
+              {loading && (
+                <div className="contract-loading">Loading contracts…</div>
+              )}
+              {!loading && phaseGroups.length === 0 && (
+                <div className="contract-loading">
+                  No contract data available yet.
+                </div>
+              )}
+              {phaseGroups.map(([phase, items]) => (
+                <div key={phase} className="contract-phase">
+                  <div className="contract-phase-title">{phase}</div>
+                  <ul>
+                    {items.map((contract) => {
+                      const isActive = contract.id === focusedContract?.id;
+                      const hasSections =
+                        (sowByContract.get(contract.id) ?? []).length > 0;
+                      const expanded = expandedContracts[contract.id];
+                      return (
+                        <li
+                          key={contract.id}
+                          className={isActive ? "active" : ""}
+                        >
+                          <div
+                            className="contract-row"
+                            onClick={() => handleContractSelect(contract)}
                           >
-                            {expanded ? "−" : "+"}
-                          </span>
-                        )}
-                      </div>
-                      <div className="contract-meta">
-                        <span>{contract.discipline || "General"}</span>
-                        <span>{Math.round(contract.status_pct)}%</span>
-                      </div>
-                    </div>
-                    {/* {hasSections && (
-                      <button
-                        type="button"
-                        className="contract-toggle"
+                            <div>
+                              <div className="contract-name flex items-center justify-between gap-2">
+                                <div className="flex gap-2 items-center">
+                                  <SvgIcon name="contract-icon" width={14} height={14} />
+                                  <span
+                                    className="max-w-full xl:max-w-[120px] 2xl:max-w-full"
+                                    style={{
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                      display: "block",
+                                    }}
+                                    title={contract.name}
+                                  >
+                                    {contract.name}
+                                  </span>
+                                </div>
+                                {hasSections && (
+                                  <span
+                                    className="cursor-pointer text-base"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      toggleContractSections(contract.id);
+                                    }}
+                                  >
+                                    {expanded ? "−" : "+"}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="contract-meta">
+                                {/* <span>{contract.discipline || "General"}</span> */}
+                                {/* <span>{Math.round(contract.status_pct)}%</span> */}
+                              </div>
+                            </div>
+                            {/* {hasSections && (
+                              <button
+                                className="contract-toggle"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   toggleContractSections(contract.id);
                                 }}
                                 aria-label={`Toggle SOW for ${contract.name}`}
-                      >
-                        {expanded ? "−" : "+"}
-                      </button>
-                    )} */}
-                  </div>
-                  {hasSections && expanded && (
-                    <div className="sow-list text-sm">
-                      {(sowByContract.get(contract.id) ?? []).map(
-                        (section) => {
-                          const sowExpanded = expandedSows[section.id];
-                          return (
-                            <div key={section.id} className="sow-item">
-                              <div
-                                className="sow-header"
-                                onClick={() => toggleSow(section.id)}
                               >
-                                <div>
-                                  <div className="sow-title">
-                                    {section.title}
-                                  </div>
-                                  <div className="sow-status">
-                                    {section.status}
-                                  </div>
-                                </div>
-                                <div className="sow-progress">
-                                  <div className="progress-bar thin">
-                                    <span
-                                      style={{
-                                        width: `${Math.min(
-                                          Math.max(section.progress, 0),
-                                          100
-                                        )}%`,
-                                      }}
-                                    />
-                                  </div>
-                                  <span>
-                                    {Math.round(section.progress)}%
-                                  </span>
-                                </div>
-                              </div>
-                              {section.clauses.length > 0 &&
-                                sowExpanded && (
-                                  <ul className="sow-clauses">
-                                    {section.clauses.map((clause) => (
-                                      <li key={clause.id}>
-                                        <div className="clause-title">
-                                          {clause.title}
-                                        </div>
-                                        <div className="clause-meta">
-                                          <span>{clause.status}</span>
-                                          {clause.lead && (
-                                            <span>
-                                              Lead: {clause.lead}
+                                {expanded ? "−" : "+"}
+                              </button>
+                            )} */}
+                          </div>
+                          {hasSections && expanded && (
+                            <div className="sow-list text-sm">
+                              {(sowByContract.get(contract.id) ?? []).map(
+                                (section) => {
+                                  const sowExpanded = expandedSows[section.id];
+                                  return (
+                                    <div
+                                      key={section.id}
+                                      className="sow-item pl-1"
+                                    >
+                                      <div
+                                        className="sow-header"
+                                        onClick={() => toggleSow(section.id)}
+                                      >
+                                        <div className="sow-header-content">
+                                          <div className="sow-title flex gap-2 items-center text-[#EE6E27]!">
+                                            <SvgIcon name="sow-icon" width={10} height={11} />
+                                            <span
+                                              className="max-w-full xl:max-w-[120px] 2xl:max-w-full"
+                                              style={{
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                                display: "block",
+                                              }}
+                                              title={section.title}
+                                            >
+                                              {section.title}
                                             </span>
-                                          )}
-                                          <span>
-                                            {clause.progress}%
-                                          </span>
+                                          </div>
                                         </div>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                )}
+                                        {section.clauses.length > 0 && (
+                                          <span className="sow-toggle text-[#EE6E27]!">
+                                            {sowExpanded ? "−" : "+"}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {section.clauses.length > 0 &&
+                                        sowExpanded && (
+                                          <div className="bg-white rounded-lg p-2 mt-2">
+                                            <div className="sow-meta pb-2">
+                                              <span className="sow-status">
+                                                {section.status}
+                                              </span>
+                                              <span className="sow-progress">
+                                                {Math.round(section.progress)}%
+                                              </span>
+                                            </div>
+                                            <ul className="sow-clauses">
+                                              {section.clauses.map((clause) => (
+                                                <li key={clause.id}>
+                                                  <div className="clause-title">
+                                                    {clause.title}
+                                                  </div>
+                                                  <div className="clause-meta">
+                                                    <span>{clause.status}</span>
+                                                    {clause.lead && (
+                                                      <span>
+                                                        Lead: {clause.lead}
+                                                      </span>
+                                                    )}
+                                                    <span>
+                                                      {clause.progress}%
+                                                    </span>
+                                                  </div>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+                                    </div>
+                                  );
+                                }
+                              )}
                             </div>
-                          );
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </aside>
+          {/* <div className="bg-amber-50 w-full h-screen">aside</div> */}
+          <MapWipSplit
+            sizes={mapWipSizes}
+            onSizesChange={handleSplitSizesChange}
+            minSizes={[MIN_CONTRACT_MAP_HEIGHT, MIN_CONTRACT_WIP_HEIGHT]}
+            mapPane={
+              <div className="contract-map-shell" ref={mapShellRef}>
+                <div className="map-toolbar">
+                  <div className="map-toolbar-row">
+                    <div
+                      className="map-view-toggle"
+                      role="tablist"
+                      aria-label="Switch basemap style"
+                    >
+                      {(Object.keys(MAP_STYLES) as MapView[]).map((viewKey) => {
+                        const style = MAP_STYLES[viewKey];
+                        return (
+                          <button
+                            key={viewKey}
+                            className={mapView === viewKey ? "active" : ""}
+                            onClick={() => setMapView(viewKey)}
+                            type="button"
+                            role="tab"
+                            aria-selected={mapView === viewKey}
+                          >
+                            {style.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div
+                      className="map-layer-buttons"
+                      role="group"
+                      aria-label="Map feature overlays"
+                    >
+                      <button
+                        type="button"
+                        className={`btn-map-toggle ${featureToggle.geofences ? "active" : ""
+                          }`}
+                        onClick={() =>
+                          setFeatureToggle((prev) => ({
+                            ...prev,
+                            geofences: !prev.geofences,
+                          }))
                         }
-                      )}
+                      >
+                        Geofence
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn-map-toggle ${featureToggle.intensity ? "active" : ""
+                          }`}
+                        onClick={() =>
+                          setFeatureToggle((prev) => ({
+                            ...prev,
+                            intensity: !prev.intensity,
+                          }))
+                        }
+                      >
+                        Heat
+                      </button>
+                    </div>
+                  </div>
+
+                  {activeContractDisplay && (
+                    <div className="map-active-card">
+                      <div>
+                        <span className="map-active-name">
+                          {activeContractDisplay.name}
+                        </span>
+                        <span className="map-active-phase">
+                          {activeContractDisplay.phase}
+                        </span>
+                      </div>
+                      <div className="map-active-meta">
+                        <span>
+                          {Math.round(activeContractDisplay.status_pct)}%
+                          complete
+                        </span>
+                        <span>Alerts {activeContractDisplay.alerts ?? 0}</span>
+                        {activeContractDisplay.status_label && (
+                          <span>{activeContractDisplay.status_label}</span>
+                        )}
+                        {activeContractWeather && (
+                          <span>
+                            Weather{" "}
+                            {activeContractWeather.temperatureC !== null &&
+                              activeContractWeather.temperatureC !== undefined
+                              ? `${Math.round(
+                                activeContractWeather.temperatureC
+                              )}°C`
+                              : "--"}{" "}
+                            ·{" "}
+                            {activeContractWeather.weatherDescription ??
+                              "Conditions unavailable"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
-                </li>
-              );
-            })
-            }
-          </ul >
-        </section >
-      ))}
-    </div >
-          </aside >
-    {/* <div className="bg-amber-50 w-full h-screen">aside</div> */ }
-    < MapWipSplit
-  sizes = { mapWipSizes }
-  onSizesChange = { handleSplitSizesChange }
-  minSizes = { [MIN_CONTRACT_MAP_HEIGHT, MIN_CONTRACT_WIP_HEIGHT]}
-  mapPane = {
-              < div className = "contract-map-shell" ref = { mapShellRef } >
-    <div className="map-toolbar">
-      <div className="map-toolbar-row">
-        <div
-          className="map-view-toggle"
-          role="tablist"
-          aria-label="Switch basemap style"
-        >
-          {(Object.keys(MAP_STYLES) as MapView[]).map((viewKey) => {
-            const style = MAP_STYLES[viewKey];
-            return (
-              <button
-                key={viewKey}
-                className={mapView === viewKey ? "active" : ""}
-                onClick={() => setMapView(viewKey)}
-                type="button"
-                role="tab"
-                aria-selected={mapView === viewKey}
-              >
-                {style.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div
-          className="map-layer-buttons"
-          role="group"
-          aria-label="Map feature overlays"
-        >
-          <button
-            type="button"
-            className={`btn-map-toggle ${featureToggle.geofences ? "active" : ""
-              }`}
-            onClick={() =>
-              setFeatureToggle((prev) => ({
-                ...prev,
-                geofences: !prev.geofences,
-              }))
-            }
-          >
-            Geofence
-          </button>
-          <button
-            type="button"
-            className={`btn-map-toggle ${featureToggle.intensity ? "active" : ""
-              }`}
-            onClick={() =>
-              setFeatureToggle((prev) => ({
-                ...prev,
-                intensity: !prev.intensity,
-              }))
-            }
-          >
-            Heat
-          </button>
-        </div>
-      </div>
-
-      {activeContractDisplay && (
-        <div className="map-active-card">
-          <div>
-            <span className="map-active-name">
-              {activeContractDisplay.name}
-            </span>
-            <span className="map-active-phase">
-              {activeContractDisplay.phase}
-            </span>
-          </div>
-          <div className="map-active-meta">
-            <span>
-              {Math.round(activeContractDisplay.status_pct)}%
-              complete
-            </span>
-            <span>Alerts {activeContractDisplay.alerts ?? 0}</span>
-            {activeContractDisplay.status_label && (
-              <span>{activeContractDisplay.status_label}</span>
-            )}
-            {activeContractWeather && (
-              <span>
-                Weather{" "}
-                {activeContractWeather.temperatureC !== null &&
-                  activeContractWeather.temperatureC !== undefined
-                  ? `${Math.round(
-                    activeContractWeather.temperatureC
-                  )}°C`
-                  : "--"}{" "}
-                ·{" "}
-                {activeContractWeather.weatherDescription ??
-                  "Conditions unavailable"}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-
-  {
-    loading && (
-      <div className="contract-loading">Preparing map…</div>
-    )
-  }
-  {
-    !loading && (
-      <MapContainer
-        key={`${mapView}-${theme}`}
-        center={mapCenter}
-        zoom={12}
-        className="contract-leaflet"
-        scrollWheelZoom
-        zoomControl={false}
-        doubleClickZoom={false}
-        style={{ flex: 1 }}
-      >
-        <TileLayer
-          attribution={mapStyle.attribution}
-          url={mapStyle.url}
-        />
-        <ZoomControl position="topright" />
-        <ScaleControl position="bottomleft" />
-        {bounds && (
-          <FitContractBounds
-            bounds={bounds}
-            focus={
-              focusedContract
-                ? [focusedContract.lat, focusedContract.lng]
-                : undefined
-            }
-          />
-        )}
-        <MapResizeWatcher
-          trigger={`${panelCollapsed}-${theme}-${mapView}-${filteredContracts.length
-            }-${Math.round(
-              (mapShellRef.current?.offsetHeight ?? 0) * 100
-            )}-${mapWipSizes
-              .map((size) => size.toFixed(2))
-              .join("-")}`}
-        />
-
-        {featureToggle.intensity &&
-          filteredContracts.map((contract) => {
-            const index = Math.min(
-              ALERT_COLOR_MAP.length - 1,
-              Math.max(0, contract.alerts - 1)
-            );
-            const [r, g, b] = ALERT_COLOR_MAP[index];
-            return (
-              <Circle
-                key={`${contract.id}-intensity`}
-                center={[contract.lat, contract.lng]}
-                radius={900 + (contract.alerts || 0) * 250}
-                pathOptions={{
-                  color: "transparent",
-                  fillColor: `rgba(${r}, ${g}, ${b}, 0.22)`,
-                  fillOpacity: 0.22,
-                }}
-              />
-            );
-          })}
-
-        {featureToggle.geofences &&
-          filteredContracts
-            .filter(
-              (contract) =>
-                contract.geofence_radius_m ||
-                project.geofence_radius_m
-            )
-            .map((contract) => {
-              const [r, g, b] = statusColor(
-                contract.status_label ?? ""
-              );
-              const radius =
-                Math.max(
-                  contract.geofence_radius_m ??
-                  project.geofence_radius_m ??
-                  0,
-                  900
-                ) * 1.05;
-              return (
-                <Circle
-                  key={`${contract.id}-geofence`}
-                  center={[contract.lat, contract.lng]}
-                  radius={radius}
-                  pathOptions={{
-                    color: `rgba(${r}, ${g}, ${b}, 0.85)`,
-                    opacity: 0.8,
-                    weight: 2,
-                    dashArray: "6 6",
-                    fillOpacity: 0,
-                  }}
-                />
-              );
-            })}
-
-        {filteredContracts.map((contract) => {
-          const isActive = contract.id === focusedContractId;
-          const weatherPoint =
-            contractWeatherMap.get(contract.id) ?? null;
-          const icon = createContractIcon(
-            contract,
-            theme ?? "light",
-            isActive,
-            weatherPoint
-          );
-          return (
-            <Marker
-              key={contract.id}
-              position={[contract.lat, contract.lng]}
-              icon={icon}
-              eventHandlers={{
-                click: () => handleContractSelect(contract),
-                mouseover: () => setHoveredContract(contract),
-                mouseout: () =>
-                  setHoveredContract((prev) =>
-                    prev?.id === contract.id ? null : prev
-                  ),
-              }}
-            >
-              <Tooltip
-                direction="top"
-                offset={[0, -30]}
-                opacity={0.9}
-              >
-                <div style={{ display: "grid", gap: 4 }}>
-                  <strong>{contract.name}</strong>
-                  <span style={{ fontSize: "0.75rem" }}>
-                    {Math.round(contract.status_pct)}% · Alerts{" "}
-                    {contract.alerts}
-                  </span>
-                  {weatherPoint && (
-                    <span style={{ fontSize: "0.7rem" }}>
-                      Weather{" "}
-                      {weatherPoint.temperatureC !== null &&
-                        weatherPoint.temperatureC !== undefined
-                        ? `${Math.round(
-                          weatherPoint.temperatureC
-                        )}°C`
-                        : "--"}{" "}
-                      ·{" "}
-                      {weatherPoint.weatherDescription ??
-                        "Conditions unavailable"}
-                    </span>
-                  )}
                 </div>
-              </Tooltip>
-            </Marker >
-          );
-        })}
-      </MapContainer >
-    )
-  }
+
+                {loading && (
+                  <div className="contract-loading">Preparing map…</div>
+                )}
+                {!loading && (
+                  <MapContainer
+                    key={`${mapView}-${theme}`}
+                    center={mapCenter}
+                    zoom={12}
+                    className="contract-leaflet"
+                    scrollWheelZoom
+                    zoomControl={false}
+                    doubleClickZoom={false}
+                    style={{ flex: 1 }}
+                  >
+                    <TileLayer
+                      attribution={mapStyle.attribution}
+                      url={mapStyle.url}
+                    />
+                    <ZoomControl position="topright" />
+                    <ScaleControl position="bottomleft" />
+                    {bounds && (
+                      <FitContractBounds
+                        bounds={bounds}
+                        focus={
+                          focusedContract
+                            ? [focusedContract.lat, focusedContract.lng]
+                            : undefined
+                        }
+                      />
+                    )}
+                    <MapResizeWatcher
+                      trigger={`${panelCollapsed}-${theme}-${mapView}-${filteredContracts.length
+                        }-${Math.round(
+                          (mapShellRef.current?.offsetHeight ?? 0) * 100
+                        )}-${mapWipSizes
+                          .map((size) => size.toFixed(2))
+                          .join("-")}`}
+                    />
+
+                    {featureToggle.intensity &&
+                      filteredContracts.map((contract) => {
+                        const index = Math.min(
+                          ALERT_COLOR_MAP.length - 1,
+                          Math.max(0, contract.alerts - 1)
+                        );
+                        const [r, g, b] = ALERT_COLOR_MAP[index];
+                        return (
+                          <Circle
+                            key={`${contract.id}-intensity`}
+                            center={[contract.lat, contract.lng]}
+                            radius={900 + (contract.alerts || 0) * 250}
+                            pathOptions={{
+                              color: "transparent",
+                              fillColor: `rgba(${r}, ${g}, ${b}, 0.22)`,
+                              fillOpacity: 0.22,
+                            }}
+                          />
+                        );
+                      })}
+
+                    {featureToggle.geofences &&
+                      filteredContracts
+                        .filter(
+                          (contract) =>
+                            contract.geofence_radius_m ||
+                            project.geofence_radius_m
+                        )
+                        .map((contract) => {
+                          const [r, g, b] = statusColor(
+                            contract.status_label ?? ""
+                          );
+                          const radius =
+                            Math.max(
+                              contract.geofence_radius_m ??
+                              project.geofence_radius_m ??
+                              0,
+                              900
+                            ) * 1.05;
+                          return (
+                            <Circle
+                              key={`${contract.id}-geofence`}
+                              center={[contract.lat, contract.lng]}
+                              radius={radius}
+                              pathOptions={{
+                                color: `rgba(${r}, ${g}, ${b}, 0.85)`,
+                                opacity: 0.8,
+                                weight: 2,
+                                dashArray: "6 6",
+                                fillOpacity: 0,
+                              }}
+                            />
+                          );
+                        })}
+
+                    {filteredContracts.map((contract) => {
+                      const isActive = contract.id === focusedContractId;
+                      const weatherPoint =
+                        contractWeatherMap.get(contract.id) ?? null;
+                      const icon = createContractIcon(
+                        contract,
+                        theme ?? "light",
+                        isActive,
+                        weatherPoint
+                      );
+                      return (
+                        <Marker
+                          key={contract.id}
+                          position={[contract.lat, contract.lng]}
+                          icon={icon}
+                          eventHandlers={{
+                            click: () => handleContractSelect(contract),
+                            mouseover: () => setHoveredContract(contract),
+                            mouseout: () =>
+                              setHoveredContract((prev) =>
+                                prev?.id === contract.id ? null : prev
+                              ),
+                          }}
+                        >
+                          <Tooltip
+                            direction="top"
+                            offset={[0, -30]}
+                            opacity={0.9}
+                          >
+                            <div style={{ display: "grid", gap: 4 }}>
+                              <strong>{contract.name}</strong>
+                              <span style={{ fontSize: "0.75rem" }}>
+                                {Math.round(contract.status_pct)}% · Alerts{" "}
+                                {contract.alerts}
+                              </span>
+                              {weatherPoint && (
+                                <span style={{ fontSize: "0.7rem" }}>
+                                  Weather{" "}
+                                  {weatherPoint.temperatureC !== null &&
+                                    weatherPoint.temperatureC !== undefined
+                                    ? `${Math.round(
+                                      weatherPoint.temperatureC
+                                    )}°C`
+                                    : "--"}{" "}
+                                  ·{" "}
+                                  {weatherPoint.weatherDescription ??
+                                    "Conditions unavailable"}
+                                </span>
+                              )}
+                            </div>
+                          </Tooltip>
+                        </Marker>
+                      );
+                    })}
+                  </MapContainer>
+                )}
               </div>
             }
             wipPane={
@@ -3930,58 +3287,43 @@ function ContractControlCenterOverlay({
             }
           />
 
-          <ProjectProductivityPanel
+          {/* <ProjectProductivityPanel
             projectId={project.id}
             initialContractId={focusedContract?.id ?? contracts[0]?.id}
-          />
-        </div >
-      </div >
-  <div
-    className="contract-utility-floating"
-    aria-label="Contract utility views"
-  >
-    {visibleUtilityViews.map((view) => {
-      const active = view.id === activeUtilityView;
-      return (
-        <button
-          key={view.id}
-          type="button"
-          className={`utility-dock-btn ${active ? "active" : ""}`}
-          onClick={() => {
-            if (view.id === "scheduling") {
-              setActiveUtilityView(view.id);
-              handleScheduleNavigate();
-            } else {
-              setActiveUtilityView(view.id);
-            }
-            if (view.id === 'financial') {
-              setActiveUtilityView(view.id)
-              handleFinancialNavigate()
-              return
-            }
-            if (view.id === 'procurement') {
-              setActiveUtilityView(view.id)
-              handleScmNavigate()
-              return
-            }
-            if (view.id === 'atom') {
-              setActiveUtilityView(view.id)
-              handleAtomNavigate()
-              return
-            }
-            setActiveUtilityView(view.id)
-          }}
-          aria-pressed={active}
-          title={view.label}
-        >
-          <span aria-hidden>{view.icon}</span>
-          <span className="sr-only">{view.label}</span>
-        </button>
-      );
-    })}
-  </div>
+          /> */}
+          <ProjectProductivityPanelV2 projectId={project.id}
+            initialContractId={focusedContract?.id ?? contracts[0]?.id} />
+        </div>
+      </div>
+      <div
+        className="contract-utility-floating"
+        aria-label="Contract utility views"
+      >
+        {visibleUtilityViews.map((view) => {
+          const active = view.id === activeUtilityView;
+          return (
+            <button
+              key={view.id}
+              type="button"
+              className={`utility-dock-btn ${active ? "active" : ""}`}
+              onClick={() => {
+                if (view.id === "scheduling") {
+                  setActiveUtilityView(view.id);
+                  handleScheduleNavigate();
+                } else {
+                  setActiveUtilityView(view.id);
+                }
+              }}
+              aria-pressed={active}
+              title={view.label}
+            >
+              <span aria-hidden>{view.icon}</span>
+              <span className="sr-only">{view.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
-    </>
   );
 }
 
@@ -4101,7 +3443,7 @@ function WorkInProgressBoard({
         </span>
       </div>
       <div className="min-h-[120px] overflow-auto">
-        <div className="wip-summary">
+        {/* <div className="wip-summary">
           {summary.map(({ status, count, color, average }) => {
             const isActive = activeStatus === status;
             const displayAverage =
@@ -4123,139 +3465,207 @@ function WorkInProgressBoard({
               </button>
             );
           })}
-        </div>
+        </div> */}
 
         {emptyState ? (
-                    <div className="wip-empty-state">
-                      No active contracts in this stage. Try another status.
-                    </div>
-                  ) : (
-                    <>
-                      <div className="wip-track">
-                        {rankedItems.map((item) => {
-                          const progress = Math.max(0, Math.min(100, item.percent));
-                          const accent =
-                            WORK_STATUS_COLORS[item.status] ??
-                            contractAccent(item.contract);
-                          const circumference = 2 * Math.PI * 36;
-                          const dashOffset = circumference * (1 - progress / 100);
-                          const gradientId = `wip-dial-${item.contract.replace(
-                            /[^a-z0-9]/gi,
-                            ""
-                          )}-${item.status.replace(/[^a-z0-9]/gi, "")}`;
-                          const haloId = `${gradientId}-halo`;
-                          const textColor = theme === "light" ? "#0f172a" : "#f8fafc";
-                          const trackColor =
-                            theme === "light" ? "#e2e8f0" : "rgba(148, 163, 184, 0.35)";
-                          const tone =
-                            progress >= 65
-                              ? "ahead"
-                              : progress >= 40
-                                ? "steady"
-                                : "lagging";
-                          return (
-                            <div
-                              key={item.contract + item.status}
-                              className={`wip-card tone-${tone}`}
-                            >
-                              <svg
-                                className="wip-dial"
-                                viewBox="0 0 120 120"
-                                role="presentation"
-                                aria-hidden
-                              >
-                                <defs>
-                                  <radialGradient id={haloId} cx="50%" cy="50%" r="60%">
-                                    <stop
-                                      offset="0%"
-                                      stopColor={accent}
-                                      stopOpacity={0.55}
-                                    />
-                                    <stop
-                                      offset="65%"
-                                      stopColor={accent}
-                                      stopOpacity={0.16}
-                                    />
-                                    <stop
-                                      offset="100%"
-                                      stopColor={accent}
-                                      stopOpacity={0}
-                                    />
-                                  </radialGradient>
-                                  <linearGradient
-                                    id={gradientId}
-                                    x1="0%"
-                                    y1="0%"
-                                    x2="100%"
-                                    y2="100%"
-                                  >
-                                    <stop
-                                      offset="0%"
-                                      stopColor={accent}
-                                      stopOpacity={0.9}
-                                    />
-                                    <stop
-                                      offset="100%"
-                                      stopColor={accent}
-                                      stopOpacity={0.5}
-                                    />
-                                  </linearGradient>
-                                </defs>
-                                <circle
-                                  className="wip-dial-halo"
-                                  cx="60"
-                                  cy="60"
-                                  r="50"
-                                  fill={`url(#${haloId})`}
-                                />
-                                <circle
-                                  className="wip-dial-track"
-                                  cx="60"
-                                  cy="60"
-                                  r="36"
-                                  stroke={trackColor}
-                                />
-                                <circle
-                                  className="wip-dial-progress"
-                                  cx="60"
-                                  cy="60"
-                                  r="36"
-                                  stroke={`url(#${gradientId})`}
-                                  strokeDasharray={`${circumference} ${circumference}`}
-                                  strokeDashoffset={dashOffset}
-                                />
-                                <text
-                                  x="60"
-                                  y="64"
-                                  className="wip-dial-text"
-                                  fill={textColor}
-                                >
-                                  {Math.round(progress)}%
-                                </text>
-                              </svg>
-                              <div className="wip-details">
-                                <strong>{item.contract}</strong>
-                                <span className="wip-status-chip">{item.status}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+          <div className="wip-empty-state">
+            No active contracts in this stage. Try another status.
+          </div>
+        ) : (
+          <>
+            <div className="wip-track wip-track-horizontal">
+              {rankedItems.map((item) => {
+                const progress = Math.max(0, Math.min(100, item.percent));
+                const accent =
+                  WORK_STATUS_COLORS[item.status] ??
+                  contractAccent(item.contract);
+                const circumference = 2 * Math.PI * 40;
+                const dashOffset = circumference * (1 - progress / 100);
 
-                      <div className="wip-legend">
-                        {legendEntries.map((entry) => (
-                          <div key={entry.contract} className="wip-legend-chip">
-                            <span
-                              className="wip-legend-dot"
-                              style={{ background: entry.color }}
-                            />
-                            <span>{entry.contract}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div >
-              </div >
-            );
-          }
+                return (
+                  <div
+                    key={item.contract + item.status}
+                    className="wip-chart-item"
+                  >
+                    <div className="wip-chart-circle">
+                      <svg
+                        className="wip-chart-svg"
+                        viewBox="0 0 100 100"
+                        role="presentation"
+                        aria-hidden
+                      >
+                        <circle
+                          className="wip-chart-track"
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="none"
+                          stroke="#e2e8f0"
+                          strokeWidth="2"
+                        />
+                        <circle
+                          className="wip-chart-progress"
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="none"
+                          stroke={accent}
+                          strokeWidth="15"
+                          strokeDasharray={circumference}
+                          strokeDashoffset={dashOffset}
+                          // strokeLinecap="round"
+                          transform="rotate(-90 50 50)"
+                        />
+                        <text
+                          x="50"
+                          y="55"
+                          className="wip-chart-text"
+                          textAnchor="middle"
+                          fill="#1a1a1a"
+                          fontSize="16"
+                          fontWeight="600"
+                        >
+                          {Math.round(progress)}%
+                        </text>
+                      </svg>
+                      {/* <div
+                        className="wip-chart-indicator"
+                        style={{ backgroundColor: accent }}
+                      /> */}
+                    </div>
+                    <div className="wip-chart-label" title={item.contract}>
+                      {item.contract}
+                    </div>
+                    <div className="wip-chart-status font-semibold">
+                      Status: {item.status}
+                    </div>
+                  </div>
+                );
+              })}
+              {/* {rankedItems.map((item) => {
+                const progress = Math.max(0, Math.min(100, item.percent));
+                const accent =
+                  WORK_STATUS_COLORS[item.status] ??
+                  contractAccent(item.contract);
+                const circumference = 2 * Math.PI * 36;
+                const dashOffset = circumference * (1 - progress / 100);
+                const gradientId = `wip-dial-${item.contract.replace(
+                  /[^a-z0-9]/gi,
+                  ""
+                )}-${item.status.replace(/[^a-z0-9]/gi, "")}`;
+                const haloId = `${gradientId}-halo`;
+                const textColor = theme === "light" ? "#0f172a" : "#f8fafc";
+                const trackColor =
+                  theme === "light" ? "#e2e8f0" : "rgba(148, 163, 184, 0.35)";
+                const tone =
+                  progress >= 65
+                    ? "ahead"
+                    : progress >= 40
+                    ? "steady"
+                    : "lagging";
+                return (
+                  <div
+                    key={item.contract + item.status}
+                    className={`wip-card tone-${tone}`}
+                  >
+                    <svg
+                      className="wip-dial"
+                      viewBox="0 0 120 120"
+                      role="presentation"
+                      aria-hidden
+                    >
+                      <defs>
+                        <radialGradient id={haloId} cx="50%" cy="50%" r="60%">
+                          <stop
+                            offset="0%"
+                            stopColor={accent}
+                            stopOpacity={0.55}
+                          />
+                          <stop
+                            offset="65%"
+                            stopColor={accent}
+                            stopOpacity={0.16}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor={accent}
+                            stopOpacity={0}
+                          />
+                        </radialGradient>
+                        <linearGradient
+                          id={gradientId}
+                          x1="0%"
+                          y1="0%"
+                          x2="100%"
+                          y2="100%"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor={accent}
+                            stopOpacity={0.9}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor={accent}
+                            stopOpacity={0.5}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <circle
+                        className="wip-dial-halo"
+                        cx="60"
+                        cy="60"
+                        r="50"
+                        fill={`url(#${haloId})`}
+                      />
+                      <circle
+                        className="wip-dial-track"
+                        cx="60"
+                        cy="60"
+                        r="36"
+                        stroke={trackColor}
+                      />
+                      <circle
+                        className="wip-dial-progress"
+                        cx="60"
+                        cy="60"
+                        r="36"
+                        stroke={`url(#${gradientId})`}
+                        strokeDasharray={`${circumference} ${circumference}`}
+                        strokeDashoffset={dashOffset}
+                      />
+                      <text
+                        x="60"
+                        y="64"
+                        className="wip-dial-text"
+                        fill={textColor}
+                      >
+                        {Math.round(progress)}%
+                      </text>
+                    </svg>
+                    <div className="wip-details">
+                      <strong>{item.contract}</strong>
+                      <span className="wip-status-chip">{item.status}</span>
+                    </div>
+                  </div>
+                );
+              })} */}
+            </div>
+
+            <div className="wip-legend">
+              {legendEntries.map((entry) => (
+                <div key={entry.contract} className="wip-legend-chip">
+                  <span
+                    className="wip-legend-dot"
+                    style={{ background: entry.color }}
+                  />
+                  <span>{entry.contract}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
