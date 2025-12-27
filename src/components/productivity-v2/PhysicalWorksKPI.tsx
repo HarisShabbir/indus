@@ -8,7 +8,10 @@ interface PhysicalWorksKPIProps {
 export function PhysicalWorksKPI({ actual, planned }: PhysicalWorksKPIProps) {
   return (
     <div className="pp-v2-card rounded-xl p-4 mb-4">
-      <h4 className="text-sm font-semibold pp-v2-text-secondary mb-3 uppercase tracking-wide">
+      <h4
+        className="text-sm font-semibold pp-v2-text-primary mb-3 tracking-wide text-nowrap overflow-hidden text-ellipsis"
+        title="Physical Works Completed"
+      >
         Physical Works Completed
       </h4>
       <div className="grid! grid-cols-2 gap-3">

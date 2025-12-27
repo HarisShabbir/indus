@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { PhysicalWorksKPI } from '../components/productivity-v2/PhysicalWorksKPI';
 import { DesignWorkOutput } from '../components/productivity-v2/DesignWorkOutput';
 import { PreparatoryWorkOutput } from '../components/productivity-v2/PreparatoryWorkOutput';
@@ -6,6 +6,7 @@ import { ConstructionWorkOutput } from '../components/productivity-v2/Constructi
 import { QualityPerformance } from '../components/productivity-v2/QualityPerformance';
 import { SpiPerformance } from '../components/productivity-v2/SpiPerformance';
 import { AccordionSection } from '../components/productivity-v2/AccordionSection';
+import SvgIcon from '../components/SvgIcon';
 
 export type ProjectProductivityPanelV2Props = {
   projectId: string;
@@ -152,58 +153,204 @@ export default function ProjectProductivityPanelV2({
   projectId,
   initialContractId,
 }: ProjectProductivityPanelV2Props) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [firstBoxHeight, setFirstBoxHeight] = useState<number | null>(null);
+  const [secondBoxHeight, setSecondBoxHeight] = useState<number | null>(null);
+  const [isResizingFirst, setIsResizingFirst] = useState(false);
+  const [isResizingSecond, setIsResizingSecond] = useState(false);
+  const resizeSnapshot = useRef<{ startY: number; startHeight: number; which: 'first' | 'second' }>({
+    startY: 0,
+    startHeight: 0,
+    which: 'first',
+  });
+
+  // Initialize equal heights
+  useEffect(() => {
+    if (containerRef.current && firstBoxHeight === null) {
+      const containerHeight = containerRef.current.getBoundingClientRect().height;
+      const resizeHandleHeight = 14;
+      const availableHeight = containerHeight - (resizeHandleHeight * 2);
+      const equalHeight = Math.max(200, availableHeight / 3);
+      setFirstBoxHeight(equalHeight);
+      setSecondBoxHeight(equalHeight);
+    }
+  }, [firstBoxHeight]);
+
+  const handleResizeStart = (which: 'first' | 'second') => (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (which === 'first') {
+      setIsResizingFirst(true);
+      resizeSnapshot.current = {
+        startY: event.clientY,
+        startHeight: firstBoxHeight || 0,
+        which: 'first',
+      };
+    } else {
+      setIsResizingSecond(true);
+      resizeSnapshot.current = {
+        startY: event.clientY,
+        startHeight: secondBoxHeight || 0,
+        which: 'second',
+      };
+    }
+  };
+
+  useEffect(() => {
+    if (!isResizingFirst && !isResizingSecond) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const delta = event.clientY - resizeSnapshot.current.startY;
+      const proposed = resizeSnapshot.current.startHeight + delta;
+
+      if (containerRef.current) {
+        const containerHeight = containerRef.current.getBoundingClientRect().height;
+        const resizeHandleHeight = 14;
+        const minHeight = 200;
+
+        if (resizeSnapshot.current.which === 'first') {
+          const maxHeight = containerHeight - (secondBoxHeight || 0) - (resizeHandleHeight * 2) - minHeight;
+          const next = Math.max(minHeight, Math.min(maxHeight, proposed));
+          setFirstBoxHeight(next);
+        } else {
+          const maxHeight = containerHeight - (firstBoxHeight || 0) - (resizeHandleHeight * 2) - minHeight;
+          const next = Math.max(minHeight, Math.min(maxHeight, proposed));
+          setSecondBoxHeight(next);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingFirst(false);
+      setIsResizingSecond(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingFirst, isResizingSecond, firstBoxHeight, secondBoxHeight]);
+
   return (
     <aside
-      className="project-productivity pp-rightPanel w-full max-w-[400px] bg-gradient-to-br from-white to-blue-50/30 border border-gray-200 rounded-3xl shadow-xl flex flex-col sticky top-4 max-h-[calc(100vh-32px)] overflow-hidden"
+      ref={containerRef}
+      className="pp-rightPanel w-full max-w-[400px] flex flex-col gap-0 sticky top-4 max-h-[calc(100vh-32px)] overflow-hidden"
       aria-label="Project productivity insights"
     >
-      <div className="shrink-0 p-4">
-        <h3 className="text-lg font-bold pp-v2-text-primary mb-1">
-          Project Productivity
-        </h3>
-        <span className="text-xs pp-v2-text-muted">
-          Scope synced with all contracts · {staticData.designWork.length + staticData.preparatoryWork.length + staticData.constructionWork.length} datapoints
-        </span>
+      {/* Project Productivity Box */}
+      <div
+        className="pp-v2-card shadow-xl flex flex-col overflow-hidden"
+        style={{
+          height: firstBoxHeight ? `${firstBoxHeight}px` : undefined,
+          minHeight: '200px',
+          flex: firstBoxHeight ? '0 0 auto' : '1 1 0',
+          borderRadius: '12px 12px 0 0'
+        }}
+      >
+        <div className="shrink-0 p-4">
+          <h3 className="text-lg font-bold pp-v2-text-primary mb-1">
+            Project Productivity
+          </h3>
+          {/* <span className="text-xs pp-v2-text-muted">
+            Scope synced with all contracts · {staticData.designWork.length + staticData.preparatoryWork.length + staticData.constructionWork.length} datapoints
+          </span> */}
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 pb-6">
+          <div className="space-y-4">
+            <PhysicalWorksKPI
+              actual={staticData.physicalWorks.actual}
+              planned={staticData.physicalWorks.planned}
+            />
+
+            <AccordionSection title="Design Work Output" defaultOpen={true}>
+              <DesignWorkOutput tasks={staticData.designWork} />
+            </AccordionSection>
+
+            <AccordionSection title="Preparatory Work Output" defaultOpen={true}>
+              <PreparatoryWorkOutput tasks={staticData.preparatoryWork} />
+            </AccordionSection>
+
+            <AccordionSection title="Construction Work Output" defaultOpen={true}>
+              <ConstructionWorkOutput tasks={staticData.constructionWork} />
+            </AccordionSection>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-6 project-productivity-scroll">
-        <div className="space-y-4">
-          <PhysicalWorksKPI
-            actual={staticData.physicalWorks.actual}
-            planned={staticData.physicalWorks.planned}
+      {/* First Resize Handle */}
+      <div
+        className={`resize-bar ${isResizingFirst ? 'dragging' : ''}`}
+        onMouseDown={handleResizeStart('first')}
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Adjust first and second box heights"
+      >
+        <SvgIcon name="resize-bar" width={26} height={11} />
+      </div>
+
+      {/* Project Quality Performance Box */}
+      <div
+        className="pp-v2-card shadow-xl flex flex-col overflow-hidden"
+        style={{
+          height: secondBoxHeight ? `${secondBoxHeight}px` : undefined,
+          minHeight: '200px',
+          flex: secondBoxHeight ? '0 0 auto' : '1 1 0'
+        }}
+      >
+        <div className="shrink-0 p-4">
+          <h3 className="text-lg font-bold pp-v2-text-primary mb-1">
+            Project Quality Performance
+          </h3>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 pb-6">
+          <QualityPerformance
+            ncr={staticData.qualityPerformance.ncr}
+            qaor={staticData.qualityPerformance.qaor}
+            conformance={staticData.qualityPerformance.conformance}
           />
+        </div>
+      </div>
 
-          <AccordionSection title="Design Work Output" defaultOpen={true}>
-            <DesignWorkOutput tasks={staticData.designWork} />
-          </AccordionSection>
+      {/* Second Resize Handle */}
+      <div
+        className={`resize-bar ${isResizingSecond ? 'dragging' : ''}`}
+        onMouseDown={handleResizeStart('second')}
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Adjust second and third box heights"
+      >
+        <SvgIcon name="resize-bar" width={26} height={11} />
+      </div>
 
-          <AccordionSection title="Preparatory Work Output" defaultOpen={true}>
-            <PreparatoryWorkOutput tasks={staticData.preparatoryWork} />
-          </AccordionSection>
+      {/* SPI Box */}
+      <div
+        className="pp-v2-card shadow-xl flex flex-col overflow-hidden"
+        style={{
+          minHeight: '200px',
+          flex: '1 1 0',
+          borderRadius: '0 0 12px 12px'
+        }}
+      >
+        <div className="shrink-0 p-4">
+          <h3 className="text-lg font-bold pp-v2-text-primary mb-1">
+            SPI
+          </h3>
+        </div>
 
-          <AccordionSection title="Construction Work Output" defaultOpen={true}>
-            <ConstructionWorkOutput tasks={staticData.constructionWork} />
-          </AccordionSection>
-
-          <AccordionSection title="Project Quality Performance" defaultOpen={true}>
-            <QualityPerformance
-              ncr={staticData.qualityPerformance.ncr}
-              qaor={staticData.qualityPerformance.qaor}
-              conformance={staticData.qualityPerformance.conformance}
-            />
-          </AccordionSection>
-
-          <AccordionSection title="Schedule Performance Index (SPI)" defaultOpen={true}>
-            <SpiPerformance
-              projectName={staticData.spiPerformance.projectName}
-              spi={staticData.spiPerformance.spi}
-              month={staticData.spiPerformance.month}
-              burnRate={staticData.spiPerformance.burnRate}
-              runway={staticData.spiPerformance.runway}
-              cashFlow={staticData.spiPerformance.cashFlow}
-              tasks={staticData.spiPerformance.tasks}
-            />
-          </AccordionSection>
+        <div className="flex-1 overflow-y-auto px-4 pb-6">
+          <SpiPerformance
+            projectName={staticData.spiPerformance.projectName}
+            spi={staticData.spiPerformance.spi}
+            month={staticData.spiPerformance.month}
+            burnRate={staticData.spiPerformance.burnRate}
+            runway={staticData.spiPerformance.runway}
+            cashFlow={staticData.spiPerformance.cashFlow}
+            tasks={staticData.spiPerformance.tasks}
+          />
         </div>
       </div>
     </aside>
