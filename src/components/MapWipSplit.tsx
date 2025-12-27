@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-const DEFAULT_MIN_SIZES: [number, number] = [480, 320]
+const DEFAULT_MIN_SIZES: [number, number] = [430, 320]
 
 export type MapWipSplitProps = {
   mapPane: React.ReactNode
