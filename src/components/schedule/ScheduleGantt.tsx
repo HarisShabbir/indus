@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { Gantt, Task, ViewMode } from 'gantt-task-react'
 import 'gantt-task-react/dist/index.css'
-import { scheduleTokens } from '../../theme/tokens'
 import ScheduleTaskListTable from './ScheduleTaskListTable'
 
 export type ScheduleRowType = 'contract' | 'sow' | 'process'
@@ -21,6 +20,7 @@ export type ScheduleRow = {
   parentId?: string | null
   status?: 'on-track' | 'monitoring' | 'risk'
   placeholder?: boolean
+  dependencies?: string[]
 }
 
 export type ScheduleGanttProps = {
@@ -32,45 +32,130 @@ export type ScheduleGanttProps = {
   onRangeChange?: (range: { start: Date; end: Date }) => void
 }
 
-const statusColorMap: Record<string, string> = {
-  'on-track': scheduleTokens.gantt.onTrack,
-  monitoring: scheduleTokens.gantt.monitoring,
-  risk: scheduleTokens.gantt.risk,
+type StatusKey = NonNullable<ScheduleRow['status']> | 'placeholder' | 'default'
+
+type StatusPalette = {
+  progress: string
+  progressSelected: string
+  background: string
+  backgroundSelected: string
+  labelTone: 'light' | 'dark'
 }
 
-function toTask(row: ScheduleRow, expanded: Record<string, boolean>, selectedId?: string | null): Task {
+type ScheduleTask = Task & {
+  rawRow: ScheduleRow
+  fullName: string
+  statusKey: StatusKey
+  labelTone: 'light' | 'dark'
+}
+
+const STATUS_STYLE_MAP: Record<StatusKey, StatusPalette> = {
+  'on-track': {
+    progress: 'var(--gantt-bar-on-track-progress)',
+    progressSelected: 'var(--gantt-bar-on-track-progress-selected)',
+    background: 'var(--gantt-bar-on-track-bg)',
+    backgroundSelected: 'var(--gantt-bar-on-track-bg-selected)',
+    labelTone: 'dark',
+  },
+  monitoring: {
+    progress: 'var(--gantt-bar-monitoring-progress)',
+    progressSelected: 'var(--gantt-bar-monitoring-progress-selected)',
+    background: 'var(--gantt-bar-monitoring-bg)',
+    backgroundSelected: 'var(--gantt-bar-monitoring-bg-selected)',
+    labelTone: 'dark',
+  },
+  risk: {
+    progress: 'var(--gantt-bar-risk-progress)',
+    progressSelected: 'var(--gantt-bar-risk-progress-selected)',
+    background: 'var(--gantt-bar-risk-bg)',
+    backgroundSelected: 'var(--gantt-bar-risk-bg-selected)',
+    labelTone: 'light',
+  },
+  placeholder: {
+    progress: 'var(--gantt-bar-placeholder-progress)',
+    progressSelected: 'var(--gantt-bar-placeholder-progress-selected)',
+    background: 'var(--gantt-bar-placeholder-bg)',
+    backgroundSelected: 'var(--gantt-bar-placeholder-bg-selected)',
+    labelTone: 'dark',
+  },
+  default: {
+    progress: 'var(--gantt-bar-default-progress)',
+    progressSelected: 'var(--gantt-bar-default-progress-selected)',
+    background: 'var(--gantt-bar-default-bg)',
+    backgroundSelected: 'var(--gantt-bar-default-bg-selected)',
+    labelTone: 'dark',
+  },
+}
+
+const COLLAPSED_BG = 'var(--gantt-bar-collapsed-bg)'
+const COLLAPSED_BG_SELECTED = 'var(--gantt-bar-collapsed-bg-selected)'
+
+const clampProgress = (value: number | null | undefined): number => {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 0
+  if (value > 1) return Math.min(100, Math.max(0, value))
+  return Math.min(100, Math.max(0, Math.round(value * 100)))
+}
+
+const normalizeLabel = (value: string | null | undefined, fallback: string): string => {
+  const trimmed = (value ?? '').trim()
+  return trimmed.length ? trimmed : fallback
+}
+
+const ellipsize = (value: string, max = 36): string => {
+  if (value.length <= max) return value
+  return `${value.slice(0, Math.max(0, max - 1)).trimEnd()}…`
+}
+
+function toTask(row: ScheduleRow, expanded: Record<string, boolean>, selectedId?: string | null): ScheduleTask {
   const start = new Date(row.start)
   const end = new Date(row.end)
-  const progress = Math.round(row.percentComplete * 100)
+  const progress = clampProgress(row.percentComplete)
   const isSow = row.type === 'sow'
   const isContract = row.type === 'contract'
-  const color = statusColorMap[row.status ?? 'on-track'] ?? scheduleTokens.colors.primary
+  const statusKey: StatusKey = row.placeholder ? 'placeholder' : row.status ?? 'on-track'
+  const palette = STATUS_STYLE_MAP[statusKey] ?? STATUS_STYLE_MAP.default
   const isSelected = selectedId === row.id
   const isCollapsibleParent = isContract || isSow
   const isCollapsed = isCollapsibleParent && !expanded[row.id]
-  const baseBackground = isCollapsed ? 'var(--gantt-row-collapsed-bg)' : 'rgba(148,163,184,0.18)'
-  const baseSelectedBackground = isCollapsed ? 'var(--gantt-row-collapsed-bg)' : 'rgba(37,99,235,0.35)'
+  const baseBackground = isCollapsed ? COLLAPSED_BG : palette.background
+  const baseSelectedBackground = isCollapsed ? COLLAPSED_BG_SELECTED : palette.backgroundSelected
+  const baseProgress = row.placeholder ? STATUS_STYLE_MAP.placeholder.progress : palette.progress
+  const baseProgressSelected = row.placeholder ? STATUS_STYLE_MAP.placeholder.progressSelected : palette.progressSelected
+  const fullName = normalizeLabel(row.name, row.type === 'contract' ? 'Unnamed contract' : 'Untitled task')
+  const labelLength = row.type === 'process' ? 28 : row.type === 'sow' ? 34 : 42
+  const displayName = ellipsize(fullName, labelLength)
+  const dependencies = (row.dependencies ?? []).filter(Boolean)
+  const labelTone = isCollapsed ? 'light' : palette.labelTone
 
-  return {
+  const ganttTask: ScheduleTask = {
     id: row.id,
     type: isSow || isContract ? 'project' : 'task',
-    name: row.name,
+    name: displayName,
     start,
     end,
     progress,
     project: row.parentId ?? undefined,
     hideChildren: isCollapsibleParent && !expanded[row.id],
     isDisabled: true,
+    dependencies: dependencies.length ? dependencies : undefined,
     styles: {
-      progressColor: color,
-      progressSelectedColor: color,
-      backgroundColor: isSelected ? 'rgba(37,99,235,0.25)' : baseBackground,
-      backgroundSelectedColor: isSelected ? 'rgba(37,99,235,0.35)' : baseSelectedBackground,
+      progressColor: isSelected ? baseProgressSelected : baseProgress,
+      progressSelectedColor: baseProgressSelected,
+      backgroundColor: isSelected ? baseSelectedBackground : baseBackground,
+      backgroundSelectedColor: baseSelectedBackground,
     },
+    rawRow: row,
+    fullName,
+    statusKey,
+    labelTone,
   }
+
+  return ganttTask
 }
 
 export function ScheduleGantt({ rows, expandedMap, selectedId, onToggleRow, onSelect, onRangeChange }: ScheduleGanttProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+
   const visibleRows = useMemo(() => {
     return rows.filter((row) => {
       if (row.type === 'sow') {
@@ -89,6 +174,36 @@ export function ScheduleGantt({ rows, expandedMap, selectedId, onToggleRow, onSe
     () => visibleRows.map((row) => toTask(row, expandedMap, selectedId)),
     [visibleRows, expandedMap, selectedId],
   )
+
+  const dependencyPairs = useMemo(() => {
+    if (!tasks.length) return []
+
+    const childrenMap = new Map<string, ScheduleTask[]>()
+    tasks.forEach((task) => {
+      childrenMap.set(task.id, [])
+    })
+
+    tasks.forEach((task) => {
+      const deps = task.dependencies ?? []
+      deps.forEach((dependencyId) => {
+        const bucket = childrenMap.get(dependencyId)
+        if (bucket) {
+          bucket.push(task)
+        }
+      })
+    })
+
+    const pairs: Array<{ from: string; to: string }> = []
+    tasks.forEach((task) => {
+      const children = childrenMap.get(task.id)
+      if (!children || !children.length) return
+      children.forEach((child) => {
+        pairs.push({ from: task.id, to: child.id })
+      })
+    })
+
+    return pairs
+  }, [tasks])
 
   useEffect(() => {
     if (tasks.length && onRangeChange) {
@@ -113,25 +228,103 @@ export function ScheduleGantt({ rows, expandedMap, selectedId, onToggleRow, onSe
     }
   }
 
+  useEffect(() => {
+    const host = containerRef.current
+    if (!host || !tasks.length) return undefined
+
+    const escapeForSelector = (value: string) => {
+      if (typeof window !== 'undefined' && window.CSS && typeof window.CSS.escape === 'function') {
+        return window.CSS.escape(value)
+      }
+      return value.replace(/(["\\])/g, '\\$1')
+    }
+
+    const barNodes = host.querySelectorAll<SVGGElement>('.bar > g')
+    barNodes.forEach((node, index) => {
+      const task = tasks[index] as ScheduleTask | undefined
+      if (!task) return
+      node.setAttribute('data-task-id', task.id)
+      node.setAttribute('data-status', task.statusKey)
+      node.setAttribute('data-label-tone', task.labelTone)
+      node.setAttribute('data-progress', String(task.progress))
+      node.setAttribute('data-full-label', task.fullName)
+      if (task.fullName) {
+        node.setAttribute('title', task.fullName)
+        const textNode = node.querySelector('text')
+        if (textNode) {
+          textNode.setAttribute('title', task.fullName)
+        }
+      }
+    })
+
+    const arrowNodes = host.querySelectorAll<SVGGElement>('.arrows > g.arrow')
+    arrowNodes.forEach((node, index) => {
+      const pair = dependencyPairs[index]
+      if (pair) {
+        node.setAttribute('data-from', pair.from)
+        node.setAttribute('data-to', pair.to)
+      } else {
+        node.removeAttribute('data-from')
+        node.removeAttribute('data-to')
+      }
+    })
+
+    const toggleHighlight = (node: SVGGElement, state: boolean) => {
+      const fromId = node.getAttribute('data-from')
+      const toId = node.getAttribute('data-to')
+      node.classList.toggle('is-hovered', state)
+      if (!fromId || !toId) return
+      ;[fromId, toId].forEach((id) => {
+        const selector = `.bar > g[data-task-id="${escapeForSelector(id)}"]`
+        const bar = host.querySelector<SVGGElement>(selector)
+        if (bar) {
+          bar.classList.toggle('dependency-hover', state)
+        }
+      })
+    }
+
+    const handleEnter = (event: Event) => {
+      toggleHighlight(event.currentTarget as SVGGElement, true)
+    }
+    const handleLeave = (event: Event) => {
+      toggleHighlight(event.currentTarget as SVGGElement, false)
+    }
+
+    arrowNodes.forEach((node) => {
+      node.addEventListener('mouseenter', handleEnter)
+      node.addEventListener('mouseleave', handleLeave)
+    })
+
+    return () => {
+      arrowNodes.forEach((node) => {
+        node.removeEventListener('mouseenter', handleEnter)
+        node.removeEventListener('mouseleave', handleLeave)
+      })
+    }
+  }, [tasks, dependencyPairs])
+
   if (!tasks.length) {
     return <div className="schedule-state">No schedule data available.</div>
   }
 
   return (
-    <div className="schedule-gantt-shell">
+    <div className="schedule-gantt-shell" ref={containerRef}>
       <Gantt
         tasks={tasks}
         viewMode={ViewMode.Week}
         listCellWidth="320px"
         columnWidth={52}
-        projectBackgroundColor="rgba(37,99,235,0.15)"
-        barBackgroundColor="rgba(148,163,184,0.18)"
-        barProgressColor={scheduleTokens.colors.primary}
+        projectBackgroundColor="var(--gantt-project-bg)"
+        barBackgroundColor="var(--gantt-bar-default-bg)"
+        barBackgroundSelectedColor="var(--gantt-bar-default-bg-selected)"
+        barProgressColor="var(--gantt-bar-default-progress)"
+        barProgressSelectedColor="var(--gantt-bar-default-progress-selected)"
         locale="en-us"
-        todayColor="rgba(6,182,212,0.25)"
+        todayColor="var(--gantt-current-period)"
         onSelect={handleSelect}
         onExpanderClick={handleExpander}
         TaskListTable={ScheduleTaskListTable}
+        arrowColor="var(--gantt-link)"
       />
     </div>
   )

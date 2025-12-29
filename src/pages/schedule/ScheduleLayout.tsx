@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Gantt, Task, ViewMode } from 'gantt-task-react'
 import 'gantt-task-react/dist/index.css'
 
 import type { GanttTask } from '../../types'
+import type { ProgressSummary } from '../../api'
 
 type Breadcrumb = {
   label: string
   onClick?: () => void
+  href?: string
 }
 
 type ScheduleLayoutProps = {
@@ -16,6 +19,14 @@ type ScheduleLayoutProps = {
   loading: boolean
   error: string | null
   emptyMessage?: string
+  progress?: {
+    summary: ProgressSummary | null
+    loading: boolean
+    refreshing: boolean
+    error: string | null
+    enabled: boolean
+    onRefresh: () => void
+  }
 }
 
 type ResourcePlan = {
@@ -317,12 +328,63 @@ const describeStatus = (tasks: GanttTask[]) => {
   return { atRisk, monitoring }
 }
 
-export function ScheduleLayout({ title, breadcrumbs, tasks, loading, error, emptyMessage }: ScheduleLayoutProps) {
-  const normalisedBreadcrumbs = useMemo(() => normaliseBreadcrumbs(breadcrumbs), [breadcrumbs])
+export function ScheduleLayout({ title, breadcrumbs, tasks, loading, error, emptyMessage, progress }: ScheduleLayoutProps) {
+  const navigate = useNavigate()
+  const normalisedBreadcrumbs = useMemo(() => {
+    const base = normaliseBreadcrumbs(breadcrumbs)
+    return base.map((crumb, index) => {
+      if (!crumb.onClick && !crumb.href && index === 0 && crumb.label === 'Dashboard') {
+        return {
+          ...crumb,
+          onClick: () => navigate('/', { state: { openView: 'dashboard' } }),
+        }
+      }
+      return crumb
+    })
+  }, [breadcrumbs, navigate])
   const ganttTasks = useMemo(() => toGanttTasks(tasks), [tasks])
   const baseline = useMemo(() => computeBaselineMetrics(tasks), [tasks])
   const leafTasks = useMemo(() => getLeafTasks(tasks), [tasks])
   const statusGroups = useMemo(() => describeStatus(tasks), [tasks])
+  const progressSummary = progress?.summary ?? null
+  const dpprPercentComplete =
+    typeof progressSummary?.percentComplete === 'number' ? progressSummary.percentComplete * 100 : null
+  const dpprSpi = typeof progressSummary?.spi === 'number' ? progressSummary.spi : null
+  const dpprCpi = typeof progressSummary?.cpi === 'number' ? progressSummary.cpi : null
+  const dpprSlips = typeof progressSummary?.slips === 'number' ? progressSummary.slips : null
+  const dpprAsOf = useMemo(() => {
+    if (!progressSummary?.asOf) return null
+    const parsed = new Date(progressSummary.asOf)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }, [progressSummary?.asOf])
+  const nextActivities = progressSummary?.nextActivities ?? []
+  const displayProgressPct = dpprPercentComplete ?? baseline.avgProgressPct
+  const displaySpi = dpprSpi ?? baseline.avgSpi ?? null
+  const percentDisplay =
+    dpprPercentComplete !== null
+      ? `${dpprPercentComplete.toFixed(1)}%`
+      : Number.isFinite(displayProgressPct)
+      ? formatPercent(displayProgressPct)
+      : '--'
+  const spiDisplayString =
+    dpprSpi !== null
+      ? dpprSpi.toFixed(2)
+      : typeof displaySpi === 'number'
+      ? displaySpi.toFixed(2)
+      : '—'
+  const cpiDisplayString = dpprCpi !== null ? dpprCpi.toFixed(2) : '—'
+  const slipDisplay =
+    dpprSlips !== null ? (Math.abs(Math.round(dpprSlips)) < 1 ? 'On plan' : `${Math.round(dpprSlips)} d`) : '—'
+  const slipQualifier =
+    dpprSlips !== null
+      ? dpprSlips > 0
+        ? 'Behind baseline'
+        : dpprSlips < 0
+        ? 'Ahead of baseline'
+        : 'Holding baseline'
+      : null
+  const slipFootnote = progress?.enabled ? slipQualifier ?? 'Latest DPPR snapshot' : 'Derived from current task baselines'
+  const progressAsOfLabel = dpprAsOf ? dpprAsOf.toLocaleString() : null
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(leafTasks[0]?.id ?? null)
   const [acceleration, setAcceleration] = useState<number>(12)
@@ -411,18 +473,27 @@ export function ScheduleLayout({ title, breadcrumbs, tasks, loading, error, empt
 
         <section className="schedule-summary">
           <div className="summary-card">
-            <span className="summary-label">Portfolio Pulse</span>
-            <strong className="summary-value">{formatPercent(baseline.avgProgressPct)}</strong>
-            <span className="summary-footnote">Mean completion across tracked scopes</span>
+            <span className="summary-label">Percent complete</span>
+            <strong className="summary-value">{percentDisplay}</strong>
+            <span className="summary-footnote">
+              {progress?.enabled && progressAsOfLabel
+                ? `As of ${progressAsOfLabel}`
+                : 'Mean completion across tracked scopes'}
+            </span>
           </div>
           <div className="summary-card">
-            <span className="summary-label">Schedule Performance</span>
+            <span className="summary-label">Performance indices</span>
             <strong className="summary-value">
-              {baseline.avgSpi !== null && baseline.avgSpi !== undefined ? baseline.avgSpi.toFixed(2) : '—'}
+              {spiDisplayString} / {cpiDisplayString}
             </strong>
             <span className="summary-footnote">
-              {baseline.atRiskCount} at risk · {baseline.monitoringCount} under watch · {baseline.completedCount} complete
+              {progress?.enabled ? 'SPI / CPI from latest DPPR snapshot' : 'Averaged from schedule baselines'}
             </span>
+          </div>
+          <div className="summary-card">
+            <span className="summary-label">Schedule slip</span>
+            <strong className="summary-value">{slipDisplay}</strong>
+            <span className="summary-footnote">{slipFootnote}</span>
           </div>
           <div className="summary-card summary-card--accent">
             <span className="summary-label">Simulation Scenario</span>
@@ -432,6 +503,22 @@ export function ScheduleLayout({ title, breadcrumbs, tasks, loading, error, empt
             </span>
           </div>
         </section>
+        {progress && progress.enabled && (
+          <div className="schedule-progress-controls">
+            <button
+              type="button"
+              className="refresh-cta"
+              onClick={progress.onRefresh}
+              disabled={progress.loading || progress.refreshing}
+            >
+              {progress.refreshing ? 'Refreshing…' : 'Refresh DPPR'}
+            </button>
+            {progress.error && <span className="schedule-progress-error">Unable to refresh DPPR snapshot.</span>}
+            {!progress.error && progressAsOfLabel && (
+              <span className="schedule-progress-stamp">Last updated {progressAsOfLabel}</span>
+            )}
+          </div>
+        )}
       </header>
 
       <main className="schedule-body-grid">
@@ -443,7 +530,9 @@ export function ScheduleLayout({ title, breadcrumbs, tasks, loading, error, empt
 
           <div className="insights-radar">
             <div className="radar-ring">
-              <span className="radar-value">{formatPercent(baseline.avgProgressPct)}</span>
+              <span className="radar-value">
+                {Number.isFinite(displayProgressPct) ? `${Math.round(displayProgressPct)}%` : '--'}
+              </span>
               <span className="radar-label">Progress Confidence</span>
             </div>
             <ul className="radar-metrics">
@@ -491,6 +580,32 @@ export function ScheduleLayout({ title, breadcrumbs, tasks, loading, error, empt
               {statusGroups.monitoring.length === 0 && <li className="feed-empty">Everything else is tracking to plan.</li>}
             </ul>
           </div>
+        {progress && progress.enabled && (
+            <div className="schedule-next-activities">
+              <h3>Next activities</h3>
+              {progress.error ? (
+                <div className="schedule-next-activities__empty">Unable to load next activities.</div>
+              ) : progress.loading && !nextActivities.length ? (
+                <div className="schedule-next-activities__empty">Loading next sequence…</div>
+              ) : nextActivities.length === 0 ? (
+                <div className="schedule-next-activities__empty">All downstream processes are on track.</div>
+              ) : (
+                <ul>
+                  {nextActivities.slice(0, 5).map((activity) => (
+                    <li key={activity.processId}>
+                      <div>
+                        <span className="feed-title">{activity.name}</span>
+                        <span className="feed-meta">
+                          {activity.plannedStart ? dateFormatter.format(new Date(activity.plannedStart)) : 'TBD'} ·{' '}
+                          {activity.ready ? 'Ready to launch' : 'Awaiting prerequisite'}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="schedule-gantt-panel">

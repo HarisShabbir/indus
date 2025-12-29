@@ -10,8 +10,8 @@ import {
   type SOWScheduleItem,
   type Project,
 } from '../../api'
-import { FEATURE_SCHEDULE_UI } from '../../config'
-import { SidebarNav, ACCS_NAV_INDEX, HOME_NAV_INDEX, sidebarItems } from '../../layout/navigation'
+import { FEATURE_SCHEDULE_UI, FEATURE_PROGRESS_V2 } from '../../config'
+import { SidebarNav, ACCS_NAV_INDEX, HOME_NAV_INDEX, CHANGE_NAV_INDEX, sidebarItems } from '../../layout/navigation'
 import Breadcrumbs from '../../components/breadcrumbs/Breadcrumbs'
 import ScheduleGantt, { ScheduleRow } from '../../components/schedule/ScheduleGantt'
 import GaugeCard from '../../components/kpi/GaugeCard'
@@ -20,6 +20,8 @@ import SmartInsights from '../../components/insights/SmartInsights'
 import { useScheduleStore } from '../../state/scheduleStore'
 import type { FilterState } from '../../state/scheduleStore'
 import { readAuthToken } from '../../utils/auth'
+import { applyTheme, resolveInitialTheme, toggleThemeValue } from '../../utils/theme'
+import { useProgressSummary } from '../../hooks/useProgress'
 
 type LocationState = {
   projectName?: string
@@ -225,7 +227,7 @@ export default function ContractSchedulePage(): JSX.Element {
     reset,
   } = storeState
 
-  const [theme, setTheme] = useState<ThemeMode>((document.documentElement.dataset.theme as ThemeMode) ?? 'light')
+  const [theme, setTheme] = useState<ThemeMode>(() => resolveInitialTheme())
   const [activeNav, setActiveNav] = useState<number>(ACCS_NAV_INDEX)
   const [resourcePlan, setResourcePlan] = useState<ResourcePlan>({ excavator: 0, crew: 0, qa: 0 })
   const [rangeDisplay, setRangeDisplay] = useState<string>('')
@@ -234,7 +236,7 @@ export default function ContractSchedulePage(): JSX.Element {
   useEffect(() => () => reset(), [reset])
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
+    applyTheme(theme)
   }, [theme])
 
   const ensureSchedule = useCallback(
@@ -356,6 +358,37 @@ export default function ContractSchedulePage(): JSX.Element {
   }, [filters, searchParams, setSearchParams])
 
   const activeContractId = currentContractId ?? routeContractId ?? null
+  const projectCode = state?.projectId ?? state?.projectSnapshot?.id ?? 'diamer-basha'
+  const progressEnabled =
+    FEATURE_SCHEDULE_UI && FEATURE_PROGRESS_V2 && !!projectCode && !!activeContractId && isAuthenticated
+  const {
+    data: progressSnapshot,
+    loading: progressLoading,
+    refreshing: progressRefreshing,
+    error: progressError,
+    refresh: refreshProgress,
+  } = useProgressSummary(
+    {
+      projectId: projectCode ?? '',
+      contractId: activeContractId ?? undefined,
+      tenantId: 'default',
+    },
+    { enabled: progressEnabled },
+  )
+  const progressPercentActual =
+    typeof progressSnapshot?.percentComplete === 'number' ? progressSnapshot.percentComplete * 100 : null
+  const progressSpiValue = typeof progressSnapshot?.spi === 'number' ? progressSnapshot.spi : null
+  const progressCpiValue = typeof progressSnapshot?.cpi === 'number' ? progressSnapshot.cpi : null
+  const progressEvValue = typeof progressSnapshot?.ev === 'number' ? progressSnapshot.ev : null
+  const progressPvValue = typeof progressSnapshot?.pv === 'number' ? progressSnapshot.pv : null
+  const progressAcValue = typeof progressSnapshot?.ac === 'number' ? progressSnapshot.ac : null
+  const progressSlipValue =
+    typeof progressSnapshot?.slips === 'number' ? Math.round(progressSnapshot.slips) : null
+  const progressAsOfLabel =
+    progressSnapshot?.asOf && !Number.isNaN(new Date(progressSnapshot.asOf).getTime())
+      ? new Date(progressSnapshot.asOf).toLocaleString()
+      : null
+  const progressNextActivities = progressSnapshot?.nextActivities ?? []
 
   const scheduleEntries = useMemo(
     () =>
@@ -708,6 +741,15 @@ export default function ContractSchedulePage(): JSX.Element {
     if (!item) return
     if (index === HOME_NAV_INDEX) {
       navigate('/')
+      return
+    }
+    if (index === CHANGE_NAV_INDEX) {
+      navigate('/change-management', {
+        state: {
+          projectId: state?.projectId ?? projectId ?? null,
+          contractId,
+        },
+      })
     }
   }
 
@@ -728,19 +770,22 @@ export default function ContractSchedulePage(): JSX.Element {
       label: `${schedule.code ?? schedule.id} · ${schedule.name ?? schedule.code ?? schedule.id}`,
     }))
 
-  const kpiProgressActual = typeof kpis?.progressActual === 'number' && Number.isFinite(kpis.progressActual) ? kpis.progressActual : null
+  const legacyProgressActual =
+    typeof kpis?.progressActual === 'number' && Number.isFinite(kpis.progressActual) ? kpis.progressActual : null
   const kpiProgressPlanned = typeof kpis?.progressPlanned === 'number' && Number.isFinite(kpis.progressPlanned) ? kpis.progressPlanned : null
 
+  const progressActualPct = progressPercentActual ?? legacyProgressActual
   const completionDisplay =
-    kpiProgressActual !== null
-      ? `${kpiProgressActual.toFixed(1)}%`
+    typeof progressActualPct === 'number'
+      ? `${progressActualPct.toFixed(1)}%`
       : timelineSummary.progressPercent !== null
       ? `${Math.round(timelineSummary.progressPercent)}%`
       : '--'
 
   const plannedProgressDisplay = kpiProgressPlanned !== null ? `${kpiProgressPlanned.toFixed(1)}%` : null
 
-  const scheduleVariance = kpiProgressActual !== null && kpiProgressPlanned !== null ? kpiProgressActual - kpiProgressPlanned : null
+  const scheduleVariance =
+    typeof progressActualPct === 'number' && kpiProgressPlanned !== null ? progressActualPct - kpiProgressPlanned : null
 
   const finishLabel = timelineSummary.finishDate ? timelineSummary.finishDate.toLocaleDateString() : null
   const startLabel = timelineSummary.startDate ? timelineSummary.startDate.toLocaleDateString() : null
@@ -760,18 +805,33 @@ export default function ContractSchedulePage(): JSX.Element {
       : `Behind ${Math.abs(timelineSummary.scheduleDelta)}%`
   })()
 
+  const slipSummary =
+    progressSlipValue !== null
+      ? progressSlipValue === 0
+        ? 'Slip on plan'
+        : progressSlipValue > 0
+        ? `Slip ${progressSlipValue}d`
+        : `Ahead ${Math.abs(progressSlipValue)}d`
+      : null
+
   const scopeHealthCaption = [
     typeof timelineSummary.riskCount === 'number' ? `${timelineSummary.riskCount} at risk` : null,
     typeof timelineSummary.monitoringCount === 'number' ? `${timelineSummary.monitoringCount} monitoring` : null,
+    slipSummary,
     timelineSummary.worstSlip ? `Worst slip ${timelineSummary.worstSlip}d` : null,
   ]
     .filter(Boolean)
     .join(' · ')
 
-  const spiValue = formatIndexValue(kpis?.spi)
-  const spiDescriptor = describePerformanceIndex(kpis?.spi)
-  const cpiValue = formatIndexValue(kpis?.cpi)
-  const cpiDescriptor = describePerformanceIndex(kpis?.cpi)
+  const effectiveSpi = progressSpiValue ?? kpis?.spi ?? null
+  const effectiveCpi = progressCpiValue ?? kpis?.cpi ?? null
+  const spiValue = formatIndexValue(effectiveSpi)
+  const spiDescriptor = describePerformanceIndex(effectiveSpi)
+  const cpiValue = formatIndexValue(effectiveCpi)
+  const cpiDescriptor = describePerformanceIndex(effectiveCpi)
+  const evDisplayValue = progressEvValue ?? kpis?.ev ?? null
+  const pvDisplayValue = progressPvValue ?? kpis?.pv ?? null
+  const acDisplayValue = progressAcValue ?? kpis?.ac ?? null
 
   return (
     <div className="schedule-shell">
@@ -779,7 +839,7 @@ export default function ContractSchedulePage(): JSX.Element {
         activeIndex={activeNav}
         onSelect={handleSidebarSelect}
         theme={theme}
-        onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        onToggleTheme={() => setTheme((prev) => toggleThemeValue(prev))}
       />
       <main className="schedule-main">
         <header className="schedule-header">
@@ -901,6 +961,15 @@ export default function ContractSchedulePage(): JSX.Element {
               <span className="metric-label">Completion</span>
               <strong>{completionDisplay}</strong>
               <small>{scheduleDeltaLabel}</small>
+              {progressSlipValue !== null && (
+                <small>
+                  {progressSlipValue === 0
+                    ? 'Holding baseline'
+                    : progressSlipValue > 0
+                    ? `Slip ${progressSlipValue} d`
+                    : `Ahead ${Math.abs(progressSlipValue)} d`}
+                </small>
+              )}
               {plannedProgressDisplay && <small>Planned {plannedProgressDisplay}</small>}
             </div>
             <div className="schedule-metric-card">
@@ -923,15 +992,15 @@ export default function ContractSchedulePage(): JSX.Element {
               <div className="metric-split">
                 <div>
                   <span>EV</span>
-                  <strong>{fmtM(kpis?.ev)}</strong>
+                  <strong>{fmtM(evDisplayValue)}</strong>
                 </div>
                 <div>
                   <span>PV</span>
-                  <strong>{fmtM(kpis?.pv)}</strong>
+                  <strong>{fmtM(pvDisplayValue)}</strong>
                 </div>
                 <div>
                   <span>AC</span>
-                  <strong>{fmtM(kpis?.ac)}</strong>
+                  <strong>{fmtM(acDisplayValue)}</strong>
                 </div>
               </div>
               <div className="value-glossary">
@@ -944,6 +1013,22 @@ export default function ContractSchedulePage(): JSX.Element {
             </div>
           </div>
         </header>
+        {progressEnabled && (
+          <div className="schedule-progress-controls">
+            <button
+              type="button"
+              className="refresh-cta"
+              onClick={() => refreshProgress()}
+              disabled={progressLoading || progressRefreshing}
+            >
+              {progressRefreshing ? 'Refreshing…' : 'Refresh DPPR'}
+            </button>
+            {progressError && <span className="schedule-progress-error">Unable to refresh DPPR snapshot.</span>}
+            {!progressError && progressAsOfLabel && (
+              <span className="schedule-progress-stamp">As of {progressAsOfLabel}</span>
+            )}
+          </div>
+        )}
 
         <div className="schedule-body">
           <section className="schedule-center">
@@ -995,21 +1080,21 @@ export default function ContractSchedulePage(): JSX.Element {
               <h3>Schedule KPIs</h3>
               <p>Focused metrics for the selected scope.</p>
               <div className="gauge-grid">
-                <GaugeCard title="SPI" value={kpis?.spi ?? null} subtitle="Schedule performance" />
-                <GaugeCard title="CPI" value={kpis?.cpi ?? null} subtitle="Cost performance" />
+                <GaugeCard title="SPI" value={effectiveSpi} subtitle="Schedule performance" />
+                <GaugeCard title="CPI" value={effectiveCpi} subtitle="Cost performance" />
               </div>
               <div className="kpi-meta">
                 <div>
                   <span>EV</span>
-                  <strong>{fmtM(kpis?.ev)}</strong>
+                  <strong>{fmtM(evDisplayValue)}</strong>
                 </div>
                 <div>
                   <span>PV</span>
-                  <strong>{fmtM(kpis?.pv)}</strong>
+                  <strong>{fmtM(pvDisplayValue)}</strong>
                 </div>
                 <div>
                   <span>AC</span>
-                  <strong>{fmtM(kpis?.ac)}</strong>
+                  <strong>{fmtM(acDisplayValue)}</strong>
                 </div>
               </div>
               <Sparkline title="SPI trend" points={kpis?.trend ?? []} />
@@ -1024,6 +1109,30 @@ export default function ContractSchedulePage(): JSX.Element {
                   <small>Projected SPI {whatIfSpiProjected.toFixed(2)}</small>
                 )}
               </div>
+              {progressEnabled && (
+                <div className="sidebar-next-activities">
+                  <h4>Next activities</h4>
+                  {progressError ? (
+                    <span className="sidebar-next-activities__empty">Unable to load next activities.</span>
+                  ) : progressLoading && progressNextActivities.length === 0 ? (
+                    <span className="sidebar-next-activities__empty">Loading next sequence…</span>
+                  ) : progressNextActivities.length === 0 ? (
+                    <span className="sidebar-next-activities__empty">All downstream processes are on track.</span>
+                  ) : (
+                    <ul>
+                      {progressNextActivities.slice(0, 5).map((activity) => (
+                        <li key={activity.processId}>
+                          <span className="feed-title">{activity.name}</span>
+                          <span className="feed-meta">
+                            {activity.plannedStart ? new Date(activity.plannedStart).toLocaleDateString() : 'TBD'} ·{' '}
+                            {activity.ready ? 'Ready' : 'Pending'}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
               <div className="resource-grid">
                 {resourceCatalog.map((resource) => (
                   <div key={resource.key} className="resource-card">

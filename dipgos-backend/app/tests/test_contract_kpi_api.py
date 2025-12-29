@@ -4,6 +4,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
 from app.main import app
 from app.config import settings
@@ -14,13 +15,16 @@ from app.routers import weather as weather_router
 
 
 @pytest.fixture(scope="module", autouse=True)
-def _setup_env(monkeypatch):
-    monkeypatch.setenv("FEATURE_CONTRACT_RIGHT_PANEL_ECHARTS", "true")
-    monkeypatch.setenv("FEATURE_SCHEDULE_UI", "true")
+def _setup_env():
+    mp = MonkeyPatch()
+    mp.setenv("FEATURE_CONTRACT_RIGHT_PANEL_ECHARTS", "true")
+    mp.setenv("FEATURE_SCHEDULE_UI", "true")
     settings.feature_contract_right_panel_echarts = True
     settings.feature_schedule_ui = True
     open_pool()
     initialize_database()
+    yield
+    mp.undo()
 
 
 @pytest.fixture(scope="module")

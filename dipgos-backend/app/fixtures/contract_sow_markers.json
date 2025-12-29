@@ -1,0 +1,15 @@
+[
+  { "sow_id": "sow-mw01-rcc", "lat": 35.6269, "lng": 74.6194 },
+  { "sow_id": "sow-mw01-dam-pit", "lat": 35.6256, "lng": 74.6198 },
+  { "sow_id": "sow-mw01-ds-coffer", "lat": 35.625, "lng": 74.6182 },
+  { "sow_id": "sow-mw01-lb-power-intake", "lat": 35.6261, "lng": 74.6175 },
+  { "sow_id": "sow-mw01-dam-right-abutment", "lat": 35.6272, "lng": 74.6206 },
+  { "sow_id": "sow-mw01-permanent-bridge", "lat": 35.628, "lng": 74.619 },
+  { "sow_id": "sow-mw01-dam-left-abutment", "lat": 35.6267, "lng": 74.617 },
+  { "sow_id": "sow-mw01-rb-power-intake", "lat": 35.625, "lng": 74.6212 },
+  { "sow_id": "sow-mw01-diversion-tunnel-1", "lat": 35.6243, "lng": 74.6204 },
+  { "sow_id": "sow-mw01-diversion-tunnel-2", "lat": 35.6238, "lng": 74.6189 },
+  { "sow_id": "sow-mw01-diversion-canal", "lat": 35.6249, "lng": 74.6178 },
+  { "sow_id": "sow-mw01-guide-wall", "lat": 35.626, "lng": 74.6201 },
+  { "sow_id": "sow-mw01-us-coffer", "lat": 35.6278, "lng": 74.6185 }
+]

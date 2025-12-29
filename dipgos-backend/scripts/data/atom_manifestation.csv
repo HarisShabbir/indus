@@ -1,0 +1,169 @@
+vendor,machine_type,model,attribute_name,attribute_value,units,validation
+Caterpillar,Excavator,336,Boom Length (GP),6.5,m,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Bore,5,in,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Cooling System Capacity,10.2,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,DEF Tank Capacity,17,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Displacement,568,in^3,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Engine Model,Cat C9.3B,,<!Ol> Free text.
+Caterpillar,Excavator,336,Engine Oil Capacity,6.6,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Final Drive Capacity (each),2,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Fuel Tank Capacity,158.5,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Ground Clearance,2.9,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Hydraulic System Capacity (incl. tank),98.5,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Hydraulic Tank Capacity,42.5,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Main Hydraulic Flow (Implement),190,gal/min,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Max Pressure (Equipment),3700,psi,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Max Pressure (Swing),2800,psi,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Max Pressure (Travel),3200,psi,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Max Reach at Ground Level,38.7,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Max Swing Torque,150333,lbf-ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Maximum Cutting Height,33,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Maximum Digging Depth,20.1,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Net Power (ISO 9249),311,hp,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Operating Weight,81100,lb,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Shipping/Transport Length,29,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Stick Length (R),3.2,m,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Stroke,6,in,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Swing Drive Capacity (each),4.8,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Tail Swing Radius,11,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,336,Track Gauge,9.6,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Boom Length (GP),7.8,m,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Bore,5.4,in,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Cooling System Capacity,15,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,DEF Tank Capacity,20,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Displacement,928,in^3,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Engine Model,Cat C15,,<!Ol> Free text.
+Caterpillar,Excavator,374,Engine Oil Capacity,14,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Final Drive Capacity (each),3,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Fuel Tank Capacity,250,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Ground Clearance,2.9,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Hydraulic System Capacity (incl. tank),175,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Hydraulic Tank Capacity,70,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Main Hydraulic Flow (Implement),237,gal/min,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Max Pressure (Equipment),4500,psi,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Max Pressure (Swing),3800,psi,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Max Pressure (Travel),4000,psi,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Max Reach at Ground Level,43.2,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Max Swing Torque,200333,lbf-ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Maximum Cutting Height,38,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Maximum Digging Depth,28.1,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Net Power (ISO 9249),484,hp,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Operating Weight,162900,lb,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Shipping/Transport Length,35,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Stick Length (R),3.6,m,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Stroke,6.7,in,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Swing Drive Capacity (each),3,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Tail Swing Radius,13,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,374,Track Gauge,11.6,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Boom Length (GP),8.4,m,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Bore,6,in,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Cooling System Capacity,19,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,DEF Tank Capacity,21.1,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Displacement,1105,in^3,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Engine Model,Cat C18,,<!Ol> Free text.
+Caterpillar,Excavator,395,Engine Oil Capacity,18,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Final Drive Capacity (each),5,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Fuel Tank Capacity,322,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Ground Clearance,2.9,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Hydraulic System Capacity (incl. tank),196,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Hydraulic Tank Capacity,98,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Main Hydraulic Flow (Implement),281,gal/min,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Max Pressure (Equipment),5366,psi,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Max Pressure (Swing),4496,psi,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Max Pressure (Travel),5076,psi,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Max Reach at Ground Level,48.3,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Max Swing Torque,267333,lbf-ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Maximum Cutting Height,44.5,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Maximum Digging Depth,31.9,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Net Power (ISO 9249),542,hp,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Operating Weight,207400,lb,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Shipping/Transport Length,49.6,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Stick Length (R),4.4,m,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Stroke,7,in,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Swing Drive Capacity (each),6,gal,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Tail Swing Radius,15.11,ft,<!Ol> 3000 Number.
+Caterpillar,Excavator,395,Track Gauge,11.6,ft,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Boom Length (GP),8.1,m,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Bore,5.2,in,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Cooling System Capacity,16,gal,<!Ol> 3000 Number.
+John Deere,Excavator,870G,DEF Tank Capacity,12,gal,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Displacement,824,in^3,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Engine Model,PowerTech 13.5L,,<!Ol> Free text.
+John Deere,Excavator,870G,Engine Oil Capacity,13,gal,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Final Drive Capacity (each),13,gal,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Fuel Tank Capacity,344,gal,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Ground Clearance,2.1,ft,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Hydraulic System Capacity (incl. tank),188,gal,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Hydraulic Tank Capacity,85,gal,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Main Hydraulic Flow (Implement),237,gal/min,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Max Pressure (Equipment),5512,psi,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Max Pressure (Swing),4949,psi,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Max Pressure (Travel),5076,psi,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Max Reach at Ground Level,48.9,ft,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Max Swing Torque,189400,lbf-ft,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Maximum Cutting Height,44.2,ft,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Maximum Digging Depth,32.5,ft,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Net Power (ISO 9249),512,hp,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Operating Weight,188716,lb,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Shipping/Transport Length,50.2,ft,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Stick Length (R),4.0,m,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Stroke,6.3,in,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Swing Drive Capacity (each),4.5,gal,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Tail Swing Radius,16.4,ft,<!Ol> 3000 Number.
+John Deere,Excavator,870G,Track Gauge,11.5,ft,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Boom Length (GP),8.3,m,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Bore,5.9,in,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Cooling System Capacity,38,gal,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,DEF Tank Capacity,18,gal,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Displacement,1837,in^3,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Engine Model,Komatsu SDA12V159E-3,,<!Ol> Free text.
+Komatsu,Excavator,PC1250,Engine Oil Capacity,21,gal,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Final Drive Capacity (each),11,gal,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Fuel Tank Capacity,475,gal,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Ground Clearance,3.0,ft,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Hydraulic System Capacity (incl. tank),330,gal,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Hydraulic Tank Capacity,180,gal,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Main Hydraulic Flow (Implement),321,gal/min,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Max Pressure (Equipment),5000,psi,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Max Pressure (Swing),4410,psi,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Max Pressure (Travel),4470,psi,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Max Reach at Ground Level,46.6,ft,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Max Swing Torque,224000,lbf-ft,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Maximum Cutting Height,41.3,ft,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Maximum Digging Depth,30.2,ft,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Net Power (ISO 9249),672,hp,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Operating Weight,253000,lb,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Shipping/Transport Length,49.9,ft,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Stick Length (R),3.6,m,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Stroke,6.7,in,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Swing Drive Capacity (each),5.3,gal,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Tail Swing Radius,17.2,ft,<!Ol> 3000 Number.
+Komatsu,Excavator,PC1250,Track Gauge,13.1,ft,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Boom Length (GP),7.55,m,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Bore,5.7,in,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Cooling System Capacity,15,gal,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,DEF Tank Capacity,16,gal,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Displacement,982,in^3,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Engine Model,Volvo D16J,,<!Ol> Free text.
+Volvo,Excavator,EC750E,Engine Oil Capacity,11,gal,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Final Drive Capacity (each),4.2,gal,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Fuel Tank Capacity,238,gal,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Ground Clearance,2.3,ft,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Hydraulic System Capacity (incl. tank),188,gal,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Hydraulic Tank Capacity,82,gal,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Main Hydraulic Flow (Implement),246,gal/min,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Max Pressure (Equipment),5076,psi,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Max Pressure (Swing),4560,psi,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Max Pressure (Travel),4949,psi,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Max Reach at Ground Level,42.8,ft,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Max Swing Torque,210000,lbf-ft,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Maximum Cutting Height,39.7,ft,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Maximum Digging Depth,27.9,ft,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Net Power (ISO 9249),515,hp,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Operating Weight,158500,lb,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Shipping/Transport Length,39.4,ft,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Stick Length (R),3.5,m,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Stroke,6.5,in,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Swing Drive Capacity (each),3.7,gal,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Tail Swing Radius,12.8,ft,<!Ol> 3000 Number.
+Volvo,Excavator,EC750E,Track Gauge,11.5,ft,<!Ol> 3000 Number.

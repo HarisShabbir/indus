@@ -1,0 +1,62 @@
+[
+  {
+    "id": "lafarge",
+    "name": "Lafarge Holcim",
+    "category": "Cement",
+    "region": "Pakistan",
+    "contact": "Adeel Khan",
+    "rating": 4.8,
+    "reliability": 0.94,
+    "color": "#01f6ff"
+  },
+  {
+    "id": "sika",
+    "name": "Sika Pakistan",
+    "category": "Admixture",
+    "region": "Islamabad",
+    "contact": "Sana Mir",
+    "rating": 4.6,
+    "reliability": 0.9,
+    "color": "#f9ed35"
+  },
+  {
+    "id": "local-quarry",
+    "name": "Mohmand Local Quarry",
+    "category": "Aggregate",
+    "region": "Charsadda",
+    "contact": "Sheraz Gul",
+    "rating": 4.1,
+    "reliability": 0.86,
+    "color": "#ff7b7b"
+  },
+  {
+    "id": "punjab-water",
+    "name": "Punjab Water Board",
+    "category": "Water",
+    "region": "Punjab",
+    "contact": "Hina Tariq",
+    "rating": 4.4,
+    "reliability": 0.91,
+    "color": "#5b8dff"
+  },
+  {
+    "id": "admixture-lab",
+    "name": "Admix Research Lab",
+    "category": "Pozzolanic",
+    "region": "Karachi",
+    "contact": "Bilal Shaikh",
+    "rating": 4.3,
+    "reliability": 0.88,
+    "color": "#ff9cf0"
+  },
+  {
+    "id": "tower-systems",
+    "name": "Tower Placement Systems",
+    "category": "Machinery",
+    "region": "Lahore",
+    "contact": "Asjad Malik",
+    "rating": 4.5,
+    "reliability": 0.89,
+    "color": "#9cf37f"
+  }
+]

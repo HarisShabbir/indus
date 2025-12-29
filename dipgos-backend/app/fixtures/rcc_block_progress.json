@@ -1,0 +1,53 @@
+[
+  {
+    "id": "rcc-block-01-l1",
+    "sow_id": "sow-mw01-rcc",
+    "block_no": 1,
+    "lift_no": 1,
+    "status": "complete",
+    "percent_complete": 100,
+    "temperature": 18.2,
+    "density": 2594,
+    "batch_id": "BATCH-1401",
+    "vendor": "NBP ReadyMix",
+    "ipc_value": 420000,
+    "metadata": { "notes": "Cooled at night pour" }
+  },
+  {
+    "id": "rcc-block-01-l2",
+    "sow_id": "sow-mw01-rcc",
+    "block_no": 1,
+    "lift_no": 2,
+    "status": "in-progress",
+    "percent_complete": 62,
+    "temperature": 19.1,
+    "density": 2589,
+    "batch_id": "BATCH-1477",
+    "vendor": "NBP ReadyMix",
+    "ipc_value": 265000,
+    "metadata": { "notes": "Lift delayed by weather" }
+  },
+  {
+    "id": "rcc-block-04-l1",
+    "sow_id": "sow-mw01-rcc",
+    "block_no": 4,
+    "lift_no": 1,
+    "status": "at-risk",
+    "percent_complete": 48,
+    "temperature": 23.5,
+    "density": 2581,
+    "batch_id": "BATCH-1490",
+    "vendor": "GreenStone",
+    "ipc_value": 180000,
+    "metadata": { "alerts": ["Temp spike at 10:15"] }
+  },
+  {
+    "id": "rcc-block-10-l1",
+    "sow_id": "sow-mw01-rcc",
+    "block_no": 10,
+    "lift_no": 1,
+    "status": "planned",
+    "percent_complete": 0,
+    "metadata": {}
+  }
+]

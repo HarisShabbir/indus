@@ -35,12 +35,18 @@ def conn():
 def _insert_kpi_data(conn, contract_id: str, sow_id: str, process_id: str, metric: str, value: float, ts: date):
     with conn.cursor() as cur:
         cur.execute(
+            "SELECT project_id FROM dipgos.contracts WHERE id = %s",
+            (contract_id,),
+        )
+        row = cur.fetchone()
+        project_id = row[0] if row else contract_id
+        cur.execute(
             """
             INSERT INTO dipgos.kpi_fact (scope_level, project_id, contract_id, sow_id, process_id, metric_code, ts_date, actual_numeric)
             VALUES ('process', %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (process_id, metric_code, ts_date) DO UPDATE SET actual_numeric = EXCLUDED.actual_numeric
             """,
-            (contract_id, contract_id, sow_id, process_id, metric, ts, value),
+            (project_id, contract_id, sow_id, process_id, metric, ts, value),
         )
     conn.commit()
 
