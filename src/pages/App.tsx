@@ -2441,6 +2441,7 @@ function ContractControlCenterOverlay({
   );
   const mapStatsRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
+  const routerNavigate = useNavigate();
   const [activeUtilityView, setActiveUtilityView] = useState<UtilityView>(
     initialUtilityView ?? "financial"
   );
@@ -2674,6 +2675,16 @@ function ContractControlCenterOverlay({
   const mapCenter: [number, number] = focusedContract
     ? [focusedContract.lat, focusedContract.lng]
     : [project.lat, project.lng];
+
+  const handleOpenSowDrilldown = useCallback(
+    (contract: ContractSite) => {
+      if (!project?.id) {
+        return
+      }
+      routerNavigate(`/projects/${project.id}/contracts/${contract.id}/sow`)
+    },
+    [project?.id, routerNavigate],
+  )
 
   const handleContractSelect = useCallback((contract: ContractSite) => {
     setFocusedContractId(contract.id);
@@ -3255,6 +3266,7 @@ function ContractControlCenterOverlay({
                           icon={icon}
                           eventHandlers={{
                             click: () => handleContractSelect(contract),
+                            dblclick: () => handleOpenSowDrilldown(contract),
                             mouseover: () => setHoveredContract(contract),
                             mouseout: () =>
                               setHoveredContract((prev) =>
