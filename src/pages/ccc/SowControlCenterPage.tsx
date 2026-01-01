@@ -127,15 +127,23 @@ const statusModifier = (status: string) => status.toLowerCase().replace(/[^a-z0-
 const createSowIcon = (marker: MapMarker, active: boolean) => {
   const statusColor =
     marker.status === 'on-track' ? '#22c55e' : marker.status === 'monitoring' ? '#facc15' : '#f87171'
+  const intensity = marker.percent_complete / 100
+
   return L.divIcon({
-    className: `sow-marker ${active ? 'is-active' : ''}`,
-    html: `<div class="sow-marker__core" style="--marker-color:${statusColor}">
-      <span>${marker.percent_complete.toFixed(0)}%</span>
-      <strong>${marker.name}</strong>
-    </div>`,
-    iconSize: [110, 46],
-    iconAnchor: [55, 23],
-    popupAnchor: [0, -20],
+    className: `contract-pin ${active ? 'contract-pin--active' : ''}`,
+    html: `
+      <div class="contract-pin__glow" style="--contract-accent:${statusColor};--contract-intensity:${intensity}"></div>
+      <div class="contract-pin__container" style="--contract-accent:${statusColor}">
+        <div class="contract-pin__core" style="--contract-accent:${statusColor}">
+          <div class="contract-pin__core-inner" style="--contract-accent:${statusColor}">
+            <span class="contract-pin__value">${marker.percent_complete.toFixed(0)}%</span>
+          </div>
+        </div>
+      </div>
+    `,
+    iconSize: [32, 40],
+    iconAnchor: [16, 40],
+    popupAnchor: [0, -40],
   })
 }
 
@@ -152,7 +160,7 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
   const [expandedSows, setExpandedSows] = useState<Record<string, boolean>>({ 'sow-mw01-rcc': true })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mapView, setMapView] = useState<SowMapView>('atlas')
+  const [mapView, setMapView] = useState<SowMapView>('satellite')
   const [mapToggles, setMapToggles] = useState<{ heat: boolean; geofences: boolean }>({ heat: false, geofences: true })
   const [mapHeight, setMapHeight] = useState(() => {
     if (typeof window === 'undefined') return 960
@@ -583,22 +591,26 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
     (marker: MapMarker, active: boolean) => {
       const percent = Math.round(marker.percent_complete)
       const accent = STATUS_ACCENTS[marker.status]
+      const intensity = marker.percent_complete / 100
       const cacheKey = `${marker.id}-${percent}-${marker.status}-${active ? 'active' : 'idle'}`
       if (sowIconCache.current[cacheKey]) {
         return sowIconCache.current[cacheKey]
       }
       const icon = L.divIcon({
-        className: `sow-pin ${active ? 'sow-pin--active' : ''}`,
+        className: `contract-pin ${active ? 'contract-pin--active' : ''}`,
         html: `
-          <div class="sow-pin__halo" style="--sow-accent:${accent}"></div>
-          <div class="sow-pin__core" style="--sow-accent:${accent}">
-            <span class="sow-pin__value">${percent}%</span>
-            <span class="sow-pin__label">${marker.name}</span>
+          <div class="contract-pin__glow" style="--contract-accent:${accent};--contract-intensity:${intensity}"></div>
+          <div class="contract-pin__container" style="--contract-accent:${accent}">
+            <div class="contract-pin__core" style="--contract-accent:${accent}">
+              <div class="contract-pin__core-inner" style="--contract-accent:${accent}">
+                <span class="contract-pin__value">${percent}%</span>
+              </div>
+            </div>
           </div>
         `,
-        iconSize: [140, 60],
-        iconAnchor: [70, 32],
-        popupAnchor: [0, -32],
+        iconSize: [32, 40],
+        iconAnchor: [16, 40],
+        popupAnchor: [0, -40],
       })
       sowIconCache.current[cacheKey] = icon
       return icon
@@ -752,666 +764,666 @@ export default function SowControlCenterPage({ variant = 'default' }: SowControl
             </header>
 
             <div className="pp-layout sow-layout">
-          <aside className="contract-list sow-list-panel">
-            <div className="contract-filter">
-              <span>{isRccVariant ? 'RCC Dam Scope' : 'Scope of Work'}</span>
-            </div>
-            <div className="contract-list-scroll">
-              {isRccProcessView ? (
-                <div className="rcc-panel">
-                  <button type="button" className="rcc-backlink" onClick={handleExitRccProcesses}>
-                    <span aria-hidden>←</span>
-                    <span>All SOWs</span>
-                  </button>
-                  <section className="rcc-panel-section">
-                    <button type="button" className="rcc-panel-heading" onClick={() => setRccProcessesOpen((prev) => !prev)}>
-                      <div>
-                        <strong>Processes</strong>
-                        <span className="rcc-chip">{RCC_PROCESSES.length}</span>
-                      </div>
-                      <span className={`rcc-caret ${rccProcessesOpen ? 'open' : ''}`} aria-hidden />
-                    </button>
-                    {rccProcessesOpen && (
-                      <ul className="rcc-process-list">
-                        {RCC_PROCESSES.map((process) => {
-                          const markerId = process.markerId ?? process.id
-                          const isActive = selectedSowId === markerId
-                          return (
-                            <li key={process.id} className={isActive ? 'active' : ''}>
-                              <button type="button" onClick={() => handleRccProcessSelect(process.id, markerId)}>
-                                <div className="rcc-process-meta">
-                                  <strong>{process.label}</strong>
-                                  <span>{Math.round(process.percent)}%</span>
-                                </div>
-                                <div className="rcc-process-status">
-                                  {process.badge ? <span className="rcc-chip">{process.badge}</span> : null}
-                                  <span className={`rcc-status is-${statusModifier(process.status)}`}>{process.status}</span>
-                                </div>
-                              </button>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    )}
-                  </section>
-                  <section className="rcc-panel-section">
-                    <button type="button" className="rcc-panel-heading" onClick={() => setRccFacilitiesOpen((prev) => !prev)}>
-                      <div>
-                        <strong>RCC Facilities</strong>
-                        <span className="rcc-chip">{RCC_FACILITIES.length}</span>
-                      </div>
-                      <span className={`rcc-caret ${rccFacilitiesOpen ? 'open' : ''}`} aria-hidden />
-                    </button>
-                    {rccFacilitiesOpen && (
-                      <div className="rcc-facility-list">
-                        {RCC_FACILITIES.map((facility) => {
-                          const expanded = facilityExpanded[facility.id]
-                          return (
-                            <article key={facility.id} className="rcc-facility-card">
-                              <button type="button" className="rcc-facility-header" onClick={() => toggleFacilityCard(facility.id)}>
-                                <div>
-                                  <strong>{facility.label}</strong>
-                                  <span className={`rcc-status is-${statusModifier(facility.status)}`}>{facility.status}</span>
-                                </div>
-                                <span className={`rcc-caret ${expanded ? 'open' : ''}`} aria-hidden />
-                              </button>
-                              {expanded && (
-                                <ul>
-                                  {facility.steps.map((step) => (
-                                    <li key={step.id}>
-                                      <span>{step.label}</span>
-                                      <span className={`rcc-status is-${statusModifier(step.status)}`}>{step.status}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </article>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </section>
+              <aside className="contract-list sow-list-panel">
+                <div className="contract-filter">
+                  <span>{isRccVariant ? 'RCC Dam Scope' : 'Scope of Work'}</span>
                 </div>
-              ) : (
-                SOW_HIERARCHY.map((node) => {
-                  const percent = sowMarkers.find((marker) => marker.id === node.id)?.percent_complete ?? null
-                  const isActive = node.id === selectedSowId
-                  const hasChildren = Boolean(node.children?.length)
-                  const expanded = !!expandedSows[node.id]
-                  return (
-                    <div key={node.id} className={`sow-node ${isActive ? 'active' : ''}`}>
-                      <button type="button" className="sow-node__header" onClick={() => handleSelectSow(node.id)}>
-                        <div>
-                          <strong>{node.label}</strong>
-                          {percent !== null ? <span>{Math.round(percent)}%</span> : null}
-                        </div>
-                        {hasChildren ? (
-                          <span
-                            className="sow-node__toggle"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              handleToggleSow(node.id)
-                            }}
-                          >
-                            {expanded ? '−' : '+'}
-                          </span>
-                        ) : null}
+                <div className="contract-list-scroll">
+                  {isRccProcessView ? (
+                    <div className="rcc-panel">
+                      <button type="button" className="rcc-backlink" onClick={handleExitRccProcesses}>
+                        <span aria-hidden>←</span>
+                        <span>All SOWs</span>
                       </button>
-                      {hasChildren && expanded && (
-                        <ul className="sow-node__children">
-                          {node.children?.map((child) => (
-                            <li key={child.id}>{child.label}</li>
-                          ))}
-                        </ul>
-                      )}
+                      <section className="rcc-panel-section">
+                        <button type="button" className="rcc-panel-heading" onClick={() => setRccProcessesOpen((prev) => !prev)}>
+                          <div>
+                            <strong>Processes</strong>
+                            <span className="rcc-chip">{RCC_PROCESSES.length}</span>
+                          </div>
+                          <span className={`rcc-caret ${rccProcessesOpen ? 'open' : ''}`} aria-hidden />
+                        </button>
+                        {rccProcessesOpen && (
+                          <ul className="rcc-process-list">
+                            {RCC_PROCESSES.map((process) => {
+                              const markerId = process.markerId ?? process.id
+                              const isActive = selectedSowId === markerId
+                              return (
+                                <li key={process.id} className={isActive ? 'active' : ''}>
+                                  <button type="button" onClick={() => handleRccProcessSelect(process.id, markerId)}>
+                                    <div className="rcc-process-meta">
+                                      <strong>{process.label}</strong>
+                                      <span>{Math.round(process.percent)}%</span>
+                                    </div>
+                                    <div className="rcc-process-status">
+                                      {process.badge ? <span className="rcc-chip">{process.badge}</span> : null}
+                                      <span className={`rcc-status is-${statusModifier(process.status)}`}>{process.status}</span>
+                                    </div>
+                                  </button>
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        )}
+                      </section>
+                      <section className="rcc-panel-section">
+                        <button type="button" className="rcc-panel-heading" onClick={() => setRccFacilitiesOpen((prev) => !prev)}>
+                          <div>
+                            <strong>RCC Facilities</strong>
+                            <span className="rcc-chip">{RCC_FACILITIES.length}</span>
+                          </div>
+                          <span className={`rcc-caret ${rccFacilitiesOpen ? 'open' : ''}`} aria-hidden />
+                        </button>
+                        {rccFacilitiesOpen && (
+                          <div className="rcc-facility-list">
+                            {RCC_FACILITIES.map((facility) => {
+                              const expanded = facilityExpanded[facility.id]
+                              return (
+                                <article key={facility.id} className="rcc-facility-card">
+                                  <button type="button" className="rcc-facility-header" onClick={() => toggleFacilityCard(facility.id)}>
+                                    <div>
+                                      <strong>{facility.label}</strong>
+                                      <span className={`rcc-status is-${statusModifier(facility.status)}`}>{facility.status}</span>
+                                    </div>
+                                    <span className={`rcc-caret ${expanded ? 'open' : ''}`} aria-hidden />
+                                  </button>
+                                  {expanded && (
+                                    <ul>
+                                      {facility.steps.map((step) => (
+                                        <li key={step.id}>
+                                          <span>{step.label}</span>
+                                          <span className={`rcc-status is-${statusModifier(step.status)}`}>{step.status}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </article>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </section>
                     </div>
-                  )
-                })
-              )}
-            </div>
-          </aside>
-
-          <section className="sow-center-column">
-            <div className="sow-map-shell" style={{ height: mapHeight }}>
-              <div className="map-wrapper">
-                <div className="map-gradient" aria-hidden="true" />
-                <div className="map-toolbar">
-                  <div className="map-view-toggle">
-                    {(Object.keys(SOW_MAP_STYLES) as SowMapView[]).map((viewKey) => (
-                      <button key={viewKey} className={mapView === viewKey ? 'active' : ''} onClick={() => setMapView(viewKey)}>
-                        {SOW_MAP_STYLES[viewKey].label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="map-toolbar-toggles">
-                    <button
-                      type="button"
-                      className={`btn-ghost ${mapToggles.geofences ? 'active' : ''}`}
-                      onClick={() => setMapToggles((prev) => ({ ...prev, geofences: !prev.geofences }))}
-                    >
-                      Geofence
-                    </button>
-                    <button
-                      type="button"
-                      className={`btn-ghost ${mapToggles.heat ? 'active' : ''}`}
-                      onClick={() => setMapToggles((prev) => ({ ...prev, heat: !prev.heat }))}
-                    >
-                      Heat
-                    </button>
-                  </div>
-                </div>
-
-                {isRccProcessView && (
-                  <div className="rcc-panel-launcher">
-                    <button
-                      type="button"
-                      title="Open RCC process & 2D visualization"
-                      onClick={() => {
-                        setProcessPanelTab('process')
-                        setProcessPanelOpen(true)
-                      }}
-                    >
-                      <svg viewBox="0 0 24 24" strokeWidth="1.6" stroke="currentColor" fill="none">
-                        <rect x="3" y="3" width="18" height="18" rx="4" />
-                        <path d="M8 3v18" />
-                        <path d="M3 9h18" />
-                      </svg>
-                      <span>RCC Process</span>
-                    </button>
-                  </div>
-                )}
-
-                <div className={`map-stats ${isRccProcessView ? 'map-stats--side' : ''} ${mapStatsCollapsed ? 'map-stats--collapsed' : ''}`}>
-                  <button type="button" className="map-stats__collapse" onClick={() => setMapStatsCollapsed((prev) => !prev)}>
-                    {mapStatsCollapsed ? 'Show KPIs' : 'Hide KPIs'}
-                  </button>
-                  {!mapStatsCollapsed && (
-                    <>
-                      <div className="map-stats-card">
-                        <span className="label">Active Scope</span>
-                        <strong>{highlightedMarker?.name ?? 'Select a SOW'}</strong>
-                        <div className="map-stat-line subtle">
-                          {highlightedMarker ? `${Math.round(highlightedMarker.percent_complete)}% complete` : 'Awaiting selection'}
+                  ) : (
+                    SOW_HIERARCHY.map((node) => {
+                      const percent = sowMarkers.find((marker) => marker.id === node.id)?.percent_complete ?? null
+                      const isActive = node.id === selectedSowId
+                      const hasChildren = Boolean(node.children?.length)
+                      const expanded = !!expandedSows[node.id]
+                      return (
+                        <div key={node.id} className={`sow-node ${isActive ? 'active' : ''}`}>
+                          <button type="button" className="sow-node__header" onClick={() => handleSelectSow(node.id)}>
+                            <div className="sow-node__header-content">
+                              <div className="sow-node__name">
+                                <svg width="14" height="14" viewBox="0 0 10 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M0 5.21484C0 3.4375 0.9375 1.79688 2.5 0.898438C4.04297 0 5.9375 0 7.5 0.898438C9.04297 1.79688 10 3.4375 10 5.21484C10 7.01172 9.04297 8.65234 7.5 9.55078C5.9375 10.4492 4.04297 10.4492 2.5 9.55078C0.9375 8.65234 0 7.01172 0 5.21484ZM6.25 7.08984C6.25 6.58203 5.91797 6.13281 5.46875 5.9375V1.93359C5.46875 1.67969 5.25391 1.46484 5 1.46484C4.72656 1.46484 4.53125 1.67969 4.53125 1.93359V5.9375C4.0625 6.13281 3.75 6.58203 3.75 7.08984C3.75 7.79297 4.29688 8.33984 5 8.33984C5.68359 8.33984 6.25 7.79297 6.25 7.08984ZM2.8125 3.65234C3.14453 3.65234 3.4375 3.37891 3.4375 3.02734C3.4375 2.69531 3.14453 2.40234 2.8125 2.40234C2.46094 2.40234 2.1875 2.69531 2.1875 3.02734C2.1875 3.37891 2.46094 3.65234 2.8125 3.65234ZM2.5 5.21484C2.5 4.88281 2.20703 4.58984 1.875 4.58984C1.52344 4.58984 1.25 4.88281 1.25 5.21484C1.25 5.56641 1.52344 5.83984 1.875 5.83984C2.20703 5.83984 2.5 5.56641 2.5 5.21484ZM8.125 5.83984C8.45703 5.83984 8.75 5.56641 8.75 5.21484C8.75 4.88281 8.45703 4.58984 8.125 4.58984C7.77344 4.58984 7.5 4.88281 7.5 5.21484C7.5 5.56641 7.77344 5.83984 8.125 5.83984ZM7.8125 3.02734C7.8125 2.69531 7.51953 2.40234 7.1875 2.40234C6.83594 2.40234 6.5625 2.69531 6.5625 3.02734C6.5625 3.37891 6.83594 3.65234 7.1875 3.65234C7.51953 3.65234 7.8125 3.37891 7.8125 3.02734Z" fill="#2563eb" />
+                                </svg>
+                                <strong>{node.label}</strong>
+                              </div>
+                              {percent !== null ? <span className="sow-node__percent">{Math.round(percent)}%</span> : null}
+                            </div>
+                            {hasChildren ? (
+                              <span
+                                className="sow-node__toggle"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  handleToggleSow(node.id)
+                                }}
+                              >
+                                {expanded ? '−' : '+'}
+                              </span>
+                            ) : null}
+                          </button>
+                          {hasChildren && expanded && (
+                            <ul className="sow-node__children">
+                              {node.children?.map((child) => (
+                                <li key={child.id}>
+                                  <svg width="12" height="12" viewBox="0 0 10 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M0 5.21484C0 3.4375 0.9375 1.79688 2.5 0.898438C4.04297 0 5.9375 0 7.5 0.898438C9.04297 1.79688 10 3.4375 10 5.21484C10 7.01172 9.04297 8.65234 7.5 9.55078C5.9375 10.4492 4.04297 10.4492 2.5 9.55078C0.9375 8.65234 0 7.01172 0 5.21484ZM6.25 7.08984C6.25 6.58203 5.91797 6.13281 5.46875 5.9375V1.93359C5.46875 1.67969 5.25391 1.46484 5 1.46484C4.72656 1.46484 4.53125 1.67969 4.53125 1.93359V5.9375C4.0625 6.13281 3.75 6.58203 3.75 7.08984C3.75 7.79297 4.29688 8.33984 5 8.33984C5.68359 8.33984 6.25 7.79297 6.25 7.08984ZM2.8125 3.65234C3.14453 3.65234 3.4375 3.37891 3.4375 3.02734C3.4375 2.69531 3.14453 2.40234 2.8125 2.40234C2.46094 2.40234 2.1875 2.69531 2.1875 3.02734C2.1875 3.37891 2.46094 3.65234 2.8125 3.65234ZM2.5 5.21484C2.5 4.88281 2.20703 4.58984 1.875 4.58984C1.52344 4.58984 1.25 4.88281 1.25 5.21484C1.25 5.56641 1.52344 5.83984 1.875 5.83984C2.20703 5.83984 2.5 5.56641 2.5 5.21484ZM8.125 5.83984C8.45703 5.83984 8.75 5.56641 8.75 5.21484C8.75 4.88281 8.45703 4.58984 8.125 4.58984C7.77344 4.58984 7.5 4.88281 7.5 5.21484C7.5 5.56641 7.77344 5.83984 8.125 5.83984ZM7.8125 3.02734C7.8125 2.69531 7.51953 2.40234 7.1875 2.40234C6.83594 2.40234 6.5625 2.69531 6.5625 3.02734C6.5625 3.37891 6.83594 3.65234 7.1875 3.65234C7.51953 3.65234 7.8125 3.37891 7.8125 3.02734Z" fill="#2563eb" />
+                                  </svg>
+                                  <span>{child.label}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
-                      </div>
-                      <div className="map-stats-card">
-                        <span className="label">Actual Progress</span>
-                        <strong>{formatPercent(mapStats.actual)}</strong>
-                        <div className="map-stat-line subtle">Planned {formatPercent(mapStats.planned)}</div>
-                      </div>
-                      <div className="map-stats-card">
-                        <span className="label">Quality</span>
-                        <strong>{formatPercent(mapStats.quality)}</strong>
-                        <div className="map-stat-line subtle">SPI {mapStats.spi ? mapStats.spi.toFixed(2) : '--'}</div>
-                      </div>
-                    </>
+                      )
+                    })
                   )}
                 </div>
+              </aside>
 
-                {error ? (
-                  <div className="contract-loading">{error}</div>
-                ) : loading ? (
-                  <div className="contract-loading">Preparing SOW map…</div>
-                ) : (
-                  <MapContainer center={centerLatLng} zoom={15} className="contract-leaflet sow-map-canvas" scrollWheelZoom zoomControl={false}>
-                    <TileLayer attribution={mapStyle.attribution} url={mapStyle.url} />
-                    <ZoomControl position="topright" />
-                    <ScaleControl position="bottomleft" />
-                    {sowBounds ? (
-                      <FitSowBounds bounds={sowBounds} focus={highlightedMarker ? ([highlightedMarker.lat, highlightedMarker.lon] as [number, number]) : undefined} />
-                    ) : null}
-                    <SowMapResizeWatcher trigger={`${mapHeight}-${mapView}-${sowMarkers.length}-${mapToggles.heat}-${mapToggles.geofences}`} />
-                    {mapToggles.geofences && (
-                      <Circle
-                        center={centerLatLng}
-                        radius={520}
-                        pathOptions={{
-                          color: 'rgba(255,255,255,0.55)',
-                          dashArray: '10 6',
-                          weight: 2,
-                          opacity: 0.8,
-                          fillOpacity: 0,
-                        }}
-                      />
-                    )}
-                    {mapToggles.heat &&
-                      sowMarkers.map((marker) => (
-                        <Circle
-                          key={`${marker.id}-heat`}
-                          center={[marker.lat, marker.lon]}
-                          radius={450 - Math.max(30, marker.percent_complete * 2)}
-                          pathOptions={{
-                            color: hexToRgba(STATUS_ACCENTS[marker.status], 0.45),
-                            fillColor: hexToRgba(STATUS_ACCENTS[marker.status], 0.15),
-                            fillOpacity: 0.35,
-                            weight: 1,
-                          }}
-                        />
-                      ))}
-                    {sowMarkers.map((marker) => (
-                      <Marker
-                        key={marker.id}
-                        position={[marker.lat, marker.lon]}
-                        icon={createSowPin(marker, marker.id === selectedSowId)}
-                        eventHandlers={{ click: () => handleMarkerClick(marker) }}
-                      >
-                        <Tooltip direction="top" offset={[0, -20]} opacity={0.9}>
-                          <div style={{ display: 'grid', gap: 4 }}>
-                            <strong>{marker.name}</strong>
-                            <span>{marker.percent_complete.toFixed(1)}% complete</span>
-                          </div>
-                        </Tooltip>
-                      </Marker>
-                    ))}
-                  </MapContainer>
-                )}
-              </div>
-            </div>
-            <div
-              className={`ccc-resize-bar ${isResizingMap ? 'dragging' : ''}`}
-              role="separator"
-              aria-orientation="horizontal"
-              aria-label="Resize map height"
-              onMouseDown={handleMapResizeStart}
-            >
-              <span />
-            </div>
-            <div className="sow-wip-card">
-              <HierarchyWipBoard projectLabel="MW-01 – Main Dam" projectPercent={projectPercent} stages={stageSummary} contractItems={sowDialItems} />
-            </div>
-          </section>
-
-          <aside className="sow-right-panel">
-            {kpis ? (
-              <>
-                <section className="sow-card sow-card--progress">
-                  <header className="sow-card__header">
-                    <div>
-                      <span className="sow-card__eyebrow">Physical works completed</span>
-                      <h3>Progress vs Plan</h3>
-                    </div>
-                    <span className="sow-chip sow-chip--glow">{formatPercent(contractKpis?.physical.actual_percent)}</span>
-                  </header>
-                  <div className="sow-progress-content">
-                    <div className="sow-progress-radial" style={progressRadialStyle}>
-                      <div className="sow-progress-radial__inner">
-                        <strong>{formatPercent(progressActual)}</strong>
-                        <small>Actual</small>
-                      </div>
-                    </div>
-                    <ul className="sow-progress-meta">
-                      <li>
-                        <span>Planned</span>
-                        <strong>{formatPercent(progressPlanned)}</strong>
-                      </li>
-                      <li>
-                        <span>Variance</span>
-                        <strong className={progressVariance !== null && progressVariance >= 0 ? 'positive' : 'negative'}>
-                          {progressVariance !== null ? `${progressVariance >= 0 ? '+' : ''}${progressVariance.toFixed(1)}%` : '--'}
-                        </strong>
-                      </li>
-                      <li>
-                        <span>SPI</span>
-                        <strong>{mapStats.spi ? mapStats.spi.toFixed(2) : '--'}</strong>
-                      </li>
-                    </ul>
-                  </div>
-                  <div className="sow-stat-grid">
-                    <div>
-                      <span>Actual</span>
-                      <strong>{formatPercent(progressActual)}</strong>
-                    </div>
-                    <div>
-                      <span>Planned</span>
-                      <strong>{formatPercent(progressPlanned)}</strong>
-                    </div>
-                  </div>
-                </section>
-                <section className="sow-card sow-card--productivity">
-                  <header className="sow-card__header">
-                    <div>
-                      <span className="sow-card__eyebrow">Work output drilldown</span>
-                      <h3>Project Productivity</h3>
-                      {selectedSowLabel ? <span>{selectedSowLabel}</span> : null}
-                    </div>
-                    <span className="sow-chip">As of {new Date(kpis.as_of).toLocaleDateString()}</span>
-                  </header>
-                  {productivityItems.length ? (
-                    <>
-                      <div className="sow-physical-summary">
-                        <div>
-                          <span className="sow-physical-summary__label">Physical Works Completed</span>
-                          <div className="sow-physical-summary__grid">
-                            <div>
-                              <span>Actual</span>
-                              <strong>{formatPercent(physicalActual)}</strong>
-                            </div>
-                            <div>
-                              <span>Planned</span>
-                              <strong>{formatPercent(physicalPlanned)}</strong>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="sow-productivity-grid">
-                        {productivityItems.map((item) => (
-                          <div key={item.key} className="sow-productivity-item">
-                            <div className="sow-productivity-item__header">
-                              <span>{item.label}</span>
-                              <strong>{formatPercent(item.actual)}</strong>
-                            </div>
-                            <div className="sow-productivity-bar" aria-hidden="true">
-                              <div
-                                className="sow-productivity-bar__planned"
-                                style={{ width: `${Math.min(100, Math.max(0, item.planned ?? 0))}%` }}
-                              />
-                              <div
-                                className="sow-productivity-bar__actual"
-                                style={{ width: `${Math.min(100, Math.max(0, item.actual ?? 0))}%` }}
-                              />
-                            </div>
-                            <div className="sow-productivity-meta">
-                              <span>Planned {formatPercent(item.planned)}</span>
-                              {typeof item.variance === 'number' ? (
-                                <span className={item.variance >= 0 ? 'positive' : 'negative'}>
-                                  {item.variance >= 0 ? '+' : ''}
-                                  {item.variance.toFixed(1)}%
-                                </span>
-                              ) : (
-                                <span>Δ --</span>
-                              )}
-                            </div>
-                          </div>
+              <section className="sow-center-column">
+                <div className="sow-map-shell" style={{ height: mapHeight }}>
+                  <div className="map-wrapper">
+                    <div className="map-gradient" aria-hidden="true" />
+                    <div className="map-toolbar">
+                      <div className="map-view-toggle">
+                        {(Object.keys(SOW_MAP_STYLES) as SowMapView[]).map((viewKey) => (
+                          <button key={viewKey} className={mapView === viewKey ? 'active' : ''} onClick={() => setMapView(viewKey)}>
+                            {SOW_MAP_STYLES[viewKey].label}
+                          </button>
                         ))}
                       </div>
-                      <div className="sow-accordion-group">
-                        <div className={`sow-accordion ${productivityAccordions.design ? 'open' : ''}`}>
-                          <button type="button" className="sow-accordion__header" onClick={() => toggleProductivitySection('design')}>
-                            <div>
-                              <strong>Design Work Output</strong>
-                              <span className={`sow-status-badge sow-status-badge--${statusModifier('In Progress')}`}>In Progress</span>
+                      <div className="map-toolbar-toggles">
+                        <button
+                          type="button"
+                          className={`btn-ghost ${mapToggles.geofences ? 'active' : ''}`}
+                          onClick={() => setMapToggles((prev) => ({ ...prev, geofences: !prev.geofences }))}
+                        >
+                          Geofence
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn-ghost ${mapToggles.heat ? 'active' : ''}`}
+                          onClick={() => setMapToggles((prev) => ({ ...prev, heat: !prev.heat }))}
+                        >
+                          Heat
+                        </button>
+                      </div>
+                    </div>
+
+                    {isRccProcessView && (
+                      <div className="rcc-panel-launcher">
+                        <button
+                          type="button"
+                          title="Open RCC process & 2D visualization"
+                          onClick={() => {
+                            setProcessPanelTab('process')
+                            setProcessPanelOpen(true)
+                          }}
+                        >
+                          <svg viewBox="0 0 24 24" strokeWidth="1.6" stroke="currentColor" fill="none">
+                            <rect x="3" y="3" width="18" height="18" rx="4" />
+                            <path d="M8 3v18" />
+                            <path d="M3 9h18" />
+                          </svg>
+                          <span>RCC Process</span>
+                        </button>
+                      </div>
+                    )}
+
+                    <div className={`map-stats ${isRccProcessView ? 'map-stats--side' : ''} ${mapStatsCollapsed ? 'map-stats--collapsed' : ''}`}>
+                      {/* <button type="button" className="map-stats__collapse" onClick={() => setMapStatsCollapsed((prev) => !prev)}>
+                        {mapStatsCollapsed ? 'Show KPIs' : 'Hide KPIs'}
+                      </button> */}
+                      {/* {!mapStatsCollapsed && (
+                        <>
+                          <div className="map-stats-card">
+                            <span className="label">Active Scope</span>
+                            <strong>{highlightedMarker?.name ?? 'Select a SOW'}</strong>
+                            <div className="map-stat-line subtle">
+                              {highlightedMarker ? `${Math.round(highlightedMarker.percent_complete)}% complete` : 'Awaiting selection'}
                             </div>
-                            <span className="sow-accordion__chevron" aria-hidden />
-                          </button>
-                          {productivityAccordions.design && (
-                            <div className="sow-accordion__content">
-                              <ul className="sow-task-list">
-                                {designOutputItems.map((task) => (
-                                  <li key={task.label}>
-                                    <div className="sow-task-header">
-                                      <span>{task.label}</span>
-                                      <span className={`sow-status-badge sow-status-badge--${statusModifier(task.status)}`}>{task.status}</span>
-                                    </div>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                        <div className={`sow-accordion ${productivityAccordions.preparatory ? 'open' : ''}`}>
-                          <button type="button" className="sow-accordion__header" onClick={() => toggleProductivitySection('preparatory')}>
-                            <div>
-                              <strong>Preparatory Work Output</strong>
-                              <span className={`sow-status-badge sow-status-badge--${statusModifier('In Progress')}`}>In Progress</span>
-                            </div>
-                            <span className="sow-accordion__chevron" aria-hidden />
-                          </button>
-                          {productivityAccordions.preparatory && (
-                            <div className="sow-accordion__content">
-                              <div className="sow-milestone-card">
-                                <p>
-                                  MW-1 RCC Facilities <span className={`sow-status-badge sow-status-badge--${statusModifier('In Progress')}`}>In Progress</span>
-                                </p>
-                                <ul className="sow-milestone-list">
-                                  {preparatoryMilestones.map((milestone) => (
-                                    <li key={milestone.label} className={`sow-milestone sow-milestone--${statusModifier(milestone.status)}`}>
-                                      <span>{milestone.label}</span>
-                                      <strong>{milestone.status}</strong>
-                                    </li>
-                                  ))}
-                                </ul>
+                          </div>
+                        </>
+                      )} */}
+                    </div>
+
+                    {error ? (
+                      <div className="contract-loading">{error}</div>
+                    ) : loading ? (
+                      <div className="contract-loading">Preparing SOW map…</div>
+                    ) : (
+                      <MapContainer center={centerLatLng} zoom={15} className="contract-leaflet sow-map-canvas" scrollWheelZoom zoomControl={false}>
+                        <TileLayer attribution={mapStyle.attribution} url={mapStyle.url} />
+                        <ZoomControl position="topright" />
+                        <ScaleControl position="bottomleft" />
+                        {sowBounds ? (
+                          <FitSowBounds bounds={sowBounds} focus={highlightedMarker ? ([highlightedMarker.lat, highlightedMarker.lon] as [number, number]) : undefined} />
+                        ) : null}
+                        <SowMapResizeWatcher trigger={`${mapHeight}-${mapView}-${sowMarkers.length}-${mapToggles.heat}-${mapToggles.geofences}`} />
+                        {mapToggles.geofences && (
+                          <Circle
+                            center={centerLatLng}
+                            radius={520}
+                            pathOptions={{
+                              color: 'rgba(255,255,255,0.55)',
+                              dashArray: '10 6',
+                              weight: 2,
+                              opacity: 0.8,
+                              fillOpacity: 0,
+                            }}
+                          />
+                        )}
+                        {mapToggles.heat &&
+                          sowMarkers.map((marker) => (
+                            <Circle
+                              key={`${marker.id}-heat`}
+                              center={[marker.lat, marker.lon]}
+                              radius={450 - Math.max(30, marker.percent_complete * 2)}
+                              pathOptions={{
+                                color: hexToRgba(STATUS_ACCENTS[marker.status], 0.45),
+                                fillColor: hexToRgba(STATUS_ACCENTS[marker.status], 0.15),
+                                fillOpacity: 0.35,
+                                weight: 1,
+                              }}
+                            />
+                          ))}
+                        {sowMarkers.map((marker) => (
+                          <Marker
+                            key={marker.id}
+                            position={[marker.lat, marker.lon]}
+                            icon={createSowPin(marker, marker.id === selectedSowId)}
+                            eventHandlers={{ click: () => handleMarkerClick(marker) }}
+                          >
+                            <Tooltip direction="top" offset={[0, -20]} opacity={0.9}>
+                              <div style={{ display: 'grid', gap: 4 }}>
+                                <strong>{marker.name}</strong>
+                                <span>{marker.percent_complete.toFixed(1)}% complete</span>
                               </div>
-                            </div>
-                          )}
+                            </Tooltip>
+                          </Marker>
+                        ))}
+                      </MapContainer>
+                    )}
+                  </div>
+                </div>
+                <div
+                  className={`ccc-resize-bar ${isResizingMap ? 'dragging' : ''}`}
+                  role="separator"
+                  aria-orientation="horizontal"
+                  aria-label="Resize map height"
+                  onMouseDown={handleMapResizeStart}
+                >
+                  <span />
+                </div>
+                <div className="sow-wip-card">
+                  <HierarchyWipBoard projectLabel="MW-01 – Main Dam" projectPercent={projectPercent} stages={stageSummary} contractItems={sowDialItems} />
+                </div>
+              </section>
+
+              <aside className="sow-right-panel">
+                {kpis ? (
+                  <>
+                    <section className="sow-card sow-card--progress">
+                      <header className="sow-card__header">
+                        <div>
+                          <span className="sow-card__eyebrow">Physical works completed</span>
+                          <h3>Progress vs Plan</h3>
                         </div>
-                        <div className={`sow-accordion ${productivityAccordions.construction ? 'open' : ''}`}>
-                          <button type="button" className="sow-accordion__header" onClick={() => toggleProductivitySection('construction')}>
-                            <div>
-                              <strong>Construction Work Output</strong>
-                              <span className={`sow-status-badge sow-status-badge--${statusModifier('Active')}`}>Detailed view</span>
-                            </div>
-                            <span className="sow-accordion__chevron" aria-hidden />
-                          </button>
-                          {productivityAccordions.construction && (
-                            <div className="sow-accordion__content sow-construction-grid">
-                              {constructionOutputs.map((entry) =>
-                                entry.type === 'vertical' ? (
-                                  <div key={entry.id} className="sow-construction-card vertical">
-                                    <div className="sow-construction-header">
-                                      <span>{entry.label}</span>
-                                      <span className={`sow-status-badge sow-status-badge--${statusModifier(entry.status)}`}>{entry.status}</span>
-                                    </div>
-                                    <div className="sow-progress-vertical">
-                                      <div className="sow-progress-vertical__track">
-                                        <div className="sow-progress-vertical__planned" style={{ height: `${Math.min(100, Math.max(0, entry.plannedPercent))}%` }} />
-                                        <div className="sow-progress-vertical__actual" style={{ height: `${Math.min(100, Math.max(0, entry.actualPercent))}%` }} />
-                                      </div>
-                                      <ul className="sow-progress-vertical__stats">
-                                        <li>
-                                          <span>Actual</span>
-                                          <strong>{formatNumber(entry.totals.actual)}</strong>
-                                        </li>
-                                        <li>
-                                          <span>Planned</span>
-                                          <strong>{formatNumber(entry.totals.planned)}</strong>
-                                        </li>
-                                        <li>
-                                          <span>Total</span>
-                                          <strong>{formatNumber(entry.totals.total)}</strong>
-                                        </li>
-                                      </ul>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div key={entry.id} className="sow-construction-card horizontal">
-                                    <div className="sow-construction-header">
-                                      <span>{entry.label}</span>
-                                      <span className={`sow-status-badge sow-status-badge--${statusModifier(entry.status)}`}>{entry.status}</span>
-                                    </div>
-                                    <div className="sow-construction-progress">
-                                      <div className="sow-construction-progress__bar">
-                                        <div className="planned" style={{ width: `${Math.min(100, Math.max(0, entry.plannedPercent))}%` }} />
-                                        <div className="actual" style={{ width: `${Math.min(100, Math.max(0, entry.actualPercent))}%` }} />
-                                      </div>
-                                      <div className="sow-construction-progress__stats">
-                                        <span>Actual {formatNumber(entry.totals.actual)}</span>
-                                        <span>Planned {formatNumber(entry.totals.planned)}</span>
-                                        <span>Total {formatNumber(entry.totals.total)}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ),
-                              )}
-                            </div>
-                          )}
+                        <span className="sow-chip sow-chip--glow">{formatPercent(contractKpis?.physical.actual_percent)}</span>
+                      </header>
+                      <div className="sow-progress-content">
+                        <div className="sow-progress-radial" style={progressRadialStyle}>
+                          <div className="sow-progress-radial__inner">
+                            <strong>{formatPercent(progressActual)}</strong>
+                            <small>Actual</small>
+                          </div>
+                        </div>
+                        <ul className="sow-progress-meta">
+                          <li>
+                            <span>Planned</span>
+                            <strong>{formatPercent(progressPlanned)}</strong>
+                          </li>
+                          <li>
+                            <span>Variance</span>
+                            <strong className={progressVariance !== null && progressVariance >= 0 ? 'positive' : 'negative'}>
+                              {progressVariance !== null ? `${progressVariance >= 0 ? '+' : ''}${progressVariance.toFixed(1)}%` : '--'}
+                            </strong>
+                          </li>
+                          <li>
+                            <span>SPI</span>
+                            <strong>{mapStats.spi ? mapStats.spi.toFixed(2) : '--'}</strong>
+                          </li>
+                        </ul>
+                      </div>
+                      <div className="sow-stat-grid">
+                        <div>
+                          <span>Actual</span>
+                          <strong>{formatPercent(progressActual)}</strong>
+                        </div>
+                        <div>
+                          <span>Planned</span>
+                          <strong>{formatPercent(progressPlanned)}</strong>
                         </div>
                       </div>
-                    </>
-                  ) : (
-                    <div className="sow-card-empty">No productivity tracking available for this scope.</div>
-                  )}
-                </section>
-                <section className="sow-card sow-card--quality">
-                  <header className="sow-card__header">
-                    <div>
-                      <span className="sow-card__eyebrow">Quality controls</span>
-                      <h3>Project Quality Performance</h3>
-                    </div>
-                    <span className="sow-chip sow-chip--muted">{formatPercent(qualitySummary?.quality_conformance)}</span>
-                  </header>
-                  <div className="sow-accordion-group">
-                    {(['ncr', 'qaor'] as const).map((key) => (
-                      <div key={key} className={`sow-accordion sow-accordion--quality ${qualityAccordions[key] ? 'open' : ''}`}>
-                        <button type="button" className="sow-accordion__header" onClick={() => toggleQualitySection(key)}>
+                    </section>
+                    <section className="sow-card sow-card--productivity">
+                      <header className="sow-card__header">
+                        <div>
+                          <span className="sow-card__eyebrow">Work output drilldown</span>
+                          <h3>Project Productivity</h3>
+                          {selectedSowLabel ? <span>{selectedSowLabel}</span> : null}
+                        </div>
+                        <span className="sow-chip">As of {new Date(kpis.as_of).toLocaleDateString()}</span>
+                      </header>
+                      {productivityItems.length ? (
+                        <>
+                          <div className="sow-physical-summary">
+                            <div>
+                              <span className="sow-physical-summary__label">Physical Works Completed</span>
+                              <div className="sow-physical-summary__grid">
+                                <div>
+                                  <span>Actual</span>
+                                  <strong>{formatPercent(physicalActual)}</strong>
+                                </div>
+                                <div>
+                                  <span>Planned</span>
+                                  <strong>{formatPercent(physicalPlanned)}</strong>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="sow-productivity-grid">
+                            {productivityItems.map((item) => (
+                              <div key={item.key} className="sow-productivity-item">
+                                <div className="sow-productivity-item__header">
+                                  <span>{item.label}</span>
+                                  <strong>{formatPercent(item.actual)}</strong>
+                                </div>
+                                <div className="sow-productivity-bar" aria-hidden="true">
+                                  <div
+                                    className="sow-productivity-bar__planned"
+                                    style={{ width: `${Math.min(100, Math.max(0, item.planned ?? 0))}%` }}
+                                  />
+                                  <div
+                                    className="sow-productivity-bar__actual"
+                                    style={{ width: `${Math.min(100, Math.max(0, item.actual ?? 0))}%` }}
+                                  />
+                                </div>
+                                <div className="sow-productivity-meta">
+                                  <span>Planned {formatPercent(item.planned)}</span>
+                                  {typeof item.variance === 'number' ? (
+                                    <span className={item.variance >= 0 ? 'positive' : 'negative'}>
+                                      {item.variance >= 0 ? '+' : ''}
+                                      {item.variance.toFixed(1)}%
+                                    </span>
+                                  ) : (
+                                    <span>Δ --</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="sow-accordion-group">
+                            <div className={`sow-accordion ${productivityAccordions.design ? 'open' : ''}`}>
+                              <button type="button" className="sow-accordion__header" onClick={() => toggleProductivitySection('design')}>
+                                <div>
+                                  <strong>Design Work Output</strong>
+                                  <span className={`sow-status-badge sow-status-badge--${statusModifier('In Progress')}`}>In Progress</span>
+                                </div>
+                                <span className="sow-accordion__chevron" aria-hidden />
+                              </button>
+                              {productivityAccordions.design && (
+                                <div className="sow-accordion__content">
+                                  <ul className="sow-task-list">
+                                    {designOutputItems.map((task) => (
+                                      <li key={task.label}>
+                                        <div className="sow-task-header">
+                                          <span>{task.label}</span>
+                                          <span className={`sow-status-badge sow-status-badge--${statusModifier(task.status)}`}>{task.status}</span>
+                                        </div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                            <div className={`sow-accordion ${productivityAccordions.preparatory ? 'open' : ''}`}>
+                              <button type="button" className="sow-accordion__header" onClick={() => toggleProductivitySection('preparatory')}>
+                                <div>
+                                  <strong>Preparatory Work Output</strong>
+                                  <span className={`sow-status-badge sow-status-badge--${statusModifier('In Progress')}`}>In Progress</span>
+                                </div>
+                                <span className="sow-accordion__chevron" aria-hidden />
+                              </button>
+                              {productivityAccordions.preparatory && (
+                                <div className="sow-accordion__content">
+                                  <div className="sow-milestone-card">
+                                    <p>
+                                      MW-1 RCC Facilities <span className={`sow-status-badge sow-status-badge--${statusModifier('In Progress')}`}>In Progress</span>
+                                    </p>
+                                    <ul className="sow-milestone-list">
+                                      {preparatoryMilestones.map((milestone) => (
+                                        <li key={milestone.label} className={`sow-milestone sow-milestone--${statusModifier(milestone.status)}`}>
+                                          <span>{milestone.label}</span>
+                                          <strong>{milestone.status}</strong>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div className={`sow-accordion ${productivityAccordions.construction ? 'open' : ''}`}>
+                              <button type="button" className="sow-accordion__header" onClick={() => toggleProductivitySection('construction')}>
+                                <div>
+                                  <strong>Construction Work Output</strong>
+                                  <span className={`sow-status-badge sow-status-badge--${statusModifier('Active')}`}>Detailed view</span>
+                                </div>
+                                <span className="sow-accordion__chevron" aria-hidden />
+                              </button>
+                              {productivityAccordions.construction && (
+                                <div className="sow-accordion__content sow-construction-grid">
+                                  {constructionOutputs.map((entry) =>
+                                    entry.type === 'vertical' ? (
+                                      <div key={entry.id} className="sow-construction-card vertical">
+                                        <div className="sow-construction-header">
+                                          <span>{entry.label}</span>
+                                          <span className={`sow-status-badge sow-status-badge--${statusModifier(entry.status)}`}>{entry.status}</span>
+                                        </div>
+                                        <div className="sow-progress-vertical">
+                                          <div className="sow-progress-vertical__track">
+                                            <div className="sow-progress-vertical__planned" style={{ height: `${Math.min(100, Math.max(0, entry.plannedPercent))}%` }} />
+                                            <div className="sow-progress-vertical__actual" style={{ height: `${Math.min(100, Math.max(0, entry.actualPercent))}%` }} />
+                                          </div>
+                                          <ul className="sow-progress-vertical__stats">
+                                            <li>
+                                              <span>Actual</span>
+                                              <strong>{formatNumber(entry.totals.actual)}</strong>
+                                            </li>
+                                            <li>
+                                              <span>Planned</span>
+                                              <strong>{formatNumber(entry.totals.planned)}</strong>
+                                            </li>
+                                            <li>
+                                              <span>Total</span>
+                                              <strong>{formatNumber(entry.totals.total)}</strong>
+                                            </li>
+                                          </ul>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div key={entry.id} className="sow-construction-card horizontal">
+                                        <div className="sow-construction-header">
+                                          <span>{entry.label}</span>
+                                          <span className={`sow-status-badge sow-status-badge--${statusModifier(entry.status)}`}>{entry.status}</span>
+                                        </div>
+                                        <div className="sow-construction-progress">
+                                          <div className="sow-construction-progress__bar">
+                                            <div className="planned" style={{ width: `${Math.min(100, Math.max(0, entry.plannedPercent))}%` }} />
+                                            <div className="actual" style={{ width: `${Math.min(100, Math.max(0, entry.actualPercent))}%` }} />
+                                          </div>
+                                          <div className="sow-construction-progress__stats">
+                                            <span>Actual {formatNumber(entry.totals.actual)}</span>
+                                            <span>Planned {formatNumber(entry.totals.planned)}</span>
+                                            <span>Total {formatNumber(entry.totals.total)}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ),
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="sow-card-empty">No productivity tracking available for this scope.</div>
+                      )}
+                    </section>
+                    <section className="sow-card sow-card--quality">
+                      <header className="sow-card__header">
+                        <div>
+                          <span className="sow-card__eyebrow">Quality controls</span>
+                          <h3>Project Quality Performance</h3>
+                        </div>
+                        <span className="sow-chip sow-chip--muted">{formatPercent(qualitySummary?.quality_conformance)}</span>
+                      </header>
+                      <div className="sow-accordion-group">
+                        {(['ncr', 'qaor'] as const).map((key) => (
+                          <div key={key} className={`sow-accordion sow-accordion--quality ${qualityAccordions[key] ? 'open' : ''}`}>
+                            <button type="button" className="sow-accordion__header" onClick={() => toggleQualitySection(key)}>
+                              <div>
+                                <strong>{key === 'ncr' ? 'NCR' : 'QAOR'}</strong>
+                                <span className="sow-quality-count">{qualityBreakdown[key].open} open</span>
+                              </div>
+                              <span className="sow-accordion__chevron" aria-hidden />
+                            </button>
+                            {qualityAccordions[key] && (
+                              <div className="sow-accordion__content">
+                                <div className="sow-quality-breakdown">
+                                  <div>
+                                    <span>Closed</span>
+                                    <strong>{qualityBreakdown[key].closed}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Open</span>
+                                    <strong>{qualityBreakdown[key].open}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Issued</span>
+                                    <strong>{qualityBreakdown[key].issued}</strong>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        <div className="sow-quality-tile">
+                          <span className="sow-quality-label">Quality Conformance</span>
+                          <strong className="sow-quality-value">{formatPercent(qualitySummary?.quality_conformance)}</strong>
+                          <span className="sow-quality-meta">Spec compliance</span>
+                        </div>
+                      </div>
+                    </section>
+                    <section className="sow-card sow-card--spi">
+                      <header className="sow-card__header">
+                        <div>
+                          <span className="sow-card__eyebrow">Performance snapshot</span>
+                          <h3>Schedule Performance Index</h3>
+                        </div>
+                        <span className="sow-chip sow-chip--glow">{spiValue !== null ? spiValue.toFixed(2) : '--'}</span>
+                      </header>
+                      <div className="sow-spi-content">
+                        <div className="sow-spi-gauge" style={spiGaugeStyle}>
+                          <div className="sow-spi-gauge__inner">
+                            <strong>{spiValue !== null ? spiValue.toFixed(2) : '--'}</strong>
+                            <small>Schedule</small>
+                          </div>
+                        </div>
+                        <ul className="sow-spi-meta">
+                          <li>
+                            <span>Burn Rate</span>
+                            <strong>{formatDays(kpis.performance.burn_rate_days)}</strong>
+                          </li>
+                          <li>
+                            <span>Runway</span>
+                            <strong>{formatDays(kpis.performance.runway_days)}</strong>
+                          </li>
+                          <li>
+                            <span>Cash Flow</span>
+                            <strong>{formatCompact(kpis.performance.cash_flow)}</strong>
+                          </li>
+                        </ul>
+                      </div>
+                      <div className={`sow-accordion sow-accordion--spi ${spiExpanded ? 'open' : ''}`}>
+                        <button type="button" className="sow-accordion__header" onClick={() => setSpiExpanded((prev) => !prev)}>
                           <div>
-                            <strong>{key === 'ncr' ? 'NCR' : 'QAOR'}</strong>
-                            <span className="sow-quality-count">{qualityBreakdown[key].open} open</span>
+                            <strong>Schedule Initiatives</strong>
+                            <span className="sow-quality-meta">Impact by scope</span>
                           </div>
                           <span className="sow-accordion__chevron" aria-hidden />
                         </button>
-                        {qualityAccordions[key] && (
-                          <div className="sow-accordion__content">
-                            <div className="sow-quality-breakdown">
-                              <div>
-                                <span>Closed</span>
-                                <strong>{qualityBreakdown[key].closed}</strong>
-                              </div>
-                              <div>
-                                <span>Open</span>
-                                <strong>{qualityBreakdown[key].open}</strong>
-                              </div>
-                              <div>
-                                <span>Issued</span>
-                                <strong>{qualityBreakdown[key].issued}</strong>
-                              </div>
-                            </div>
-                          </div>
+                        {spiExpanded && (
+                          <ul className="sow-spi-initiatives">
+                            {spiInitiatives.map((initiative) => (
+                              <li key={initiative.label}>
+                                <div className="sow-spi-initiative__header">
+                                  <span>{initiative.label}</span>
+                                  <span className={`sow-status-badge sow-status-badge--${statusModifier(initiative.status)}`}>{initiative.status}</span>
+                                </div>
+                                <div className="sow-spi-initiative__meta">Impact {initiative.impact}</div>
+                                <ul className="sow-spi-initiative__notes">
+                                  {initiative.stats.map((note) => (
+                                    <li key={note}>{note}</li>
+                                  ))}
+                                </ul>
+                              </li>
+                            ))}
+                          </ul>
                         )}
                       </div>
-                    ))}
-                    <div className="sow-quality-tile">
-                      <span className="sow-quality-label">Quality Conformance</span>
-                      <strong className="sow-quality-value">{formatPercent(qualitySummary?.quality_conformance)}</strong>
-                      <span className="sow-quality-meta">Spec compliance</span>
-                    </div>
-                  </div>
-                </section>
-                <section className="sow-card sow-card--spi">
-                  <header className="sow-card__header">
-                    <div>
-                      <span className="sow-card__eyebrow">Performance snapshot</span>
-                      <h3>Schedule Performance Index</h3>
-                    </div>
-                    <span className="sow-chip sow-chip--glow">{spiValue !== null ? spiValue.toFixed(2) : '--'}</span>
-                  </header>
-                  <div className="sow-spi-content">
-                    <div className="sow-spi-gauge" style={spiGaugeStyle}>
-                      <div className="sow-spi-gauge__inner">
-                        <strong>{spiValue !== null ? spiValue.toFixed(2) : '--'}</strong>
-                        <small>Schedule</small>
-                      </div>
-                    </div>
-                    <ul className="sow-spi-meta">
-                      <li>
-                        <span>Burn Rate</span>
-                        <strong>{formatDays(kpis.performance.burn_rate_days)}</strong>
-                      </li>
-                      <li>
-                        <span>Runway</span>
-                        <strong>{formatDays(kpis.performance.runway_days)}</strong>
-                      </li>
-                      <li>
-                        <span>Cash Flow</span>
-                        <strong>{formatCompact(kpis.performance.cash_flow)}</strong>
-                      </li>
-                    </ul>
-                  </div>
-                  <div className={`sow-accordion sow-accordion--spi ${spiExpanded ? 'open' : ''}`}>
-                    <button type="button" className="sow-accordion__header" onClick={() => setSpiExpanded((prev) => !prev)}>
-                      <div>
-                        <strong>Schedule Initiatives</strong>
-                        <span className="sow-quality-meta">Impact by scope</span>
-                      </div>
-                      <span className="sow-accordion__chevron" aria-hidden />
-                    </button>
-                    {spiExpanded && (
-                      <ul className="sow-spi-initiatives">
-                        {spiInitiatives.map((initiative) => (
-                          <li key={initiative.label}>
-                            <div className="sow-spi-initiative__header">
-                              <span>{initiative.label}</span>
-                              <span className={`sow-status-badge sow-status-badge--${statusModifier(initiative.status)}`}>{initiative.status}</span>
-                            </div>
-                            <div className="sow-spi-initiative__meta">Impact {initiative.impact}</div>
-                            <ul className="sow-spi-initiative__notes">
-                              {initiative.stats.map((note) => (
-                                <li key={note}>{note}</li>
-                              ))}
-                            </ul>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </section>
-              </>
-            ) : (
-              <div className="contract-loading">Loading metrics…</div>
-            )}
-          </aside>
-        </div>
-        <div className="contract-utility-floating sow-utility-dock" aria-label="Scope shortcuts">
-          {utilityViews.map((view) => {
-            const active = activeUtilityView === view.id
-            return (
-              <button
-                key={view.id}
-                type="button"
-                className={`utility-dock-btn ${active ? 'active' : ''}`}
-                onClick={() => handleUtilityNavigate(view.id)}
-                aria-pressed={active}
-                title={view.label}
-                aria-label={view.label}
-              >
-                <span aria-hidden>{view.icon}</span>
-              </button>
-            )
-          })}
+                    </section>
+                  </>
+                ) : (
+                  <div className="contract-loading">Loading metrics…</div>
+                )}
+              </aside>
+            </div>
+            <div className="contract-utility-floating sow-utility-dock" aria-label="Scope shortcuts">
+              {utilityViews.map((view) => {
+                const active = activeUtilityView === view.id
+                return (
+                  <button
+                    key={view.id}
+                    type="button"
+                    className={`utility-dock-btn ${active ? 'active' : ''}`}
+                    onClick={() => handleUtilityNavigate(view.id)}
+                    aria-pressed={active}
+                    title={view.label}
+                    aria-label={view.label}
+                  >
+                    <span aria-hidden>{view.icon}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-  {processPanelOpen ? (
-    <div className="rcc-panel-overlay" role="dialog" aria-modal="true">
-      <div className="rcc-panel-shell">
-        <header>
-          <div>
-            <strong>RCC Dam Controls</strong>
-            <span>{processPanelTab === 'process' ? 'Process workflow' : '2D visualization'}</span>
+      {processPanelOpen ? (
+        <div className="rcc-panel-overlay" role="dialog" aria-modal="true">
+          <div className="rcc-panel-shell">
+            <header>
+              <div>
+                <strong>RCC Dam Controls</strong>
+                <span>{processPanelTab === 'process' ? 'Process workflow' : '2D visualization'}</span>
+              </div>
+              <div className="rcc-panel-tabs">
+                <button
+                  type="button"
+                  className={processPanelTab === 'process' ? 'active' : ''}
+                  onClick={() => setProcessPanelTab('process')}
+                >
+                  Process
+                </button>
+                <button
+                  type="button"
+                  className={processPanelTab === 'dam2d' ? 'active' : ''}
+                  onClick={() => setProcessPanelTab('dam2d')}
+                >
+                  2D Visualization
+                </button>
+                <button type="button" className="rule-engine-btn" onClick={() => setRuleAdminOpen(true)}>
+                  Rule Engine
+                </button>
+                <button type="button" className="close" onClick={() => setProcessPanelOpen(false)}>
+                  ×
+                </button>
+              </div>
+            </header>
+            <div className="rcc-panel-body">
+              {processPanelTab === 'process' ? <ProcessControlCenter /> : <RccDam2DFinal />}
+            </div>
           </div>
-          <div className="rcc-panel-tabs">
-            <button
-              type="button"
-              className={processPanelTab === 'process' ? 'active' : ''}
-              onClick={() => setProcessPanelTab('process')}
-            >
-              Process
-            </button>
-            <button
-              type="button"
-              className={processPanelTab === 'dam2d' ? 'active' : ''}
-              onClick={() => setProcessPanelTab('dam2d')}
-            >
-              2D Visualization
-            </button>
-            <button type="button" className="rule-engine-btn" onClick={() => setRuleAdminOpen(true)}>
-              Rule Engine
-            </button>
-            <button type="button" className="close" onClick={() => setProcessPanelOpen(false)}>
-              ×
-            </button>
-          </div>
-        </header>
-        <div className="rcc-panel-body">
-          {processPanelTab === 'process' ? <ProcessControlCenter /> : <RccDam2DFinal />}
         </div>
-      </div>
-    </div>
-  ) : null}
-  {ruleAdminOpen ? (
-    <RccRuleAdminModal rules={rccRules} loading={ruleAdminLoading} error={ruleAdminError} onClose={() => setRuleAdminOpen(false)} onSaveRule={handleRuleSave} />
-  ) : null}
-</>
+      ) : null}
+      {ruleAdminOpen ? (
+        <RccRuleAdminModal rules={rccRules} loading={ruleAdminLoading} error={ruleAdminError} onClose={() => setRuleAdminOpen(false)} onSaveRule={handleRuleSave} />
+      ) : null}
+    </>
   )
 }
 
