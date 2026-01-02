@@ -39,7 +39,7 @@ function StageDial({ label, percent, color, hint }: { label: string; percent: nu
       </div>
       <div className="wip-stage-dial__meta">
         <strong title={label}>{label}</strong>
-        {hint ? <span>{hint}</span> : null}
+        {hint ? <span className="wip-stage-dial__meta-hint">{hint}</span> : null}
       </div>
     </div>
   )
